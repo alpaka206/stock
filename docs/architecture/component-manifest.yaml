@@ -1,0 +1,95 @@
+version: 1
+updated_at: 2026-03-15T00:00:00+09:00
+pages:
+  overview:
+    components:
+      - name: IndexStrip
+        kind: shell
+        role: 코스피/코스닥/환율/S&P500/나스닥/선물 지표 스트립
+      - name: AiMarketSummaryCard
+        kind: card
+        role: 시황 요약, 원인, 단기/중기 방향성
+      - name: MarketHeatmap
+        kind: visualization
+        role: 시장 히트맵
+      - name: NewsPanel
+        kind: feed
+        role: 핵심 뉴스 목록
+      - name: SectorStrengthPanel
+        kind: ranking
+        role: 강한/약한 섹터 표시
+      - name: RiskBanner
+        kind: alert
+        role: 금리/환율/변동성 리스크 요약
+
+  radar:
+    components:
+      - name: WatchlistFolderTree
+        kind: nav
+        role: 폴더/태그/섹터 기준 탐색
+      - name: WatchlistGrid
+        kind: grid
+        role: AG Grid Community 기반 핵심 작업 영역
+      - name: WatchlistToolbar
+        kind: controls
+        role: 검색, 필터, 컬럼 토글, 저장된 뷰
+      - name: SectorSummaryCard
+        kind: card
+        role: 선택 섹터 요약
+      - name: BrokerReportSummaryPanel
+        kind: analysis
+        role: 증권사 리포트 요약
+      - name: SectorSchedulePanel
+        kind: timeline
+        role: 섹터별 주요 일정
+      - name: SectorIssuePanel
+        kind: feed
+        role: 섹터별 이슈, 재료 소멸 여부
+      - name: SectorTopPickPanel
+        kind: ranking
+        role: 섹터별 top pick
+
+  stock_detail:
+    components:
+      - name: StockSearchBar
+        kind: search
+        role: 티커/종목번호/종목명 검색
+      - name: PriceChartPanel
+        kind: chart
+        role: 가격 차트와 거래량
+      - name: IndicatorPanel
+        kind: chart
+        role: 주요 보조지표 표시
+      - name: RulePresetSidebar
+        kind: controls
+        role: 보조지표 감지 기준 1~6 사용자 설정
+      - name: ScoreBreakdownCard
+        kind: score
+        role: 총점과 breakdown
+      - name: FlowPanel
+        kind: analysis
+        role: 기관/외국인/개인/기타법인 수급
+      - name: ShortOptionPanel
+        kind: analysis
+        role: 공매도 및 옵션 비율
+      - name: IssueAnalysisPanel
+        kind: analysis
+        role: 종목/섹터/시황 이슈 요약
+
+  history:
+    components:
+      - name: HistoryFilterBar
+        kind: controls
+        role: 종목, 날짜 범위, 변곡점 옵션
+      - name: ReplayChart
+        kind: chart
+        role: 과거 차트 리플레이
+      - name: EventTimeline
+        kind: timeline
+        role: 뉴스/공시/이벤트 타임라인
+      - name: MoveReasonSummaryCard
+        kind: analysis
+        role: 급등/급락 이유 요약
+      - name: IndicatorOverlapCard
+        kind: analysis
+        role: 변곡점 시점 중복 지표 설명

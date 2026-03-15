@@ -1,0 +1,96 @@
+{
+  "type": "object",
+  "properties": {
+    "asOf": {
+      "type": "string"
+    },
+    "sourceRefs": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "missingData": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "confidence": {
+      "type": "number"
+    },
+    "score": {
+      "type": "object",
+      "properties": {
+        "total": {
+          "type": "number"
+        },
+        "breakdown": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "total",
+        "breakdown"
+      ],
+      "additionalProperties": true
+    },
+    "signals": {
+      "type": "object",
+      "properties": {
+        "positive": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "negative": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "positive",
+        "negative"
+      ],
+      "additionalProperties": true
+    },
+    "flowSummary": {
+      "type": "string"
+    },
+    "optionsShortSummary": {
+      "type": "string"
+    },
+    "issueSummary": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "chartNotes": {
+      "type": "object"
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "asOf",
+    "sourceRefs",
+    "missingData",
+    "confidence",
+    "score",
+    "signals",
+    "flowSummary",
+    "optionsShortSummary",
+    "issueSummary",
+    "chartNotes",
+    "risks"
+  ],
+  "additionalProperties": false
+}

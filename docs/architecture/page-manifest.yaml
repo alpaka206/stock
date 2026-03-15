@@ -1,0 +1,75 @@
+version: 1
+updated_at: 2026-03-15T00:00:00+09:00
+pages:
+  - route: /overview
+    name_ko: 시황 대시보드
+    goal: 오늘 시장을 10초 안에 읽고 다음 탐색 대상으로 넘어가게 하는 시작 화면
+    primary_blocks:
+      - 지수 스트립
+      - AI 시황 요약
+      - 시장 히트맵
+      - 뉴스 패널
+      - 섹터 강도 카드
+      - 리스크 배너
+    required_data:
+      - 주요 지수
+      - 환율
+      - 해외 지수
+      - 주요 뉴스
+      - 섹터 강도 요약
+    navigation_targets:
+      - /radar
+      - /stocks/[symbol]
+      - /history
+
+  - route: /radar
+    name_ko: 관심종목 + 섹터 인텔리전스
+    goal: 관심종목과 섹터 근거를 같은 화면에서 보며 선별하는 작업 화면
+    primary_layout:
+      left: 관심종목 폴더/태그/트리
+      center: AG Grid Community 기반 관심종목 그리드
+      right: 선택 섹터 요약/리포트/일정/Top Pick
+    required_capabilities:
+      - 폴더화 가능
+      - 엑셀처럼 밀도 높은 셀 UX
+      - 컬럼 토글
+      - 정렬
+      - 필터
+      - 그룹 뷰
+      - 섹터별 요약
+      - 섹터별 이슈 및 일정
+      - 증권사 리포트 요약
+      - 섹터별 top pick
+
+  - route: /stocks/[symbol]
+    name_ko: 종목 분석 워크스테이션
+    goal: 한 종목의 기술적 분석, 수급, 옵션/공매도, 이슈, 점수를 한 화면에서 분석
+    primary_blocks:
+      - 종목 검색
+      - 가격 차트
+      - 보조지표 영역
+      - 우측 사용자 설정 규칙 패널
+      - 공매도 및 옵션 비율
+      - 종목/섹터/시황 이슈 분석
+      - 수급 현황
+      - 점수 영역
+    required_capabilities:
+      - 티커/종목번호/종목명 검색
+      - 보조지표 6개 이상 감지 규칙
+      - 수급 요약
+      - 점수 breakdown
+      - 사용자 프리셋 저장
+
+  - route: /history
+    name_ko: 히스토리 / 이벤트 리플레이
+    goal: 과거 급등/급락과 변곡점의 이유를 차트와 뉴스 기준으로 다시 읽는 화면
+    primary_blocks:
+      - 날짜 범위 선택
+      - 과거 차트 리플레이
+      - 이벤트/뉴스 타임라인
+      - 이유 요약 카드
+      - 중복 지표 설명 카드
+    required_capabilities:
+      - 날짜로 설정 후 뉴스와 함께 이유 요약
+      - 변곡점 기준 보조지표 중복 신호 해석
+      - 급등/급락 원인 설명

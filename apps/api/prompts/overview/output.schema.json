@@ -1,0 +1,62 @@
+{
+  "type": "object",
+  "properties": {
+    "asOf": {
+      "type": "string"
+    },
+    "sourceRefs": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "missingData": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "confidence": {
+      "type": "number"
+    },
+    "marketSummary": {
+      "type": "string"
+    },
+    "drivers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "sectorStrength": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "notableNews": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    }
+  },
+  "required": [
+    "asOf",
+    "sourceRefs",
+    "missingData",
+    "confidence",
+    "marketSummary",
+    "drivers",
+    "risks",
+    "sectorStrength",
+    "notableNews"
+  ],
+  "additionalProperties": false
+}

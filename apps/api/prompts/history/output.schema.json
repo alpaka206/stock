@@ -1,0 +1,62 @@
+{
+  "type": "object",
+  "properties": {
+    "asOf": {
+      "type": "string"
+    },
+    "sourceRefs": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "missingData": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "confidence": {
+      "type": "number"
+    },
+    "moveSummary": {
+      "type": "string"
+    },
+    "turningPoints": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "overlappingIndicators": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "eventTimelineSummary": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "analogsOrPatterns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "asOf",
+    "sourceRefs",
+    "missingData",
+    "confidence",
+    "moveSummary",
+    "turningPoints",
+    "overlappingIndicators",
+    "eventTimelineSummary",
+    "analogsOrPatterns"
+  ],
+  "additionalProperties": false
+}
