@@ -1,4 +1,16 @@
 출처 정책:
-- sourceRefs 없는 요약 문장은 허용하지 않는다.
-- sourceRefs 항목에는 id, title, publisher, publishedAt, url 또는 내부 source key를 포함한다.
-- 수치 데이터는 payload 상 deterministic source 에서만 가져온다.
+- `sourceRefs` 없는 비자명한 요약 문장은 허용하지 않는다.
+- 모든 설명형 문장이나 항목에는 가능한 한 `sourceRefIds`를 붙인다.
+- `sourceRefs` 항목은 아래 필드를 모두 포함한다.
+  - `id`
+  - `title`
+  - `kind`
+  - `publisher`
+  - `publishedAt`
+  - `url`
+  - `sourceKey`
+  - `symbol`
+- `sourceRefIds`에는 입력으로 주어진 `sourceRefs[].id`만 사용한다.
+- 입력에 없는 출처를 새로 만들지 않는다.
+- 기사 요약은 해당 기사 `sourceRefIds`를 직접 인용한다.
+- 내부 설정이나 수동 매핑을 사용했다면 `kind=internal_config` 출처를 그대로 인용한다.

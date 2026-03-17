@@ -1,55 +1,126 @@
 {
   "type": "object",
   "properties": {
-    "asOf": {
-      "type": "string"
-    },
+    "asOf": { "type": "string" },
     "sourceRefs": {
       "type": "array",
       "items": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "kind": { "type": "string", "enum": ["market_data", "news", "fundamentals", "economic", "internal_config", "mock"] },
+          "publisher": { "type": "string" },
+          "publishedAt": { "type": "string" },
+          "url": { "type": "string" },
+          "sourceKey": { "type": "string" },
+          "symbol": { "type": "string" }
+        },
+        "required": ["id", "title", "kind", "publisher", "publishedAt", "url", "sourceKey", "symbol"],
+        "additionalProperties": false
       }
     },
     "missingData": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "object",
+        "properties": {
+          "field": { "type": "string" },
+          "reason": { "type": "string" },
+          "expectedSource": { "type": "string" }
+        },
+        "required": ["field", "reason", "expectedSource"],
+        "additionalProperties": false
       }
     },
     "confidence": {
-      "type": "number"
+      "type": "object",
+      "properties": {
+        "score": { "type": "number" },
+        "label": { "type": "string", "enum": ["low", "medium", "high"] },
+        "rationale": { "type": "string" }
+      },
+      "required": ["score", "label", "rationale"],
+      "additionalProperties": false
     },
     "selectedSectorSummary": {
-      "type": "string"
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["text", "sourceRefIds"],
+      "additionalProperties": false
     },
     "reportSummary": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "object",
+        "properties": {
+          "text": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["text", "sourceRefIds"],
+        "additionalProperties": false
       }
     },
     "keySchedule": {
       "type": "array",
       "items": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "time": { "type": "string" },
+          "title": { "type": "string" },
+          "note": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["time", "title", "note", "sourceRefIds"],
+        "additionalProperties": false
       }
     },
     "keyIssues": {
       "type": "array",
       "items": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "headline": { "type": "string" },
+          "summary": { "type": "string" },
+          "impact": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["headline", "summary", "impact", "sourceRefIds"],
+        "additionalProperties": false
       }
     },
     "topPicks": {
       "type": "array",
       "items": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "symbol": { "type": "string" },
+          "reason": { "type": "string" },
+          "score": { "type": "number" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["symbol", "reason", "score", "sourceRefIds"],
+        "additionalProperties": false
       }
     },
     "watchlistHighlights": {
       "type": "array",
       "items": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "symbol": { "type": "string" },
+          "thesis": { "type": "string" },
+          "condition": { "type": "string" },
+          "price": { "type": "number" },
+          "changePercent": { "type": "number" },
+          "score": { "type": "number" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["symbol", "thesis", "condition", "price", "changePercent", "score", "sourceRefIds"],
+        "additionalProperties": false
       }
     }
   },

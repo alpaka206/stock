@@ -1,49 +1,108 @@
 {
   "type": "object",
   "properties": {
-    "asOf": {
-      "type": "string"
-    },
+    "asOf": { "type": "string" },
     "sourceRefs": {
       "type": "array",
       "items": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "kind": { "type": "string", "enum": ["market_data", "news", "fundamentals", "economic", "internal_config", "mock"] },
+          "publisher": { "type": "string" },
+          "publishedAt": { "type": "string" },
+          "url": { "type": "string" },
+          "sourceKey": { "type": "string" },
+          "symbol": { "type": "string" }
+        },
+        "required": ["id", "title", "kind", "publisher", "publishedAt", "url", "sourceKey", "symbol"],
+        "additionalProperties": false
       }
     },
     "missingData": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "object",
+        "properties": {
+          "field": { "type": "string" },
+          "reason": { "type": "string" },
+          "expectedSource": { "type": "string" }
+        },
+        "required": ["field", "reason", "expectedSource"],
+        "additionalProperties": false
       }
     },
     "confidence": {
-      "type": "number"
+      "type": "object",
+      "properties": {
+        "score": { "type": "number" },
+        "label": { "type": "string", "enum": ["low", "medium", "high"] },
+        "rationale": { "type": "string" }
+      },
+      "required": ["score", "label", "rationale"],
+      "additionalProperties": false
     },
     "moveSummary": {
-      "type": "string"
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["text", "sourceRefIds"],
+      "additionalProperties": false
     },
     "turningPoints": {
       "type": "array",
       "items": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "date": { "type": "string" },
+          "summary": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["date", "summary", "sourceRefIds"],
+        "additionalProperties": false
       }
     },
     "overlappingIndicators": {
       "type": "array",
       "items": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "interpretation": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["name", "interpretation", "sourceRefIds"],
+        "additionalProperties": false
       }
     },
     "eventTimelineSummary": {
       "type": "array",
       "items": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "date": { "type": "string" },
+          "title": { "type": "string" },
+          "source": { "type": "string" },
+          "url": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["date", "title", "source", "url", "sourceRefIds"],
+        "additionalProperties": false
       }
     },
     "analogsOrPatterns": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "object",
+        "properties": {
+          "text": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["text", "sourceRefIds"],
+        "additionalProperties": false
       }
     }
   },

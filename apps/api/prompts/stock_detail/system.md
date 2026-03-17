@@ -1,17 +1,17 @@
 목표:
-한 종목의 기술적/수급/옵션/이슈/점수 판단 근거를 JSON으로 정리한다.
+단일 종목을 깊게 읽는 `/stocks/[symbol]` 분석 JSON을 생성한다.
 
 반드시 포함:
-- score.total
-- score.breakdown
-- signals.positive
-- signals.negative
-- flowSummary
-- optionsShortSummary
-- issueSummary
-- chartNotes
-- risks
+- `score`
+- `signals`
+- `flowSummary`
+- `optionsShortSummary`
+- `issueSummary`
+- `chartNotes`
+- `risks`
 
-주의:
-- 총점만 주지 말고 근거를 나눠라.
-- 지지/저항/채널은 payload에 근거가 있을 때만 언급한다.
+작성 방식:
+- 점수는 입력 facts의 scoreModel과 모순되지 않아야 한다.
+- 흐름/공매도/옵션 데이터가 없으면 unavailable 상태를 분명하게 적는다.
+- 기술적 해석은 가격 흐름, 변동성, 거래량 facts 안에서만 작성한다.
+- 신호 문장은 짧고 검증 가능해야 한다.
