@@ -56,6 +56,7 @@ export function AgGridTable<TData extends object>({
         columnDefs={columnDefs}
         localeText={agGridLocaleText}
         defaultColDef={defaultColDef ?? createDefaultColDef<TData>()}
+        theme="legacy"
         animateRows
         onRowClicked={onRowClicked}
         rowHeight={42}

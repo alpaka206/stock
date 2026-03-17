@@ -14,15 +14,21 @@ export function ThemeToggle() {
     setMounted(true);
   }, []);
 
-  const isDark = resolvedTheme === "dark";
+  const isDark = mounted ? resolvedTheme === "dark" : true;
+  const ariaLabel = mounted
+    ? isDark
+      ? "라이트 모드로 전환"
+      : "다크 모드로 전환"
+    : "테마 전환";
 
   return (
     <Button
       variant="outline"
       size="icon-sm"
       type="button"
-      onClick={() => mounted && setTheme(isDark ? "light" : "dark")}
-      aria-label={isDark ? "라이트모드로 전환" : "다크모드로 전환"}
+      disabled={!mounted}
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+      aria-label={ariaLabel}
     >
       {mounted && isDark ? <SunMedium /> : <MoonStar />}
     </Button>
