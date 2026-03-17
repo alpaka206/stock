@@ -49,3 +49,10 @@
 ### 2026-03-15
 - 최초 디자인 메모리 생성
 - 사용자가 보낸 4장짜리 화면 스케치를 기준선으로 삼음
+
+### 2026-03-16
+- 공통 shell 은 좌측 고정 navigation + 상단 context bar 구조로 유지한다.
+- 카드 간격은 `--space-*`, 카드 padding 은 `--card-padding` 토큰을 기준으로 맞춘다.
+- 숫자와 퍼센트는 `JetBrains Mono` + `tabular-nums` 로 고정폭 비교가 가능해야 한다.
+- 다크모드가 기본이지만 라이트모드도 동일한 정보 밀도와 대비를 유지한다.
+- AG Grid 는 한국어 locale 과 dense research theme 를 기본값으로 둔다.
