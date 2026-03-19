@@ -226,7 +226,11 @@ function buildSummaryDrivers(payload: OverviewApiResponse): OverviewDriverItem[]
 }
 
 function buildIndexItems(payload: OverviewApiResponse): IndexStripItem[] {
-  if (payload.benchmarkSnapshot === undefined) {
+  if (
+    payload.benchmarkSnapshot === undefined ||
+    (Array.isArray(payload.benchmarkSnapshot) &&
+      payload.benchmarkSnapshot.length === 0)
+  ) {
     return overviewFixture.indices;
   }
 

@@ -153,3 +153,16 @@
 - `apps/api/app/services/providers/real.py`
 - `apps/api/prompts/overview/output.schema.json`
 - `apps/api/prompts/overview/system.md`
+
+## 2026-03-20 17:20 KST
+### 무엇을
+- `/overview` index strip이 live API에서 `benchmarkSnapshot: []`를 받는 경우에도 fixture fallback을 타도록 수정했다.
+
+### 왜
+- mixed deployment나 부분 배포 상태에서 benchmark snapshot만 비어 있어도 상단 지수 스트립이 빈 상태로 무너지는 것은 `API 우선 + fallback` 정책과 맞지 않기 때문이다.
+
+### 어떻게
+- `buildIndexItems()`에서 `benchmarkSnapshot`이 `undefined`이거나 빈 배열이면 모두 fixture indices를 반환하도록 분기를 조정했다.
+
+### 영향 범위
+- `apps/web/features/overview/lib/get-overview-snapshot.ts`
