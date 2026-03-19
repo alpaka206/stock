@@ -101,3 +101,26 @@
 - `docs/architecture/page-manifest.yaml`
 - `docs/architecture/component-manifest.yaml`
 - `docs/design/design-memory.md`
+
+## 2026-03-20 16:20 KST
+### 무엇을
+- `/overview` live API 모드에서 broad sector가 잘못된 종목 상세 페이지로 이동하던 fallback을 제거하고, 매핑되지 않은 섹터는 `radar`로 연결되게 수정했다.
+- API가 내려주지 않은 섹터 변화율을 UI에서 추정해 표시하던 로직을 제거했다.
+- overview benchmark snapshot에서 미국 10년물 금리의 전일 대비 변화를 실제 시계열 기준으로 계산하도록 수정했다.
+
+### 왜
+- 실데이터가 있을 때 임의 종목이나 추정 수치를 보여주면 overview 화면 안에서 데이터 출처가 서로 충돌하게 되기 때문이다.
+- 금리 변화를 0으로 고정하면 live `/overview`의 핵심 신호 하나를 지속적으로 잘못 보여주게 된다.
+
+### 어떻게
+- sector navigation을 종목 매핑이 있는 경우에만 `/stocks/[symbol]`로 보내고, 그렇지 않으면 `/radar`로 보내도록 조정했다.
+- `sectorStrength`와 heatmap은 API가 `changePercent`를 제공할 때만 변화율을 렌더하도록 바꿨다.
+- `AlphaVantageClient.get_treasury_yield()`에서 최근 2개 datapoint를 사용해 변화율을 계산하고 real provider snapshot에 반영했다.
+
+### 영향 범위
+- `apps/web/features/overview/lib/get-overview-snapshot.ts`
+- `apps/web/features/overview/components/sector-strength-panel.tsx`
+- `apps/web/features/overview/components/market-heatmap.tsx`
+- `apps/web/lib/research/types.ts`
+- `apps/api/app/services/clients/alpha_vantage.py`
+- `apps/api/app/services/providers/real.py`
