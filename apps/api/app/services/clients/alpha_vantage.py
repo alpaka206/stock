@@ -139,10 +139,33 @@ class AlphaVantageClient:
             if expires_at > now:
                 return cached_payload
 
-        async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
-            response = await client.get(self.base_url, params=merged)
-            response.raise_for_status()
-            payload = response.json()
+        request_target = self._describe_request(params)
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+                response = await client.get(self.base_url, params=merged)
+                response.raise_for_status()
+                payload = response.json()
+        except httpx.HTTPStatusError as exc:
+            status_code = exc.response.status_code
+            if status_code == 429:
+                raise ExternalRateLimitError(
+                    f"Alpha Vantage {request_target} 요청이 rate limit에 걸렸습니다."
+                ) from exc
+            raise ExternalServiceError(
+                f"Alpha Vantage {request_target} 요청이 HTTP {status_code}로 실패했습니다."
+            ) from exc
+        except httpx.TimeoutException as exc:
+            raise ExternalServiceError(
+                f"Alpha Vantage {request_target} 요청이 시간 초과되었습니다."
+            ) from exc
+        except httpx.RequestError as exc:
+            raise ExternalServiceError(
+                f"Alpha Vantage {request_target} 요청 중 네트워크 오류가 발생했습니다."
+            ) from exc
+        except ValueError as exc:
+            raise ExternalServiceError(
+                f"Alpha Vantage {request_target} 응답 JSON을 해석하지 못했습니다."
+            ) from exc
 
         self._raise_for_provider_errors(payload)
         self._cache[cache_key] = (now + self.cache_ttl_seconds, payload)
@@ -159,6 +182,14 @@ class AlphaVantageClient:
     def _cache_key(self, params: dict[str, str]) -> str:
         serialized = "&".join(f"{key}={params[key]}" for key in sorted(params))
         return sha1(serialized.encode("utf-8")).hexdigest()
+
+    def _describe_request(self, params: dict[str, str]) -> str:
+        parts = [params.get("function", "unknown")]
+        if symbol := params.get("symbol"):
+            parts.append(symbol)
+        elif tickers := params.get("tickers"):
+            parts.append(tickers)
+        return " ".join(parts)
 
     def _parse_mover_row(self, row: dict[str, Any]) -> dict[str, Any]:
         return {
