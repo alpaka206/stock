@@ -46,7 +46,7 @@ export function AppTopbar() {
               <SheetHeader className="border-b border-border/60 pb-4">
                 <SheetTitle>리서치 워크스페이스</SheetTitle>
                 <SheetDescription>
-                  메인 4개 화면을 빠르게 오가며 리서치 흐름을 유지한다.
+                  메인 4개 화면을 빠르게 오가며 리서치 흐름을 이어갑니다.
                 </SheetDescription>
               </SheetHeader>
               <div className="p-4">
@@ -70,7 +70,7 @@ export function AppTopbar() {
             variant="secondary"
             className="hidden rounded-full border border-border/60 bg-background/75 px-3 py-1 text-[0.72rem] font-medium text-muted-foreground sm:inline-flex"
           >
-            개발 fixture 연결
+            리서치 워크스페이스
           </Badge>
           <ThemeToggle />
         </div>

@@ -4,9 +4,11 @@ export type Tone = "positive" | "negative" | "neutral";
 export type IndexStripItem = {
   name: string;
   symbol: string;
+  category: string;
   value: number;
   changePercent: number;
   note: string;
+  href: string;
 };
 
 export type NewsItem = {
@@ -17,6 +19,7 @@ export type NewsItem = {
   publishedAt: string;
   impactLabel: string;
   tone: Tone;
+  href?: string;
 };
 
 export type SectorStrengthItem = {
@@ -27,6 +30,8 @@ export type SectorStrengthItem = {
   direction: TrendDirection;
   momentum: string;
   catalysts: string[];
+  targetSymbol: string;
+  href: string;
 };
 
 export type RiskBannerItem = {
@@ -34,21 +39,46 @@ export type RiskBannerItem = {
   value: string;
   detail: string;
   tone: Tone;
+  href: string;
+};
+
+export type OverviewDriverItem = {
+  label: string;
+  text: string;
+  tone: Tone;
+  href: string;
+};
+
+export type HeatmapTile = {
+  label: string;
+  score: number;
+  changePercent: number;
+  href: string;
+};
+
+export type OverviewConfidence = {
+  score: number;
+  label: "low" | "medium" | "high";
+  rationale: string;
+};
+
+export type OverviewSourceSummary = {
+  sourceCount: number;
+  missingDataCount: number;
 };
 
 export type OverviewFixture = {
   asOf: string;
   lead: string;
   scenario: string;
+  summaryDrivers: OverviewDriverItem[];
   indices: IndexStripItem[];
   news: NewsItem[];
   sectors: SectorStrengthItem[];
   risks: RiskBannerItem[];
-  heatmap: Array<{
-    label: string;
-    score: number;
-    changePercent: number;
-  }>;
+  heatmap: HeatmapTile[];
+  confidence: OverviewConfidence;
+  sourceSummary: OverviewSourceSummary;
 };
 
 export type WatchlistFolderNode = {
