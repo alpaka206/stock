@@ -36,10 +36,16 @@ export function MarketHeatmap({ items }: MarketHeatmapProps) {
           >
             <p className="text-sm font-semibold tracking-tight">{item.label}</p>
             <p className="numeric mt-4 text-3xl font-semibold">{item.score}</p>
-            <p className="numeric mt-2 text-sm font-medium">
-              {formatSignedPercent(item.changePercent)}
+            {item.changePercent !== undefined ? (
+              <p className="numeric mt-2 text-sm font-medium">
+                {formatSignedPercent(item.changePercent)}
+              </p>
+            ) : (
+              <p className="mt-2 text-xs font-medium opacity-75">변화율 데이터 준비 중</p>
+            )}
+            <p className="mt-3 text-xs font-semibold opacity-80">
+              {item.href === "/radar" ? "레이더 보기" : "관련 종목 보기"}
             </p>
-            <p className="mt-3 text-xs font-semibold opacity-80">관련 종목 보기</p>
           </Link>
         ))}
       </div>

@@ -26,7 +26,7 @@ export type SectorStrengthItem = {
   id: string;
   name: string;
   score: number;
-  changePercent: number;
+  changePercent?: number;
   direction: TrendDirection;
   momentum: string;
   catalysts: string[];
@@ -52,7 +52,7 @@ export type OverviewDriverItem = {
 export type HeatmapTile = {
   label: string;
   score: number;
-  changePercent: number;
+  changePercent?: number;
   href: string;
 };
 

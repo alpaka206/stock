@@ -36,18 +36,20 @@ export function SectorStrengthPanel({ items }: SectorStrengthPanelProps) {
               <div>
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-semibold tracking-tight">{item.name}</p>
-                  <span
-                    className={cn(
-                      "numeric text-xs font-semibold",
-                      item.changePercent > 0
-                        ? "tone-positive"
-                        : item.changePercent < 0
-                          ? "tone-negative"
-                          : "tone-neutral"
-                    )}
-                  >
-                    {formatSignedPercent(item.changePercent)}
-                  </span>
+                  {item.changePercent !== undefined ? (
+                    <span
+                      className={cn(
+                        "numeric text-xs font-semibold",
+                        item.changePercent > 0
+                          ? "tone-positive"
+                          : item.changePercent < 0
+                            ? "tone-negative"
+                            : "tone-neutral"
+                      )}
+                    >
+                      {formatSignedPercent(item.changePercent)}
+                    </span>
+                  ) : null}
                 </div>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   {item.momentum}
@@ -74,7 +76,7 @@ export function SectorStrengthPanel({ items }: SectorStrengthPanelProps) {
             </div>
 
             <p className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary">
-              {item.targetSymbol} 분석 보기
+              {item.href === "/radar" ? "레이더에서 보기" : `${item.targetSymbol} 분석 보기`}
               <ArrowRight className="size-3.5" />
             </p>
           </Link>

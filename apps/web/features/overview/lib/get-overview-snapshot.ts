@@ -59,6 +59,7 @@ type OverviewApiResponse = {
     sector: string;
     score: number;
     summary: string;
+    changePercent?: number;
     sourceRefIds: string[];
   }>;
   notableNews: Array<{
@@ -82,9 +83,10 @@ const sectorSymbolMap = [
 const positiveImpactKeywords = ["긍정", "우선 검토", "관심", "positive"];
 const negativeImpactKeywords = ["부정", "리스크 확대", "경계", "negative"];
 
-const heatmapFallbackBySector = new Map(
-  overviewFixture.heatmap.map((tile) => [tile.label, tile])
-);
+type SectorNavigationTarget = {
+  href: string;
+  targetSymbol: string;
+};
 
 export async function getOverviewSnapshot() {
   const apiUrl = resolveOverviewApiUrl();
@@ -263,18 +265,18 @@ function buildSectorItems(payload: OverviewApiResponse): SectorStrengthItem[] {
   }
 
   return payload.sectorStrength.slice(0, 4).map((sector) => {
-    const targetSymbol = getSymbolForSector(sector.sector);
+    const navigationTarget = getSectorNavigationTarget(sector.sector);
 
     return {
       id: sector.sector.toLowerCase().replace(/\s+/g, "-"),
       name: sector.sector,
       score: Math.round(sector.score),
-      changePercent: getHeatmapChange(sector.sector),
+      changePercent: sector.changePercent,
       direction: getDirectionFromScore(sector.score),
       momentum: sector.summary,
       catalysts: buildSectorCatalysts(sector.summary),
-      targetSymbol,
-      href: `/stocks/${targetSymbol}`,
+      targetSymbol: navigationTarget.targetSymbol,
+      href: navigationTarget.href,
     };
   });
 }
@@ -307,14 +309,14 @@ function buildHeatmap(payload: OverviewApiResponse): HeatmapTile[] {
   }
 
   return payload.sectorStrength.slice(0, 6).map((sector) => {
-    const fallbackTile = heatmapFallbackBySector.get(sector.sector);
     const score = Math.round(sector.score);
+    const navigationTarget = getSectorNavigationTarget(sector.sector);
 
     return {
       label: sector.sector,
       score,
-      changePercent: fallbackTile?.changePercent ?? getChangePercentFromScore(score),
-      href: `/stocks/${getSymbolForSector(sector.sector)}`,
+      changePercent: sector.changePercent,
+      href: navigationTarget.href,
     };
   });
 }
@@ -326,13 +328,23 @@ function isMockPayload(payload: OverviewApiResponse) {
   );
 }
 
-function getSymbolForSector(sectorName: string) {
+function getSectorNavigationTarget(sectorName: string): SectorNavigationTarget {
   const normalizedName = sectorName.toLowerCase();
   const matched = sectorSymbolMap.find((candidate) =>
     candidate.keywords.some((keyword) => normalizedName.includes(keyword))
   );
 
-  return matched?.symbol ?? "NVDA";
+  if (!matched) {
+    return {
+      href: "/radar",
+      targetSymbol: "레이더",
+    };
+  }
+
+  return {
+    href: `/stocks/${matched.symbol}`,
+    targetSymbol: matched.symbol,
+  };
 }
 
 function getIndexHref(item: OverviewApiBenchmarkSnapshotItem) {
@@ -357,22 +369,6 @@ function getDirectionFromScore(score: number): TrendDirection {
   }
 
   return "flat";
-}
-
-function getChangePercentFromScore(score: number) {
-  if (score >= 80) {
-    return 1.5;
-  }
-
-  if (score <= 45) {
-    return -0.8;
-  }
-
-  return 0.3;
-}
-
-function getHeatmapChange(sectorName: string) {
-  return heatmapFallbackBySector.get(sectorName)?.changePercent ?? 0.4;
 }
 
 function buildSectorCatalysts(summary: string) {
