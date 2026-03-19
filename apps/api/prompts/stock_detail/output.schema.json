@@ -1,39 +1,67 @@
 {
   "type": "object",
   "properties": {
-    "asOf": {
-      "type": "string"
-    },
+    "asOf": { "type": "string" },
     "sourceRefs": {
       "type": "array",
       "items": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "kind": { "type": "string", "enum": ["market_data", "news", "fundamentals", "economic", "internal_config", "mock"] },
+          "publisher": { "type": "string" },
+          "publishedAt": { "type": "string" },
+          "url": { "type": "string" },
+          "sourceKey": { "type": "string" },
+          "symbol": { "type": "string" }
+        },
+        "required": ["id", "title", "kind", "publisher", "publishedAt", "url", "sourceKey", "symbol"],
+        "additionalProperties": false
       }
     },
     "missingData": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "object",
+        "properties": {
+          "field": { "type": "string" },
+          "reason": { "type": "string" },
+          "expectedSource": { "type": "string" }
+        },
+        "required": ["field", "reason", "expectedSource"],
+        "additionalProperties": false
       }
     },
     "confidence": {
-      "type": "number"
+      "type": "object",
+      "properties": {
+        "score": { "type": "number" },
+        "label": { "type": "string", "enum": ["low", "medium", "high"] },
+        "rationale": { "type": "string" }
+      },
+      "required": ["score", "label", "rationale"],
+      "additionalProperties": false
     },
     "score": {
       "type": "object",
       "properties": {
-        "total": {
-          "type": "number"
-        },
+        "total": { "type": "number" },
         "breakdown": {
-          "type": "object"
-        }
+          "type": "object",
+          "properties": {
+            "technical": { "type": "number" },
+            "flow": { "type": "number" },
+            "catalyst": { "type": "number" },
+            "risk": { "type": "number" }
+          },
+          "required": ["technical", "flow", "catalyst", "risk"],
+          "additionalProperties": false
+        },
+        "sourceRefIds": { "type": "array", "items": { "type": "string" } }
       },
-      "required": [
-        "total",
-        "breakdown"
-      ],
-      "additionalProperties": true
+      "required": ["total", "breakdown", "sourceRefIds"],
+      "additionalProperties": false
     },
     "signals": {
       "type": "object",
@@ -41,41 +69,105 @@
         "positive": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "object",
+            "properties": {
+              "text": { "type": "string" },
+              "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+            },
+            "required": ["text", "sourceRefIds"],
+            "additionalProperties": false
           }
         },
         "negative": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "object",
+            "properties": {
+              "text": { "type": "string" },
+              "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+            },
+            "required": ["text", "sourceRefIds"],
+            "additionalProperties": false
           }
         }
       },
-      "required": [
-        "positive",
-        "negative"
-      ],
-      "additionalProperties": true
+      "required": ["positive", "negative"],
+      "additionalProperties": false
     },
     "flowSummary": {
-      "type": "string"
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["text", "sourceRefIds"],
+      "additionalProperties": false
     },
     "optionsShortSummary": {
-      "type": "string"
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["text", "sourceRefIds"],
+      "additionalProperties": false
     },
     "issueSummary": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "object",
+        "properties": {
+          "text": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["text", "sourceRefIds"],
+        "additionalProperties": false
       }
     },
     "chartNotes": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "trend": {
+          "type": "object",
+          "properties": {
+            "text": { "type": "string" },
+            "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+          },
+          "required": ["text", "sourceRefIds"],
+          "additionalProperties": false
+        },
+        "support": {
+          "type": "object",
+          "properties": {
+            "text": { "type": "string" },
+            "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+          },
+          "required": ["text", "sourceRefIds"],
+          "additionalProperties": false
+        },
+        "resistance": {
+          "type": "object",
+          "properties": {
+            "text": { "type": "string" },
+            "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+          },
+          "required": ["text", "sourceRefIds"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["trend", "support", "resistance"],
+      "additionalProperties": false
     },
     "risks": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "object",
+        "properties": {
+          "text": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["text", "sourceRefIds"],
+        "additionalProperties": false
       }
     }
   },

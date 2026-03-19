@@ -3,36 +3,49 @@
 ## 기술 스택
 - FastAPI
 - Pydantic
-- 화면 단위 endpoint 설계
-- 런타임 AI 프롬프트는 `apps/api/prompts`에 둔다
+- 화면 단위 endpoint 구조
+- 런타임 프롬프트 로더
 
-## API 설계 원칙
-- endpoint는 기능 단위보다 화면 단위를 우선한다.
-- 기본 묶음:
-  - `/overview/*`
-  - `/radar/*`
-  - `/stocks/*`
-  - `/history/*`
-- 모든 분석 응답에는 가능한 한 아래 필드를 포함한다.
+## 엔드포인트 원칙
+- 기능 단위보다 화면 단위를 우선한다.
+- 기본 endpoint 묶음:
+  - `/overview`
+  - `/radar`
+  - `/stocks/{symbol}`
+  - `/history`
+
+## 응답 계약
+- 모든 분석 응답은 아래 공통 envelope 를 가진다.
   - `asOf`
   - `sourceRefs`
   - `missingData`
   - `confidence`
-- 결정론적 계산과 LLM 요약을 분리한다.
-- LLM은 가격/지표/레벨/뉴스 사실을 창작하면 안 된다.
+- `sourceRefs` 는 아래 필드를 모두 포함한다.
+  - `id`
+  - `title`
+  - `kind`
+  - `publisher`
+  - `publishedAt`
+  - `url`
+  - `sourceKey`
+  - `symbol`
+- 응답 모델은 반드시 타입으로 선언한다.
 
-## 런타임 프롬프트 원칙
-- 공통 규칙은 `apps/api/prompts/common/`에 둔다.
-- 페이지별 프롬프트는 각 화면 디렉터리에 둔다.
-- 각 프롬프트는 출력 JSON 스키마를 가진다.
-- 코드에서 프롬프트 문자열을 하드코딩하지 말고 파일에서 로드한다.
+## provider 원칙
+- 수치, 시계열, facts 는 deterministic provider 에서 먼저 수집한다.
+- 기본 실데이터 provider 는 Alpha Vantage 를 기준으로 둔다.
+- 요약/해석 LLM 호출은 OpenAI structured output 기준으로 둔다.
+- facts 와 interpretation 을 분리한다.
+- 실데이터가 아직 없는 영역은 `missingData` 로 명시한다.
 
-## 점수화 엔진 원칙
-- 점수 산식은 가능한 한 순수 함수와 설정 파일 기반으로 구현한다.
-- 설명 문구만 LLM이 담당한다.
-- 총점만 반환하지 말고 breakdown과 confidence를 함께 준다.
+## 프롬프트 원칙
+- 공통 규칙은 `apps/api/prompts/common/` 아래에 둔다.
+- 페이지별 프롬프트는 각 화면 디렉터리 아래에 둔다.
+- 각 프롬프트는 대응하는 출력 JSON schema 를 가진다.
+- 프롬프트 문자열을 코드에 하드코딩하지 않는다.
 
-## 변경 시 같이 업데이트할 것
-- 해당 페이지 output schema
-- `docs/architecture/page-manifest.yaml`
-- `docs/changes/CHANGELOG_APPEND_ONLY.md`
+## 문서 규칙
+- provider 구조나 sourceRefs 계약이 바뀌면 아래를 함께 갱신한다.
+  - `apps/api/README.md`
+  - `docs/changes/CHANGELOG_APPEND_ONLY.md`
+  - 관련 ADR
