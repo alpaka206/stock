@@ -124,3 +124,32 @@
 - `apps/web/lib/research/types.ts`
 - `apps/api/app/services/clients/alpha_vantage.py`
 - `apps/api/app/services/providers/real.py`
+
+## 2026-03-20 17:05 KST
+### 무엇을
+- `/overview` news panel이 live API 기사 본문을 `impact` 기반의 고정 문장으로 바꾸지 않도록 수정하고, source 기반 summary만 표시하게 했다.
+- overview API 계약에 `notableNews.summary`와 optional `sectorStrength.changePercent`를 추가하고 mock/real provider에 반영했다.
+- live API payload 일부가 비어 있을 때 section 단위로 fixture를 다시 섞지 않도록 overview adapter와 빈 상태 UI를 정리했다.
+- mixed deployment에서 `benchmarkSnapshot`이 아직 없는 구버전 API도 지수 스트립이 fixture fallback으로 유지되도록 보강했다.
+
+### 왜
+- 뉴스와 섹터 변화율을 출처 없이 만들어내면 리서치 화면의 정확도가 떨어지고 저장소 원칙에도 어긋나기 때문이다.
+- 부분 배포 또는 계약 이행 중인 API와 연결될 때도 overview가 모순된 개발용 데이터로 채워지지 않아야 한다.
+
+### 어떻게
+- web adapter가 기사 요약을 source payload에서 그대로 사용하고, 요약이 없으면 본문을 생략하도록 바꿨다.
+- real provider가 LLM 결과를 그대로 노출하지 않고 news summary와 sector changePercent를 source fact 기준으로 후처리하도록 했다.
+- summary driver, news, heatmap, sector, risk 카드에 live empty-state를 추가하고 fixture는 mock payload 또는 전체 fallback에만 사용하도록 조정했다.
+
+### 영향 범위
+- `apps/web/features/overview/lib/get-overview-snapshot.ts`
+- `apps/web/features/overview/components/ai-market-summary-card.tsx`
+- `apps/web/features/overview/components/news-panel.tsx`
+- `apps/web/features/overview/components/market-heatmap.tsx`
+- `apps/web/features/overview/components/sector-strength-panel.tsx`
+- `apps/web/features/overview/components/risk-banner.tsx`
+- `apps/api/app/schemas/overview.py`
+- `apps/api/app/services/providers/mock.py`
+- `apps/api/app/services/providers/real.py`
+- `apps/api/prompts/overview/output.schema.json`
+- `apps/api/prompts/overview/system.md`
