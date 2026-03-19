@@ -98,6 +98,10 @@ class RealResearchProvider(ResearchProvider):
             "topMovers": top_movers or {},
             "notableNews": news_items,
         }
+        benchmark_snapshot = self._build_overview_benchmark_snapshot(
+            benchmarks=benchmarks,
+            treasury=treasury,
+        )
         payload = await self._summarize(
             page_key="overview",
             prompt_bundle=prompt_bundle,
@@ -105,6 +109,7 @@ class RealResearchProvider(ResearchProvider):
             source_refs=source_refs,
             missing_data=missing_data,
         )
+        payload["benchmarkSnapshot"] = benchmark_snapshot
         return self._finalize_payload(payload, source_refs, missing_data)
 
     async def get_radar(self, *, prompt_bundle: PromptBundle) -> dict[str, Any]:
@@ -425,6 +430,40 @@ class RealResearchProvider(ResearchProvider):
                 }
             )
         return proxies
+
+    def _build_overview_benchmark_snapshot(
+        self,
+        *,
+        benchmarks: list[dict[str, Any]],
+        treasury: dict[str, Any] | None,
+    ) -> list[dict[str, Any]]:
+        snapshot = [
+            {
+                "label": benchmark["label"],
+                "symbol": benchmark["symbol"],
+                "category": "시장 프록시",
+                "value": benchmark["price"],
+                "changePercent": benchmark["changePercent"],
+                "note": f'{benchmark["label"]} 프록시 ETF 기준 흐름입니다.',
+                "sourceRefIds": benchmark["sourceRefIds"],
+            }
+            for benchmark in benchmarks
+        ]
+
+        if treasury:
+            snapshot.append(
+                {
+                    "label": "미국 10년물 금리",
+                    "symbol": "US10Y",
+                    "category": "금리",
+                    "value": treasury["value"],
+                    "changePercent": 0.0,
+                    "note": "장기 금리 민감도를 보는 기준 값입니다.",
+                    "sourceRefIds": treasury["sourceRefIds"],
+                }
+            )
+
+        return snapshot
 
     async def _build_news_items(
         self,

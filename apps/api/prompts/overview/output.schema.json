@@ -9,14 +9,33 @@
         "properties": {
           "id": { "type": "string" },
           "title": { "type": "string" },
-          "kind": { "type": "string", "enum": ["market_data", "news", "fundamentals", "economic", "internal_config", "mock"] },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "market_data",
+              "news",
+              "fundamentals",
+              "economic",
+              "internal_config",
+              "mock"
+            ]
+          },
           "publisher": { "type": "string" },
           "publishedAt": { "type": "string" },
           "url": { "type": "string" },
           "sourceKey": { "type": "string" },
           "symbol": { "type": "string" }
         },
-        "required": ["id", "title", "kind", "publisher", "publishedAt", "url", "sourceKey", "symbol"],
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "publisher",
+          "publishedAt",
+          "url",
+          "sourceKey",
+          "symbol"
+        ],
         "additionalProperties": false
       }
     },
@@ -42,6 +61,31 @@
       },
       "required": ["score", "label", "rationale"],
       "additionalProperties": false
+    },
+    "benchmarkSnapshot": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": { "type": "string" },
+          "symbol": { "type": "string" },
+          "category": { "type": "string" },
+          "value": { "type": "number" },
+          "changePercent": { "type": "number" },
+          "note": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": [
+          "label",
+          "symbol",
+          "category",
+          "value",
+          "changePercent",
+          "note",
+          "sourceRefIds"
+        ],
+        "additionalProperties": false
+      }
     },
     "marketSummary": {
       "type": "object",
@@ -102,7 +146,14 @@
           "url": { "type": "string" },
           "sourceRefIds": { "type": "array", "items": { "type": "string" } }
         },
-        "required": ["headline", "source", "impact", "publishedAt", "url", "sourceRefIds"],
+        "required": [
+          "headline",
+          "source",
+          "impact",
+          "publishedAt",
+          "url",
+          "sourceRefIds"
+        ],
         "additionalProperties": false
       }
     }

@@ -42,6 +42,44 @@ class MockResearchProvider(ResearchProvider):
         payload = _base_envelope()
         payload.update(
             {
+                "benchmarkSnapshot": [
+                    {
+                        "label": "S&P 500",
+                        "symbol": "SPY",
+                        "category": "시장 프록시",
+                        "value": 548.12,
+                        "changePercent": 0.64,
+                        "note": "S&P 500 프록시 ETF 기준 흐름입니다.",
+                        "sourceRefIds": ["mock-source"],
+                    },
+                    {
+                        "label": "NASDAQ 100",
+                        "symbol": "QQQ",
+                        "category": "시장 프록시",
+                        "value": 498.44,
+                        "changePercent": 1.28,
+                        "note": "대형 기술주 중심 프록시 ETF 흐름입니다.",
+                        "sourceRefIds": ["mock-source"],
+                    },
+                    {
+                        "label": "반도체",
+                        "symbol": "SMH",
+                        "category": "섹터 프록시",
+                        "value": 271.85,
+                        "changePercent": 2.14,
+                        "note": "반도체 섹터 프록시 ETF 기준입니다.",
+                        "sourceRefIds": ["mock-source"],
+                    },
+                    {
+                        "label": "미국 10년물 금리",
+                        "symbol": "US10Y",
+                        "category": "금리",
+                        "value": 4.18,
+                        "changePercent": -0.36,
+                        "note": "장기 금리 민감도를 보는 기준 값입니다.",
+                        "sourceRefIds": ["mock-source"],
+                    },
+                ],
                 "marketSummary": _sourced_text(
                     "대형 기술주 중심 강세가 유지되지만 금리 민감 구간에서는 선별 흐름이 나타납니다."
                 ),
