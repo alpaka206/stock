@@ -3,6 +3,7 @@ import "server-only";
 import { overviewFixture } from "@/dev/fixtures/overview";
 import type {
   HeatmapTile,
+  IndexStripItem,
   NewsItem,
   OverviewDriverItem,
   OverviewFixture,
@@ -12,8 +13,20 @@ import type {
   TrendDirection,
 } from "@/lib/research/types";
 
+const DEFAULT_OVERVIEW_API_TIMEOUT_MS = 15000;
+
 type OverviewApiSourcedText = {
   text: string;
+  sourceRefIds: string[];
+};
+
+type OverviewApiBenchmarkSnapshotItem = {
+  label: string;
+  symbol: string;
+  category: string;
+  value: number;
+  changePercent: number;
+  note: string;
   sourceRefIds: string[];
 };
 
@@ -38,6 +51,7 @@ type OverviewApiResponse = {
     label: "low" | "medium" | "high";
     rationale: string;
   };
+  benchmarkSnapshot?: OverviewApiBenchmarkSnapshotItem[];
   marketSummary: OverviewApiSourcedText;
   drivers: OverviewApiSourcedText[];
   risks: OverviewApiSourcedText[];
@@ -65,6 +79,9 @@ const sectorSymbolMap = [
   { keywords: ["서버", "infra", "infrastructure"], symbol: "SMCI" },
 ] as const;
 
+const positiveImpactKeywords = ["긍정", "우선 검토", "관심", "positive"];
+const negativeImpactKeywords = ["부정", "리스크 확대", "경계", "negative"];
+
 const heatmapFallbackBySector = new Map(
   overviewFixture.heatmap.map((tile) => [tile.label, tile])
 );
@@ -77,15 +94,7 @@ export async function getOverviewSnapshot() {
   }
 
   try {
-    const response = await fetch(apiUrl, {
-      headers: {
-        Accept: "application/json",
-      },
-      next: {
-        revalidate: 300,
-      },
-      signal: AbortSignal.timeout(2000),
-    });
+    const response = await fetch(apiUrl, buildOverviewRequestInit());
 
     if (!response.ok) {
       return overviewFixture;
@@ -97,6 +106,40 @@ export async function getOverviewSnapshot() {
   } catch {
     return overviewFixture;
   }
+}
+
+function buildOverviewRequestInit(): RequestInit {
+  const timeoutMs = getOverviewApiTimeoutMs();
+  const requestInit: RequestInit = {
+    headers: {
+      Accept: "application/json",
+    },
+    next: {
+      revalidate: 300,
+    },
+  };
+
+  if (timeoutMs > 0 && typeof AbortSignal.timeout === "function") {
+    requestInit.signal = AbortSignal.timeout(timeoutMs);
+  }
+
+  return requestInit;
+}
+
+function getOverviewApiTimeoutMs() {
+  const rawValue = process.env.OVERVIEW_API_TIMEOUT_MS?.trim();
+
+  if (!rawValue) {
+    return DEFAULT_OVERVIEW_API_TIMEOUT_MS;
+  }
+
+  const parsedValue = Number(rawValue);
+
+  if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+    return DEFAULT_OVERVIEW_API_TIMEOUT_MS;
+  }
+
+  return parsedValue;
 }
 
 function resolveOverviewApiUrl() {
@@ -129,7 +172,7 @@ function buildOverviewSnapshot(payload: OverviewApiResponse): OverviewFixture {
         ? `${driverTexts[0]} 다만 ${riskTexts[0]}`
         : driverTexts[0] ?? riskTexts[0] ?? overviewFixture.scenario,
     summaryDrivers: buildSummaryDrivers(payload),
-    indices: overviewFixture.indices,
+    indices: buildIndexItems(payload),
     news: buildNewsItems(payload),
     sectors: buildSectorItems(payload),
     risks: buildRiskItems(payload),
@@ -172,11 +215,29 @@ function buildSummaryDrivers(payload: OverviewApiResponse): OverviewDriverItem[]
     });
   }
 
-  if (items.length === 0) {
-    return overviewFixture.summaryDrivers;
+  return items.length === 0 ? overviewFixture.summaryDrivers : items.slice(0, 3);
+}
+
+function buildIndexItems(payload: OverviewApiResponse): IndexStripItem[] {
+  const benchmarkSnapshot = payload.benchmarkSnapshot ?? [];
+
+  if (benchmarkSnapshot.length > 0) {
+    return benchmarkSnapshot.map((item) => ({
+      name: item.label,
+      symbol: item.symbol,
+      category: item.category,
+      value: item.value,
+      changePercent: item.changePercent,
+      note: item.note,
+      href: getIndexHref(item),
+    }));
   }
 
-  return items.slice(0, 3);
+  if (isMockPayload(payload)) {
+    return overviewFixture.indices;
+  }
+
+  return [];
 }
 
 function buildNewsItems(payload: OverviewApiResponse): NewsItem[] {
@@ -203,14 +264,13 @@ function buildSectorItems(payload: OverviewApiResponse): SectorStrengthItem[] {
 
   return payload.sectorStrength.slice(0, 4).map((sector) => {
     const targetSymbol = getSymbolForSector(sector.sector);
-    const direction = getDirectionFromScore(sector.score);
 
     return {
       id: sector.sector.toLowerCase().replace(/\s+/g, "-"),
       name: sector.sector,
       score: Math.round(sector.score),
       changePercent: getHeatmapChange(sector.sector),
-      direction,
+      direction: getDirectionFromScore(sector.score),
       momentum: sector.summary,
       catalysts: buildSectorCatalysts(sector.summary),
       targetSymbol,
@@ -238,11 +298,7 @@ function buildRiskItems(payload: OverviewApiResponse): RiskBannerItem[] {
     });
   }
 
-  if (apiRisks.length === 0) {
-    return overviewFixture.risks;
-  }
-
-  return apiRisks.slice(0, 3);
+  return apiRisks.length === 0 ? overviewFixture.risks : apiRisks.slice(0, 3);
 }
 
 function buildHeatmap(payload: OverviewApiResponse): HeatmapTile[] {
@@ -263,13 +319,32 @@ function buildHeatmap(payload: OverviewApiResponse): HeatmapTile[] {
   });
 }
 
+function isMockPayload(payload: OverviewApiResponse) {
+  return (
+    payload.sourceRefs.length > 0 &&
+    payload.sourceRefs.every((sourceRef) => sourceRef.kind === "mock")
+  );
+}
+
 function getSymbolForSector(sectorName: string) {
-  const normalized = sectorName.toLowerCase();
+  const normalizedName = sectorName.toLowerCase();
   const matched = sectorSymbolMap.find((candidate) =>
-    candidate.keywords.some((keyword) => normalized.includes(keyword))
+    candidate.keywords.some((keyword) => normalizedName.includes(keyword))
   );
 
   return matched?.symbol ?? "NVDA";
+}
+
+function getIndexHref(item: OverviewApiBenchmarkSnapshotItem) {
+  if (item.symbol === "SMH") {
+    return "/stocks/NVDA";
+  }
+
+  if (item.symbol === "QQQ") {
+    return "/radar";
+  }
+
+  return "/history";
 }
 
 function getDirectionFromScore(score: number): TrendDirection {
@@ -306,19 +381,17 @@ function buildSectorCatalysts(summary: string) {
     .map((segment) => segment.trim())
     .filter(Boolean);
 
-  if (segments.length >= 2) {
-    return segments.slice(0, 2);
-  }
-
-  return [summary];
+  return segments.length >= 2 ? segments.slice(0, 2) : [summary];
 }
 
 function buildNewsSummary(impact: string) {
-  if (impact.includes("긍정")) {
+  const tone = getToneFromImpact(impact);
+
+  if (tone === "positive") {
     return "상단 주도 섹터로 자금이 붙는지 레이더에서 바로 확인할 필요가 있습니다.";
   }
 
-  if (impact.includes("부정")) {
+  if (tone === "negative") {
     return "과거 유사 구간의 반응을 히스토리에서 함께 비교해야 하는 headline입니다.";
   }
 
@@ -326,11 +399,11 @@ function buildNewsSummary(impact: string) {
 }
 
 function getToneFromImpact(impact: string): Tone {
-  if (impact.includes("긍정")) {
+  if (matchesImpactKeyword(impact, positiveImpactKeywords)) {
     return "positive";
   }
 
-  if (impact.includes("부정")) {
+  if (matchesImpactKeyword(impact, negativeImpactKeywords)) {
     return "negative";
   }
 
@@ -338,15 +411,18 @@ function getToneFromImpact(impact: string): Tone {
 }
 
 function getHrefFromImpact(impact: string) {
-  if (impact.includes("긍정")) {
+  const tone = getToneFromImpact(impact);
+
+  if (tone === "positive") {
     return "/radar";
   }
 
-  if (impact.includes("부정")) {
-    return "/history";
-  }
+  return "/history";
+}
 
-  return "/stocks/NVDA";
+function matchesImpactKeyword(impact: string, keywords: string[]) {
+  const normalizedImpact = impact.trim().toLowerCase();
+  return keywords.some((keyword) => normalizedImpact.includes(keyword.toLowerCase()));
 }
 
 function formatAsOf(value: string) {

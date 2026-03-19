@@ -10,6 +10,33 @@ type IndexStripProps = {
 };
 
 export function IndexStrip({ items }: IndexStripProps) {
+  if (items.length === 0) {
+    return (
+      <section className="rounded-[calc(var(--radius)*1.3)] border border-border/60 bg-card/70 p-[var(--card-padding)]">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              시장 프록시
+            </p>
+            <h3 className="mt-1 text-base font-semibold tracking-tight">
+              실시간 지수 스트립 데이터를 아직 받지 못했습니다
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              요약과 뉴스는 live API를 사용 중이지만 지수 프록시 데이터는 응답에
+              포함되지 않았습니다.
+            </p>
+          </div>
+          <Link
+            href="/history"
+            className="inline-flex h-9 items-center justify-center rounded-[calc(var(--radius)*1.05)] border border-border/70 bg-background/70 px-4 text-sm font-semibold transition hover:bg-muted"
+          >
+            거시 흐름 보기
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="grid gap-[var(--space-grid)] md:grid-cols-2 xl:grid-cols-3">
       {items.map((item) => {
