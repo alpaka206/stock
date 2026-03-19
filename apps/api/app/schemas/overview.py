@@ -9,12 +9,14 @@ class SectorStrengthItem(BaseModel):
     sector: str
     score: float
     summary: str
+    changePercent: float | None = None
     sourceRefIds: list[str]
 
 
 class NotableNewsItem(BaseModel):
     headline: str
     source: str
+    summary: str = ""
     impact: str
     publishedAt: str
     url: str

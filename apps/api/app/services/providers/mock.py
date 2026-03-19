@@ -96,12 +96,14 @@ class MockResearchProvider(ResearchProvider):
                         "sector": "반도체",
                         "score": 88,
                         "summary": "실적 기대와 AI 투자 모멘텀이 유지됩니다.",
+                        "changePercent": 2.14,
                         "sourceRefIds": ["mock-source"],
                     },
                     {
                         "sector": "전력 인프라",
                         "score": 79,
                         "summary": "데이터센터 투자 확대의 후행 수혜로 해석됩니다.",
+                        "changePercent": 1.47,
                         "sourceRefIds": ["mock-source"],
                     },
                 ],
@@ -109,6 +111,7 @@ class MockResearchProvider(ResearchProvider):
                     {
                         "headline": "AI 투자 확대 기대가 반도체 강세를 이끌었습니다.",
                         "source": "mock",
+                        "summary": "GPU와 메모리 공급망으로 자금이 다시 모이며 상단 리더가 유지되는 흐름입니다.",
                         "impact": "긍정",
                         "publishedAt": datetime.now(timezone.utc).isoformat(),
                         "url": "",
@@ -117,6 +120,7 @@ class MockResearchProvider(ResearchProvider):
                     {
                         "headline": "장중 금리 안정으로 성장주 부담이 일부 완화됐습니다.",
                         "source": "mock",
+                        "summary": "장기 금리 부담이 눌리면서 고밸류 성장주 확산 가능성을 다시 점검하는 구간입니다.",
                         "impact": "중립",
                         "publishedAt": datetime.now(timezone.utc).isoformat(),
                         "url": "",

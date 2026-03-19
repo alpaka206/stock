@@ -128,6 +128,7 @@
           "sector": { "type": "string" },
           "score": { "type": "number" },
           "summary": { "type": "string" },
+          "changePercent": { "type": "number" },
           "sourceRefIds": { "type": "array", "items": { "type": "string" } }
         },
         "required": ["sector", "score", "summary", "sourceRefIds"],
@@ -141,6 +142,7 @@
         "properties": {
           "headline": { "type": "string" },
           "source": { "type": "string" },
+          "summary": { "type": "string" },
           "impact": { "type": "string" },
           "publishedAt": { "type": "string" },
           "url": { "type": "string" },
@@ -149,6 +151,7 @@
         "required": [
           "headline",
           "source",
+          "summary",
           "impact",
           "publishedAt",
           "url",
