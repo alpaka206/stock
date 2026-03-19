@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stock-workspace.local/contracts/common.schema.json",
+  "title": "Common analysis envelope fragments",
+  "$comment": "Canonical contract fragments for runtime payload validation. Page-level prompt output schema copies stay under apps/api/prompts/* for OpenAI structured output.",
+  "type": "object",
+  "$defs": {
+    "sourceRef": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "market_data",
+            "news",
+            "fundamentals",
+            "economic",
+            "internal_config",
+            "mock"
+          ]
+        },
+        "publisher": { "type": "string" },
+        "publishedAt": { "type": "string" },
+        "url": { "type": "string" },
+        "sourceKey": { "type": "string" },
+        "symbol": { "type": "string" }
+      },
+      "required": [
+        "id",
+        "title",
+        "kind",
+        "publisher",
+        "publishedAt",
+        "url",
+        "sourceKey",
+        "symbol"
+      ],
+      "additionalProperties": false
+    },
+    "missingDataItem": {
+      "type": "object",
+      "properties": {
+        "field": { "type": "string" },
+        "reason": { "type": "string" },
+        "expectedSource": { "type": "string" }
+      },
+      "required": ["field", "reason", "expectedSource"],
+      "additionalProperties": false
+    },
+    "confidence": {
+      "type": "object",
+      "properties": {
+        "score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "label": { "type": "string", "enum": ["low", "medium", "high"] },
+        "rationale": { "type": "string" }
+      },
+      "required": ["score", "label", "rationale"],
+      "additionalProperties": false
+    },
+    "sourcedText": {
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["text", "sourceRefIds"],
+      "additionalProperties": false
+    },
+    "scoreBreakdownItem": {
+      "type": "object",
+      "properties": {
+        "label": { "type": "string" },
+        "score": { "type": "number" },
+        "summary": { "type": "string" }
+      },
+      "required": ["label", "score", "summary"],
+      "additionalProperties": false
+    }
+  }
+}
