@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Awaitable, Callable, TypeVar
 
 from fastapi import HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.services.errors import ExternalServiceError, ProviderConfigurationError
 from app.services.prompt_loader import PromptLoader
@@ -35,3 +35,24 @@ async def build_page_response(
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except ExternalServiceError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=_format_response_model_validation_error(page_key, exc),
+        ) from exc
+
+
+def _format_response_model_validation_error(
+    page_key: str, exc: ValidationError
+) -> str:
+    errors = exc.errors(include_url=False)
+    if not errors:
+        return f"{page_key} payload failed response model validation."
+
+    first_error = errors[0]
+    location = ".".join(str(part) for part in first_error.get("loc", ())) or "<root>"
+    message = first_error.get("msg", "invalid payload")
+    return (
+        f"{page_key} payload failed response model validation at "
+        f"{location}: {message}"
+    )
