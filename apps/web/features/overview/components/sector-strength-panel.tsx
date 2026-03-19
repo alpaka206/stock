@@ -26,6 +26,11 @@ export function SectorStrengthPanel({ items }: SectorStrengthPanelProps) {
       }
     >
       <div className="space-y-3">
+        {items.length === 0 ? (
+          <div className="rounded-[calc(var(--radius)*1.05)] border border-dashed border-border/70 bg-background/20 p-4 text-sm leading-6 text-muted-foreground">
+            현재 연결된 섹터 강도 데이터가 없습니다. 레이더에서 다른 단서를 먼저 확인해 주세요.
+          </div>
+        ) : null}
         {items.map((item) => (
           <Link
             key={item.id}

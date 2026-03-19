@@ -25,6 +25,11 @@ export function NewsPanel({ items }: NewsPanelProps) {
       }
     >
       <div className="space-y-3">
+        {items.length === 0 ? (
+          <div className="rounded-[calc(var(--radius)*1.05)] border border-dashed border-border/70 bg-background/20 p-4 text-sm leading-6 text-muted-foreground">
+            현재 연결된 뉴스 요약이 없습니다. 히스토리 화면에서 출처와 누락 데이터를 먼저 확인해 주세요.
+          </div>
+        ) : null}
         {items.map((item) => (
           <Link
             key={item.id}
@@ -51,9 +56,11 @@ export function NewsPanel({ items }: NewsPanelProps) {
               </span>
             </div>
 
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              {item.summary}
-            </p>
+            {item.summary ? (
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                {item.summary}
+              </p>
+            ) : null}
 
             <p className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary">
               연결 화면 보기

@@ -23,7 +23,15 @@ export function RiskBanner({
   confidence,
   sourceSummary,
 }: RiskBannerProps) {
-  const primaryRisk = risks[0];
+  const primaryRisk = risks[0] ?? {
+    label: "리스크 데이터 준비 중",
+    value: "대기",
+    detail:
+      "현재 연결된 리스크 카드가 없습니다. 히스토리 화면과 출처 수, 누락 데이터를 함께 확인해 주세요.",
+    tone: "neutral" as Tone,
+    href: "/history",
+  };
+  const riskItems = risks.length > 0 ? risks : [primaryRisk];
 
   return (
     <ResearchPanel
@@ -83,7 +91,7 @@ export function RiskBanner({
         </div>
 
         <div className="grid gap-3 md:grid-cols-3">
-          {risks.map((risk) => (
+          {riskItems.map((risk) => (
             <Link
               key={`${risk.label}-${risk.value}`}
               href={risk.href}

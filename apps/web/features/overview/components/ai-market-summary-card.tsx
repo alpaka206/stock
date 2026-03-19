@@ -46,38 +46,44 @@ export function AiMarketSummaryCard({ data }: AiMarketSummaryCardProps) {
           </div>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
-          {data.summaryDrivers.map((driver) => {
-            const Icon = driverIconMap[driver.tone];
+        {data.summaryDrivers.length > 0 ? (
+          <div className="grid gap-3 md:grid-cols-3">
+            {data.summaryDrivers.map((driver) => {
+              const Icon = driverIconMap[driver.tone];
 
-            return (
-              <Link
-                key={driver.label}
-                href={driver.href}
-                className="rounded-[calc(var(--radius)*1.05)] border border-border/55 bg-background/25 p-4 transition hover:border-primary/30 hover:bg-background/45"
-              >
-                <div className="flex items-center gap-2">
-                  <span
-                    className={cn(
-                      "inline-flex size-8 items-center justify-center rounded-full border",
-                      getDriverTone(driver.tone)
-                    )}
-                  >
-                    <Icon className="size-4" />
-                  </span>
-                  <p className="text-sm font-semibold tracking-tight">{driver.label}</p>
-                </div>
-                <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                  {driver.text}
-                </p>
-                <p className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary">
-                  자세히 보기
-                  <ArrowRight className="size-3.5" />
-                </p>
-              </Link>
-            );
-          })}
-        </div>
+              return (
+                <Link
+                  key={driver.label}
+                  href={driver.href}
+                  className="rounded-[calc(var(--radius)*1.05)] border border-border/55 bg-background/25 p-4 transition hover:border-primary/30 hover:bg-background/45"
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "inline-flex size-8 items-center justify-center rounded-full border",
+                        getDriverTone(driver.tone)
+                      )}
+                    >
+                      <Icon className="size-4" />
+                    </span>
+                    <p className="text-sm font-semibold tracking-tight">{driver.label}</p>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    {driver.text}
+                  </p>
+                  <p className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary">
+                    자세히 보기
+                    <ArrowRight className="size-3.5" />
+                  </p>
+                </Link>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-[calc(var(--radius)*1.05)] border border-dashed border-border/70 bg-background/20 p-4 text-sm leading-6 text-muted-foreground">
+            현재 요약 신호 카드가 충분하지 않습니다. 출처 수와 누락 데이터를 확인한 뒤 레이더와 히스토리 화면으로 이동해 주세요.
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2">
           <Badge

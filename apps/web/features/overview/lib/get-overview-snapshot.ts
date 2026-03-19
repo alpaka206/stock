@@ -65,6 +65,7 @@ type OverviewApiResponse = {
   notableNews: Array<{
     headline: string;
     source: string;
+    summary?: string;
     impact: string;
     publishedAt: string;
     url: string;
@@ -217,11 +218,21 @@ function buildSummaryDrivers(payload: OverviewApiResponse): OverviewDriverItem[]
     });
   }
 
-  return items.length === 0 ? overviewFixture.summaryDrivers : items.slice(0, 3);
+  if (items.length === 0) {
+    return isMockPayload(payload) ? overviewFixture.summaryDrivers : [];
+  }
+
+  return items.slice(0, 3);
 }
 
 function buildIndexItems(payload: OverviewApiResponse): IndexStripItem[] {
-  const benchmarkSnapshot = payload.benchmarkSnapshot ?? [];
+  if (payload.benchmarkSnapshot === undefined) {
+    return overviewFixture.indices;
+  }
+
+  const benchmarkSnapshot = Array.isArray(payload.benchmarkSnapshot)
+    ? payload.benchmarkSnapshot
+    : [];
 
   if (benchmarkSnapshot.length > 0) {
     return benchmarkSnapshot.map((item) => ({
@@ -244,14 +255,14 @@ function buildIndexItems(payload: OverviewApiResponse): IndexStripItem[] {
 
 function buildNewsItems(payload: OverviewApiResponse): NewsItem[] {
   if (payload.notableNews.length === 0) {
-    return overviewFixture.news;
+    return isMockPayload(payload) ? overviewFixture.news : [];
   }
 
   return payload.notableNews.slice(0, 4).map((item, index) => ({
     id: `overview-api-news-${index + 1}`,
     source: item.source,
     headline: item.headline,
-    summary: buildNewsSummary(item.impact),
+    summary: item.summary?.trim() || "",
     publishedAt: formatTime(item.publishedAt),
     impactLabel: item.impact,
     tone: getToneFromImpact(item.impact),
@@ -261,7 +272,7 @@ function buildNewsItems(payload: OverviewApiResponse): NewsItem[] {
 
 function buildSectorItems(payload: OverviewApiResponse): SectorStrengthItem[] {
   if (payload.sectorStrength.length === 0) {
-    return overviewFixture.sectors;
+    return isMockPayload(payload) ? overviewFixture.sectors : [];
   }
 
   return payload.sectorStrength.slice(0, 4).map((sector) => {
@@ -300,12 +311,16 @@ function buildRiskItems(payload: OverviewApiResponse): RiskBannerItem[] {
     });
   }
 
-  return apiRisks.length === 0 ? overviewFixture.risks : apiRisks.slice(0, 3);
+  if (apiRisks.length === 0) {
+    return isMockPayload(payload) ? overviewFixture.risks : [];
+  }
+
+  return apiRisks.slice(0, 3);
 }
 
 function buildHeatmap(payload: OverviewApiResponse): HeatmapTile[] {
   if (payload.sectorStrength.length === 0) {
-    return overviewFixture.heatmap;
+    return isMockPayload(payload) ? overviewFixture.heatmap : [];
   }
 
   return payload.sectorStrength.slice(0, 6).map((sector) => {
@@ -378,20 +393,6 @@ function buildSectorCatalysts(summary: string) {
     .filter(Boolean);
 
   return segments.length >= 2 ? segments.slice(0, 2) : [summary];
-}
-
-function buildNewsSummary(impact: string) {
-  const tone = getToneFromImpact(impact);
-
-  if (tone === "positive") {
-    return "상단 주도 섹터로 자금이 붙는지 레이더에서 바로 확인할 필요가 있습니다.";
-  }
-
-  if (tone === "negative") {
-    return "과거 유사 구간의 반응을 히스토리에서 함께 비교해야 하는 headline입니다.";
-  }
-
-  return "방향성 확정보다 섹터별 상대 강도 비교가 우선인 뉴스 흐름입니다.";
 }
 
 function getToneFromImpact(impact: string): Tone {

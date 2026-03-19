@@ -24,31 +24,39 @@ export function MarketHeatmap({ items }: MarketHeatmapProps) {
         </Link>
       }
     >
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {items.map((item) => (
-          <Link
-            key={item.label}
-            href={item.href}
-            className={cn(
-              "rounded-[calc(var(--radius)*1.05)] border p-4 transition hover:-translate-y-0.5",
-              getHeatTone(item.score)
-            )}
-          >
-            <p className="text-sm font-semibold tracking-tight">{item.label}</p>
-            <p className="numeric mt-4 text-3xl font-semibold">{item.score}</p>
-            {item.changePercent !== undefined ? (
-              <p className="numeric mt-2 text-sm font-medium">
-                {formatSignedPercent(item.changePercent)}
+      {items.length === 0 ? (
+        <div className="rounded-[calc(var(--radius)*1.05)] border border-dashed border-border/70 bg-background/20 p-4 text-sm leading-6 text-muted-foreground">
+          현재 연결된 섹터 히트맵 데이터가 없습니다. 레이더와 뉴스 패널에서 우선 흐름을 확인해 주세요.
+        </div>
+      ) : null}
+
+      {items.length > 0 ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {items.map((item) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              className={cn(
+                "rounded-[calc(var(--radius)*1.05)] border p-4 transition hover:-translate-y-0.5",
+                getHeatTone(item.score)
+              )}
+            >
+              <p className="text-sm font-semibold tracking-tight">{item.label}</p>
+              <p className="numeric mt-4 text-3xl font-semibold">{item.score}</p>
+              {item.changePercent !== undefined ? (
+                <p className="numeric mt-2 text-sm font-medium">
+                  {formatSignedPercent(item.changePercent)}
+                </p>
+              ) : (
+                <p className="mt-2 text-xs font-medium opacity-75">변화율 데이터 준비 중</p>
+              )}
+              <p className="mt-3 text-xs font-semibold opacity-80">
+                {item.href === "/radar" ? "레이더 보기" : "관련 종목 보기"}
               </p>
-            ) : (
-              <p className="mt-2 text-xs font-medium opacity-75">변화율 데이터 준비 중</p>
-            )}
-            <p className="mt-3 text-xs font-semibold opacity-80">
-              {item.href === "/radar" ? "레이더 보기" : "관련 종목 보기"}
-            </p>
-          </Link>
-        ))}
-      </div>
+            </Link>
+          ))}
+        </div>
+      ) : null}
     </ResearchPanel>
   );
 }
