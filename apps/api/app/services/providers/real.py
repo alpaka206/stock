@@ -457,7 +457,7 @@ class RealResearchProvider(ResearchProvider):
                     "symbol": "US10Y",
                     "category": "금리",
                     "value": treasury["value"],
-                    "changePercent": 0.0,
+                    "changePercent": treasury["changePercent"],
                     "note": "장기 금리 민감도를 보는 기준 값입니다.",
                     "sourceRefIds": treasury["sourceRefIds"],
                 }

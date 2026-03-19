@@ -123,7 +123,20 @@ class AlphaVantageClient:
         if not series:
             raise ExternalServiceError("미국 국채 수익률 데이터를 찾지 못했습니다.")
         latest = series[0]
-        return {"date": latest.get("date", ""), "value": self._to_float(latest.get("value"))}
+        latest_value = self._to_float(latest.get("value"))
+        previous_value = latest_value
+        if len(series) > 1:
+            previous_value = self._to_float(series[1].get("value"))
+
+        change_percent = 0.0
+        if previous_value:
+            change_percent = ((latest_value - previous_value) / previous_value) * 100
+
+        return {
+            "date": latest.get("date", ""),
+            "value": latest_value,
+            "changePercent": round(change_percent, 2),
+        }
 
     async def _request(self, params: dict[str, str]) -> dict[str, Any]:
         if not self.api_key:
