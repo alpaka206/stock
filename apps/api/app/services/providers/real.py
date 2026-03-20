@@ -623,6 +623,7 @@ class RealResearchProvider(ResearchProvider):
             symbol=target_symbol,
             news_items=news_items,
             turning_points=turning_points,
+            filtered_series=filtered_series,
         )
         move_reasons = self._build_history_move_reasons(turning_points, series_ref["id"])
         overlapping_indicators = self._build_history_overlaps(
@@ -908,6 +909,62 @@ class RealResearchProvider(ResearchProvider):
 
     def _build_stock_rule_preset_definitions(self) -> list[dict[str, Any]]:
         return [
+            {
+                "id": "support-hold",
+                "label": "지지선 유지",
+                "description": "지지 구간 위에서 종가가 유지되는지 확인합니다.",
+                "enabledByDefault": True,
+                "tone": "positive",
+                "guideIds": ["support"],
+                "controlsEventMarkers": False,
+            },
+            {
+                "id": "trend-base",
+                "label": "추세 기준선",
+                "description": "중기 추세 기준선 위에서 종가가 유지되는지 확인합니다.",
+                "enabledByDefault": True,
+                "tone": "neutral",
+                "guideIds": ["trend-base"],
+                "controlsEventMarkers": False,
+            },
+            {
+                "id": "volume-spike",
+                "label": "거래량 배수",
+                "description": "거래량이 추세를 지지하는지 확인합니다.",
+                "enabledByDefault": True,
+                "tone": "positive",
+                "guideIds": ["volume-spike", "volume"],
+                "controlsEventMarkers": False,
+            },
+            {
+                "id": "relative-strength",
+                "label": "상대강도",
+                "description": "같은 섹터 내 리더 여부를 확인합니다.",
+                "enabledByDefault": True,
+                "tone": "positive",
+                "guideIds": ["relative-strength"],
+                "controlsEventMarkers": False,
+            },
+            {
+                "id": "volatility-guard",
+                "label": "변동성 경계",
+                "description": "과열 뒤 흔들림 확대 여부를 경고합니다.",
+                "enabledByDefault": False,
+                "tone": "negative",
+                "guideIds": ["volatility-guard", "volatility"],
+                "controlsEventMarkers": False,
+            },
+            {
+                "id": "event-window",
+                "label": "이벤트 창 관리",
+                "description": "실적과 행사 직전후 이벤트 마커를 확인합니다.",
+                "enabledByDefault": True,
+                "tone": "neutral",
+                "guideIds": [],
+                "controlsEventMarkers": True,
+            },
+        ]
+        return [
             {"id": "support-hold", "label": "지지선 유지", "description": "지지 구간 위 종가 유지 여부를 봅니다.", "enabledByDefault": True, "tone": "positive"},
             {"id": "trend-base", "label": "추세선 회복", "description": "중기 추세 기준선 위 유지 여부를 확인합니다.", "enabledByDefault": True, "tone": "neutral"},
             {"id": "volume-spike", "label": "거래량 배수", "description": "거래량이 추세를 지지하는지 확인합니다.", "enabledByDefault": True, "tone": "positive"},
@@ -1006,7 +1063,9 @@ class RealResearchProvider(ResearchProvider):
         symbol: str,
         news_items: list[dict[str, Any]],
         turning_points: list[dict[str, Any]],
+        filtered_series: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
+        series_dates = sorted({str(row["date"]) for row in filtered_series if row.get("date")})
         events: list[dict[str, Any]] = []
         for index, turning_point in enumerate(turning_points[:3]):
             tone = "positive" if turning_point["move"] > 0 else "negative"
@@ -1025,11 +1084,23 @@ class RealResearchProvider(ResearchProvider):
                 }
             )
 
-        for index, article in enumerate(news_items[:2]):
+        filtered_news: list[tuple[dict[str, Any], str]] = []
+        for article in news_items:
+            aligned_date = self._align_history_event_date(
+                str(article.get("publishedAt", ""))[:10],
+                series_dates,
+            )
+            if not aligned_date:
+                continue
+            filtered_news.append((article, aligned_date))
+            if len(filtered_news) >= 2:
+                break
+
+        for index, (article, aligned_date) in enumerate(filtered_news):
             events.append(
                 {
                     "id": f"{symbol.lower()}-news-{index + 1}",
-                    "date": article.get("publishedAt", "")[:10],
+                    "date": aligned_date,
                     "title": article.get("title", ""),
                     "category": "뉴스",
                     "summary": article.get("summary", ""),
@@ -1043,6 +1114,26 @@ class RealResearchProvider(ResearchProvider):
 
         events.sort(key=lambda item: item["date"])
         return events
+
+    def _align_history_event_date(
+        self, event_date: str, series_dates: list[str]
+    ) -> str | None:
+        if not event_date or not series_dates:
+            return None
+
+        earliest = series_dates[0]
+        latest = series_dates[-1]
+        if event_date < earliest or event_date > latest:
+            return None
+
+        aligned_date: str | None = None
+        for candidate in series_dates:
+            if candidate <= event_date:
+                aligned_date = candidate
+                continue
+            break
+
+        return aligned_date or earliest
 
     def _build_history_move_reasons(
         self, turning_points: list[dict[str, Any]], source_ref_id: str

@@ -135,9 +135,14 @@
           "label": { "type": "string" },
           "description": { "type": "string" },
           "enabledByDefault": { "type": "boolean" },
-          "tone": { "type": ["string", "null"], "enum": ["positive", "negative", "neutral", null] }
+          "tone": { "type": ["string", "null"], "enum": ["positive", "negative", "neutral", null] },
+          "guideIds": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "controlsEventMarkers": { "type": "boolean" }
         },
-        "required": ["id", "label", "description", "enabledByDefault", "tone"],
+        "required": ["id", "label", "description", "enabledByDefault", "tone", "guideIds", "controlsEventMarkers"],
         "additionalProperties": false
       }
     },

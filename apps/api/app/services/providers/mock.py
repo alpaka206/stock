@@ -473,6 +473,35 @@ class MockResearchProvider(ResearchProvider):
                 "relatedSymbols": ["AVGO", "AMD", "VRT"],
             }
         )
+        payload["rulePresetDefinitions"] = [
+            {
+                "id": "support-hold",
+                "label": "지지선 유지",
+                "description": "지지 구간 위에서 종가가 유지되는지 확인합니다.",
+                "enabledByDefault": True,
+                "tone": "positive",
+                "guideIds": ["support"],
+                "controlsEventMarkers": False,
+            },
+            {
+                "id": "trend-base",
+                "label": "추세 기준선",
+                "description": "중기 추세 기준선 위에서 종가가 유지되는지 확인합니다.",
+                "enabledByDefault": True,
+                "tone": "neutral",
+                "guideIds": ["trend-base"],
+                "controlsEventMarkers": False,
+            },
+            {
+                "id": "volume-spike",
+                "label": "거래량 배수",
+                "description": "거래량이 추세를 지지하는지 확인합니다.",
+                "enabledByDefault": True,
+                "tone": "positive",
+                "guideIds": ["volume-spike"],
+                "controlsEventMarkers": False,
+            },
+        ]
         return payload
 
     async def get_history(

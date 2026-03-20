@@ -51,6 +51,8 @@ class RulePresetDefinition(BaseModel):
     description: str
     enabledByDefault: bool
     tone: Tone | None = None
+    guideIds: list[str] = Field(default_factory=list)
+    controlsEventMarkers: bool = False
 
 
 class ScoreBreakdownItem(BaseModel):
