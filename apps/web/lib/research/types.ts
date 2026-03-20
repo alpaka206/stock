@@ -246,6 +246,8 @@ export type IndicatorRuleDefinition = {
   description: string;
   enabledByDefault: boolean;
   tone?: Tone;
+  guideIds?: string[];
+  controlsEventMarkers?: boolean;
 };
 
 export type ScoreBreakdownItem = {

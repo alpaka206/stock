@@ -85,11 +85,25 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
     searchParams.get("indicators"),
     activePreset.value.indicatorIds
   );
+  const activeRuleDefinitions = stock.rulePresetDefinitions.filter((definition) =>
+    indicatorIds.includes(definition.id)
+  );
+  const visibleGuideIds = new Set(
+    activeRuleDefinitions.flatMap((definition) => resolveRuleGuideIds(definition))
+  );
+  const hasEventMarkerRule = stock.rulePresetDefinitions.some(
+    (definition) => definition.controlsEventMarkers || definition.id === "event-window"
+  );
+  const showEventMarkers = hasEventMarkerRule
+    ? activeRuleDefinitions.some(
+        (definition) => definition.controlsEventMarkers || definition.id === "event-window"
+      )
+    : true;
   const selectedMarker =
     stock.eventMarkers.find((marker) => marker.id === selectedMarkerId) ??
     stock.eventMarkers[0];
   const visibleGuides = stock.indicatorGuides.filter(
-    (guide) => guide.enabled !== false && indicatorIds.includes(guide.id)
+    (guide) => guide.enabled !== false && visibleGuideIds.has(guide.id)
   );
   const direction =
     stock.changePercent > 0 ? "up" : stock.changePercent < 0 ? "down" : "flat";
@@ -144,8 +158,8 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
             <ResearchLineChart
               points={stock.priceSeries}
               guides={visibleGuides}
-              markers={stock.eventMarkers}
-              activePointKey={selectedMarker?.date}
+              markers={showEventMarkers ? stock.eventMarkers : []}
+              activePointKey={showEventMarkers ? selectedMarker?.date : undefined}
               onPointSelect={(pointKey) => {
                 const matchedMarker = stock.eventMarkers.find(
                   (marker) => marker.date === pointKey || marker.pointLabel === pointKey
@@ -392,6 +406,29 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
       </Tabs>
     </div>
   );
+}
+
+function resolveRuleGuideIds(
+  definition: StockFixture["rulePresetDefinitions"][number]
+) {
+  if (definition.guideIds && definition.guideIds.length > 0) {
+    return definition.guideIds;
+  }
+
+  switch (definition.id) {
+    case "support-hold":
+      return ["support"];
+    case "trend-base":
+      return ["trend-base"];
+    case "volume-spike":
+      return ["volume-spike", "volume"];
+    case "relative-strength":
+      return ["relative-strength"];
+    case "volatility-guard":
+      return ["volatility-guard", "volatility"];
+    default:
+      return [];
+  }
 }
 
 function parseIndicatorIds(value: string | null, fallback: string[]) {
