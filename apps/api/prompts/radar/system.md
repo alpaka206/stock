@@ -1,16 +1,11 @@
 목표:
-관심종목과 섹터 우선순위를 정리하는 `/radar` 분석 JSON을 생성한다.
+`/radar` 화면용 섹터 요약 한 문단을 만든다.
 
 반드시 포함:
 - `selectedSectorSummary`
-- `reportSummary`
-- `keySchedule`
-- `keyIssues`
-- `topPicks`
-- `watchlistHighlights`
 
 작성 방식:
-- watchlist row facts와 뉴스만 근거로 사용한다.
-- broker report가 없으면 그 사실을 숨기지 말고 `missingData`를 반영한 문장을 쓴다.
-- `topPicks`는 점수와 상대 강도 facts를 근거로 정리한다.
-- 직접적인 매수 추천 문구는 쓰지 않는다.
+- 숫자, 랭킹, 종목 점수, 컬럼 값은 facts에 있는 값만 사용한다.
+- folderTree, watchlistRows, sectorCards, brokerReports, keySchedule, keyIssues, topPicks는 provider가 후처리로 채우므로 억지로 만들어내지 않는다.
+- 요약은 현재 선택된 섹터가 왜 우선 검토 대상인지와 어떤 리스크를 같이 봐야 하는지 2~3문장으로 정리한다.
+- 직접적인 매수/매도 지시 문구는 쓰지 않는다.

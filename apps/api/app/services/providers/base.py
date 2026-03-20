@@ -23,6 +23,12 @@ class ResearchProvider(ABC):
 
     @abstractmethod
     async def get_history(
-        self, *, symbol: str | None, prompt_bundle: PromptBundle
+        self,
+        *,
+        symbol: str | None,
+        range: str | None = None,
+        from_date: str | None = None,
+        to_date: str | None = None,
+        prompt_bundle: PromptBundle,
     ) -> dict[str, Any]:
         raise NotImplementedError
