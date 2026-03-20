@@ -98,12 +98,25 @@ class RealResearchProvider(ResearchProvider):
             "topMovers": top_movers or {},
             "notableNews": news_items,
         }
+        benchmark_snapshot = self._build_overview_benchmark_snapshot(
+            benchmarks=benchmarks,
+            treasury=treasury,
+        )
         payload = await self._summarize(
             page_key="overview",
             prompt_bundle=prompt_bundle,
             facts=facts,
             source_refs=source_refs,
             missing_data=missing_data,
+        )
+        payload["benchmarkSnapshot"] = benchmark_snapshot
+        payload["sectorStrength"] = self._hydrate_overview_sector_strength(
+            items=payload.get("sectorStrength"),
+            sector_proxies=sector_proxies,
+        )
+        payload["notableNews"] = self._hydrate_overview_news(
+            items=payload.get("notableNews"),
+            news_items=news_items,
         )
         return self._finalize_payload(payload, source_refs, missing_data)
 
@@ -425,6 +438,150 @@ class RealResearchProvider(ResearchProvider):
                 }
             )
         return proxies
+
+    def _build_overview_benchmark_snapshot(
+        self,
+        *,
+        benchmarks: list[dict[str, Any]],
+        treasury: dict[str, Any] | None,
+    ) -> list[dict[str, Any]]:
+        snapshot = [
+            {
+                "label": benchmark["label"],
+                "symbol": benchmark["symbol"],
+                "category": "시장 프록시",
+                "value": benchmark["price"],
+                "changePercent": benchmark["changePercent"],
+                "note": f'{benchmark["label"]} 프록시 ETF 기준 흐름입니다.',
+                "sourceRefIds": benchmark["sourceRefIds"],
+            }
+            for benchmark in benchmarks
+        ]
+
+        if treasury:
+            snapshot.append(
+                {
+                    "label": "미국 10년물 금리",
+                    "symbol": "US10Y",
+                    "category": "금리",
+                    "value": treasury["value"],
+                    "changePercent": treasury["changePercent"],
+                    "note": "장기 금리 민감도를 보는 기준 값입니다.",
+                    "sourceRefIds": treasury["sourceRefIds"],
+                }
+            )
+
+        return snapshot
+
+    def _hydrate_overview_sector_strength(
+        self,
+        *,
+        items: Any,
+        sector_proxies: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        if not isinstance(items, list):
+            return []
+
+        change_by_label = {
+            str(proxy.get("label", "")).strip().lower(): round(float(proxy["changePercent"]), 2)
+            for proxy in sector_proxies
+            if proxy.get("label") and "changePercent" in proxy
+        }
+        change_by_ref_id: dict[str, float] = {}
+        for proxy in sector_proxies:
+            if "changePercent" not in proxy:
+                continue
+            for ref_id in proxy.get("sourceRefIds", []):
+                change_by_ref_id[str(ref_id)] = round(float(proxy["changePercent"]), 2)
+
+        hydrated: list[dict[str, Any]] = []
+        for raw_item in items:
+            if not isinstance(raw_item, dict):
+                continue
+
+            item = {key: value for key, value in raw_item.items() if key != "changePercent"}
+            change_percent = self._resolve_sector_change_percent(
+                item=item,
+                change_by_label=change_by_label,
+                change_by_ref_id=change_by_ref_id,
+            )
+            if change_percent is not None:
+                item["changePercent"] = change_percent
+            hydrated.append(item)
+
+        return hydrated
+
+    def _resolve_sector_change_percent(
+        self,
+        *,
+        item: dict[str, Any],
+        change_by_label: dict[str, float],
+        change_by_ref_id: dict[str, float],
+    ) -> float | None:
+        for ref_id in item.get("sourceRefIds", []):
+            normalized_ref_id = str(ref_id)
+            if normalized_ref_id in change_by_ref_id:
+                return change_by_ref_id[normalized_ref_id]
+
+        sector_name = str(item.get("sector", "")).strip().lower()
+        if sector_name:
+            return change_by_label.get(sector_name)
+
+        return None
+
+    def _hydrate_overview_news(
+        self,
+        *,
+        items: Any,
+        news_items: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        if not isinstance(items, list):
+            return []
+
+        summary_by_ref_id: dict[str, str] = {}
+        summary_by_headline: dict[str, str] = {}
+        for article in news_items:
+            summary = str(article.get("summary", "")).strip()
+            if not summary:
+                continue
+            normalized_headline = str(article.get("title", "")).strip().lower()
+            if normalized_headline:
+                summary_by_headline[normalized_headline] = summary
+            for ref_id in article.get("sourceRefIds", []):
+                summary_by_ref_id[str(ref_id)] = summary
+
+        hydrated: list[dict[str, Any]] = []
+        for raw_item in items:
+            if not isinstance(raw_item, dict):
+                continue
+
+            item = dict(raw_item)
+            item["summary"] = self._resolve_news_summary(
+                item=item,
+                summary_by_ref_id=summary_by_ref_id,
+                summary_by_headline=summary_by_headline,
+            )
+            hydrated.append(item)
+
+        return hydrated
+
+    def _resolve_news_summary(
+        self,
+        *,
+        item: dict[str, Any],
+        summary_by_ref_id: dict[str, str],
+        summary_by_headline: dict[str, str],
+    ) -> str:
+        for ref_id in item.get("sourceRefIds", []):
+            normalized_ref_id = str(ref_id)
+            if normalized_ref_id in summary_by_ref_id:
+                return summary_by_ref_id[normalized_ref_id]
+
+        normalized_headline = str(item.get("headline", "")).strip().lower()
+        if normalized_headline:
+            return summary_by_headline.get(normalized_headline, "")
+
+        return ""
 
     async def _build_news_items(
         self,

@@ -1,19 +1,19 @@
 version: 1
-updated_at: 2026-03-16T00:00:00+09:00
+updated_at: 2026-03-18T00:00:00+09:00
 shared:
   components:
     - name: ResearchAppShell
       kind: shell
-      role: 4개 메인 화면에 공통 sidebar, topbar, theme toggle을 제공하는 앱 chrome
+      role: 4개 메인 화면의 공통 sidebar, topbar, theme toggle을 제공하는 앱 chrome
     - name: AppProviders
       kind: provider
-      role: Theme provider 와 TanStack Query provider 를 루트에서 묶는다
+      role: Theme provider와 TanStack Query provider를 루트에서 묶는 레이어
     - name: AgResearchGrid
       kind: grid
-      role: AG Grid Community 공통 래퍼. 한국어 locale, 모듈 등록, 기본 colDef 포함
+      role: AG Grid Community 공통 래퍼. 한국어 locale, 모듈 등록, 기본 colDef를 포함한다.
     - name: ResearchLineChart
       kind: chart
-      role: 개발용 fixture 로 가격/볼륨 흐름을 검토하는 공통 차트
+      role: 개발용 fixture와 API 데이터를 가격 흐름으로 검토하는 공통 차트
     - name: ResearchPanel
       kind: card
       role: 카드 표면, 간격 토큰, 헤더 구조를 통일하는 공통 패널
@@ -23,31 +23,31 @@ pages:
     components:
       - name: IndexStrip
         kind: shell
-        role: 나스닥/S&P500/반도체/금리 등 핵심 지표 스트립
+        role: 주요 지수, 환율, 금리를 가장 먼저 읽게 하는 상단 스트립
       - name: AiMarketSummaryCard
         kind: card
-        role: 시황 요약, 주요 원인, 오늘의 관전 포인트 요약
+        role: 시장 요약, 주도 신호, 관전 포인트를 한 문장과 3개 체크포인트로 압축한다.
       - name: MarketHeatmap
         kind: visualization
-        role: 섹터 강도와 하루 변화율을 빠르게 읽는 히트맵
+        role: 섹터 강도와 변화율을 빠르게 읽고 종목 화면으로 이어주는 히트맵
       - name: NewsPanel
         kind: feed
-        role: 리서치 시작 전에 읽을 핵심 뉴스 목록
+        role: 시장 해석을 바꿀 headline만 추려 히스토리와 종목 화면으로 연결한다.
       - name: SectorStrengthPanel
         kind: ranking
-        role: 강한/약한 섹터를 점수와 논리로 정리
+        role: 강한 섹터와 핵심 종목을 점수 기반으로 정리해 즉시 종목 분석으로 이어준다.
       - name: RiskBanner
         kind: alert
-        role: 금리/밸류/로테이션 리스크를 짧게 요약
+        role: 금리, 기대 과열, 데이터 공백 같은 리스크를 한 번에 요약해 체크 순서를 제시한다.
 
   radar:
     components:
       - name: WatchlistFolderTree
         kind: nav
-        role: 폴더/태그/전략 기준 탐색 트리
+        role: 폴더와 태그와 프리셋 기반 탐색 트리
       - name: WatchlistToolbar
         kind: controls
-        role: 검색, view mode, 커스텀 컬럼 토글
+        role: 검색, view mode, 커스텀 컬럼 숨김
       - name: WatchlistGrid
         kind: grid
         role: AG Grid Community 기반 핵심 작업 영역
@@ -56,58 +56,58 @@ pages:
         role: 선택 후보와 연결된 섹터 요약
       - name: BrokerReportSummaryPanel
         kind: analysis
-        role: 증권사/브로커 메모 요약
+        role: 증권사 브로커 메모 요약
       - name: SectorSchedulePanel
         kind: timeline
-        role: 섹터별 장중 체크 포인트 일정
+        role: 섹터별 체크 포인트 일정
       - name: SectorIssuePanel
         kind: feed
-        role: 섹터별 이슈와 재료 소멸 여부 정리
+        role: 섹터별 뉴스와 이벤트 모니터링
       - name: SectorTopPickPanel
         kind: ranking
-        role: 섹터별 우선검토 후보
+        role: 섹터별 우선 검토 종목
 
   stock_detail:
     components:
       - name: StockSearchBar
         kind: search
-        role: 샘플 심볼 프리셋과 탐색 진입점
+        role: 심볼과 종목명 검색 진입점
       - name: PriceChartPanel
         kind: chart
         role: 가격 차트와 거래량 흐름
       - name: IndicatorPanel
         kind: chart
-        role: 지지/추세/과열 가이드 레이어
+        role: 지지선, 추세, 과열 가이드를 시각화한다.
       - name: RulePresetSidebar
         kind: controls
-        role: 사용자 규칙, 프리셋, 무효화 조건 패널
+        role: 사용자 규칙과 프리셋 조건 설명
       - name: ScoreBreakdownCard
         kind: score
         role: 총점과 breakdown
       - name: FlowPanel
         kind: analysis
-        role: 기관/외국인/개인 흐름 요약
+        role: 기관, 외국인, 개인 흐름 요약
       - name: ShortOptionPanel
         kind: analysis
-        role: 공매도와 옵션 프리미엄 점검
+        role: 공매도와 옵션 프리미엄 맥락
       - name: IssueAnalysisPanel
         kind: analysis
-        role: 종목/섹터/시황 이슈 요약
+        role: 종목, 섹터, 시황 이슈 요약
 
   history:
     components:
       - name: HistoryFilterBar
         kind: controls
-        role: 종목, 날짜 범위, 이벤트 프리셋 선택
+        role: 종목, 날짜 범위, 이벤트 카테고리 선택
       - name: ReplayChart
         kind: chart
         role: 과거 가격 흐름을 다시 읽는 리플레이 차트
       - name: EventTimeline
         kind: timeline
-        role: 뉴스/공시/이벤트 타임라인
+        role: 뉴스, 공시, 이벤트 타임라인
       - name: MoveReasonSummaryCard
         kind: analysis
-        role: 급등/급락 이유 요약
+        role: 급등과 급락 이유 요약
       - name: IndicatorOverlapCard
         kind: analysis
         role: 변곡점에서 겹친 신호 설명

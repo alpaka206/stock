@@ -42,6 +42,44 @@ class MockResearchProvider(ResearchProvider):
         payload = _base_envelope()
         payload.update(
             {
+                "benchmarkSnapshot": [
+                    {
+                        "label": "S&P 500",
+                        "symbol": "SPY",
+                        "category": "시장 프록시",
+                        "value": 548.12,
+                        "changePercent": 0.64,
+                        "note": "S&P 500 프록시 ETF 기준 흐름입니다.",
+                        "sourceRefIds": ["mock-source"],
+                    },
+                    {
+                        "label": "NASDAQ 100",
+                        "symbol": "QQQ",
+                        "category": "시장 프록시",
+                        "value": 498.44,
+                        "changePercent": 1.28,
+                        "note": "대형 기술주 중심 프록시 ETF 흐름입니다.",
+                        "sourceRefIds": ["mock-source"],
+                    },
+                    {
+                        "label": "반도체",
+                        "symbol": "SMH",
+                        "category": "섹터 프록시",
+                        "value": 271.85,
+                        "changePercent": 2.14,
+                        "note": "반도체 섹터 프록시 ETF 기준입니다.",
+                        "sourceRefIds": ["mock-source"],
+                    },
+                    {
+                        "label": "미국 10년물 금리",
+                        "symbol": "US10Y",
+                        "category": "금리",
+                        "value": 4.18,
+                        "changePercent": -0.36,
+                        "note": "장기 금리 민감도를 보는 기준 값입니다.",
+                        "sourceRefIds": ["mock-source"],
+                    },
+                ],
                 "marketSummary": _sourced_text(
                     "대형 기술주 중심 강세가 유지되지만 금리 민감 구간에서는 선별 흐름이 나타납니다."
                 ),
@@ -58,12 +96,14 @@ class MockResearchProvider(ResearchProvider):
                         "sector": "반도체",
                         "score": 88,
                         "summary": "실적 기대와 AI 투자 모멘텀이 유지됩니다.",
+                        "changePercent": 2.14,
                         "sourceRefIds": ["mock-source"],
                     },
                     {
                         "sector": "전력 인프라",
                         "score": 79,
                         "summary": "데이터센터 투자 확대의 후행 수혜로 해석됩니다.",
+                        "changePercent": 1.47,
                         "sourceRefIds": ["mock-source"],
                     },
                 ],
@@ -71,6 +111,7 @@ class MockResearchProvider(ResearchProvider):
                     {
                         "headline": "AI 투자 확대 기대가 반도체 강세를 이끌었습니다.",
                         "source": "mock",
+                        "summary": "GPU와 메모리 공급망으로 자금이 다시 모이며 상단 리더가 유지되는 흐름입니다.",
                         "impact": "긍정",
                         "publishedAt": datetime.now(timezone.utc).isoformat(),
                         "url": "",
@@ -79,6 +120,7 @@ class MockResearchProvider(ResearchProvider):
                     {
                         "headline": "장중 금리 안정으로 성장주 부담이 일부 완화됐습니다.",
                         "source": "mock",
+                        "summary": "장기 금리 부담이 눌리면서 고밸류 성장주 확산 가능성을 다시 점검하는 구간입니다.",
                         "impact": "중립",
                         "publishedAt": datetime.now(timezone.utc).isoformat(),
                         "url": "",
