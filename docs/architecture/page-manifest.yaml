@@ -1,9 +1,9 @@
 version: 1
-updated_at: 2026-03-18T00:00:00+09:00
+updated_at: 2026-03-21T00:00:00+09:00
 pages:
   - route: /overview
     name_ko: 시황 대시보드
-    goal: 오늘 시장을 10초 안에 읽고 다음 탐색 화면으로 자연스럽게 넘어가게 하는 시작 화면
+    goal: 오늘 시장의 방향을 10초 안에 읽고 다음 탐색 화면으로 이동하는 시작 화면
     primary_blocks:
       - 지수 스트립
       - AI 시황 요약 카드
@@ -12,9 +12,7 @@ pages:
       - 섹터 강도 패널
       - 리스크 배너
     required_data:
-      - 주요 지수
-      - 환율
-      - 해외 지수
+      - 지수 / 환율 / 금리
       - 뉴스 요약
       - 섹터 강도
       - 시장 요약 JSON
@@ -24,53 +22,51 @@ pages:
       - /history
 
   - route: /radar
-    name_ko: 관심 종목 + 섹터 인텔리전스
-    goal: 관심 종목과 섹터 근거를 같은 화면에서 보고 연결하는 작업 화면
+    name_ko: 관심종목 + 섹터 분석
+    goal: 관심종목과 섹터 intelligence를 같은 화면에서 정리하는 핵심 작업 화면
     primary_layout:
-      left: 폴더와 태그 기반 탐색 트리
-      center: AG Grid Community 기반 관심 종목 그리드
-      right: 선택 섹터 요약, 브로커 메모, 일정, Top Pick
+      left: 폴더 트리, 태그 바로가기, 저장된 view preset
+      center: AG Grid Community 기반 관심종목 그리드와 flat / sector view 전환
+      right: 선택 섹터 요약, 리포트 요약, 일정, 주요 이슈, top pick
     required_capabilities:
-      - 폴더별 가시성
-      - 장표처럼 빠르게 읽는 UX
-      - 컬럼 숨김
+      - 폴더화
+      - 컬럼 토글
       - 정렬
-      - 필터
-      - 그룹 뷰
-      - 섹터별 요약
-      - 섹터별 일정과 이슈
-      - 브로커 리포트 요약
-      - 섹터별 top pick
+      - 텍스트 필터
+      - 섹터 기준 group view
+      - 선택 섹터에 따른 우측 패널 동기화
+      - 저장된 뷰 preset
 
   - route: /stocks/[symbol]
     name_ko: 종목 분석 워크스테이션
-    goal: 한 종목의 기술적 분석, 수급, 옵션과 공매도, 이슈, 점수를 한 화면에서 분석
+    goal: 한 종목의 핵심 판단 근거를 차트 중심으로 모아 보는 작업 화면
     primary_blocks:
       - 종목 검색
-      - 가격 차트
-      - 보조지표 영역
-      - 규칙 프리셋 설명
-      - 공매도와 옵션 비율
-      - 종목과 섹터와 시황 이슈 분석
-      - 수급 요약
-      - 점수 영역
+      - 대형 가격 차트
+      - 이벤트 마커 / 보조지표 가이드
+      - 사용자 규칙 / preset 패널
+      - 점수 탭
+      - 수급 탭
+      - 공매도 / 옵션 탭
+      - 이슈 분석 탭
     required_capabilities:
-      - 티커와 종목명 검색
-      - 보조지표 6개 이상 감시 규칙
-      - 수급 요약
-      - 점수 breakdown
-      - 사용자 프리셋 저장
+      - 티커 / 종목명 / 종목번호 검색
+      - 6개 이상 규칙 토글
+      - score breakdown + confidence
+      - 수급 / 옵션 / 공매도 unavailable 상태 명시
+      - 사용자 preset 저장
 
   - route: /history
     name_ko: 히스토리 / 이벤트 리플레이
-    goal: 과거 급등과 급락의 이유를 차트와 뉴스와 지표 흐름으로 다시 읽는 화면
+    goal: 과거 급등과 급락의 이유를 차트와 타임라인을 함께 보며 다시 읽는 화면
     primary_blocks:
-      - 날짜 범위 선택
+      - 종목 검색 + 날짜 범위 선택
       - 과거 차트 리플레이
-      - 이벤트 뉴스 타임라인
-      - 이유 요약 카드
+      - 이벤트 / 뉴스 타임라인
+      - 급등 / 급락 이유 요약 카드
       - 중복 지표 설명 카드
     required_capabilities:
-      - 날짜별 특정 뉴스와 급등 이유 요약
-      - 변곡점 기준 보조지표 중복 신호 해석
-      - 급등과 급락 원인 설명
+      - 날짜 기준 차트 / 타임라인 동기화
+      - 이벤트 클릭 시 차트 포커스 이동
+      - 이전 / 다음 이벤트 이동
+      - 과거 움직임 이유 JSON + UI 제공
