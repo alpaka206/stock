@@ -54,6 +54,9 @@ export function EventTimeline({
                 {event.summary}
               </p>
             </div>
+            {event.source ? (
+              <p className="text-xs text-muted-foreground">{event.source}</p>
+            ) : null}
             <p className="numeric text-xs font-semibold text-foreground/80">
               {event.reaction}
             </p>
