@@ -52,11 +52,13 @@ export function HistoryPage({ history }: HistoryPageProps) {
   );
   const previousEvent = history.events[selectedEventIndex - 1];
   const nextEvent = history.events[selectedEventIndex + 1];
-  const selectedRange =
-    history.availableRanges.find((range) => range.value === searchParams.get("range"))
-      ?.value ?? history.availableRanges[0]?.value;
   const fromValue = searchParams.get("from") ?? "";
   const toValue = searchParams.get("to") ?? "";
+  const hasCustomRange = Boolean(fromValue || toValue);
+  const selectedRange =
+    history.availableRanges.find((range) => range.value === searchParams.get("range"))
+      ?.value ??
+    (hasCustomRange ? "custom" : history.availableRanges[0]?.value ?? "3m");
 
   return (
     <div className={layoutTokens.page}>
@@ -79,12 +81,22 @@ export function HistoryPage({ history }: HistoryPageProps) {
           <div className="grid gap-3 xl:grid-cols-[180px_1fr_1fr]">
             <Select
               value={selectedRange}
-              onValueChange={(value) => replaceParams({ range: value, event: undefined })}
+              onValueChange={(value) =>
+                replaceParams({
+                  range: value === "custom" ? undefined : value,
+                  from: undefined,
+                  to: undefined,
+                  event: undefined,
+                })
+              }
             >
               <SelectTrigger className="w-full bg-background/65">
                 <SelectValue placeholder="구간" />
               </SelectTrigger>
               <SelectContent>
+                {hasCustomRange ? (
+                  <SelectItem value="custom">직접 선택</SelectItem>
+                ) : null}
                 {history.availableRanges.map((range) => (
                   <SelectItem key={range.value} value={range.value}>
                     {range.label}
@@ -95,13 +107,25 @@ export function HistoryPage({ history }: HistoryPageProps) {
             <Input
               type="date"
               value={fromValue}
-              onChange={(event) => replaceParams({ from: event.target.value })}
+              onChange={(event) =>
+                replaceParams({
+                  from: event.target.value,
+                  range: undefined,
+                  event: undefined,
+                })
+              }
               className="bg-background/70"
             />
             <Input
               type="date"
               value={toValue}
-              onChange={(event) => replaceParams({ to: event.target.value })}
+              onChange={(event) =>
+                replaceParams({
+                  to: event.target.value,
+                  range: undefined,
+                  event: undefined,
+                })
+              }
               className="bg-background/70"
             />
           </div>

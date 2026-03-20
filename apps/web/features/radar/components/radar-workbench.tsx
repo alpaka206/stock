@@ -303,7 +303,7 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
     query: debouncedQuery,
     viewMode,
     groupMode,
-    sector: activeSector,
+    sector: selectedSectorParam,
     selectedSymbol: selectedRow?.symbol ?? "",
     visibleColumns,
     sortModel,
