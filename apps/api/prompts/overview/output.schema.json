@@ -1,4 +1,5 @@
 {
+  "$comment": "Compatibility LLM structured-output schema copy. Canonical API contract: packages/contracts/schemas/overview.schema.json",
   "type": "object",
   "properties": {
     "asOf": { "type": "string" },
@@ -55,7 +56,7 @@
     "confidence": {
       "type": "object",
       "properties": {
-        "score": { "type": "number" },
+        "score": { "type": "number", "minimum": 0, "maximum": 1 },
         "label": { "type": "string", "enum": ["low", "medium", "high"] },
         "rationale": { "type": "string" }
       },

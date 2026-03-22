@@ -1,4 +1,5 @@
 {
+  "$comment": "Compatibility LLM structured-output schema copy. Canonical API contract: packages/contracts/schemas/stocks.schema.json",
   "type": "object",
   "properties": {
     "asOf": { "type": "string" },
@@ -55,7 +56,7 @@
     "confidence": {
       "type": "object",
       "properties": {
-        "score": { "type": "number" },
+        "score": { "type": "number", "minimum": 0, "maximum": 1 },
         "label": { "type": "string", "enum": ["low", "medium", "high"] },
         "rationale": { "type": "string" }
       },
@@ -247,6 +248,26 @@
       "items": { "type": "string" }
     }
   },
-  "required": ["thesis"],
+  "required": [
+    "asOf",
+    "sourceRefs",
+    "missingData",
+    "confidence",
+    "instrument",
+    "latestPrice",
+    "changePercent",
+    "thesis",
+    "priceSeries",
+    "eventMarkers",
+    "indicatorGuides",
+    "rulePresetDefinitions",
+    "scoreSummary",
+    "flowMetrics",
+    "flowUnavailable",
+    "optionsShortMetrics",
+    "optionsUnavailable",
+    "issueCards",
+    "relatedSymbols"
+  ],
   "additionalProperties": false
 }
