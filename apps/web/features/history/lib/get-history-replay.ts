@@ -1,8 +1,14 @@
 import "server-only";
 
 import { buildHistoryFixture } from "@/dev/fixtures";
-import { fetchResearchApiJson } from "@/lib/server/research-api";
-import type { HistoryFixture } from "@/lib/research/types";
+import {
+  allowFixtureFallback,
+  assertResearchApiAvailable,
+  buildFixtureDataSource,
+  buildPayloadDataSource,
+  fetchResearchApiJson,
+} from "@/lib/server/research-api";
+import type { HistoryApiResponse, HistoryFixture } from "@/lib/research/types";
 
 type HistoryReplayParams = {
   symbol?: string;
@@ -11,24 +17,9 @@ type HistoryReplayParams = {
   to?: string;
 };
 
-type HistoryApiResponse = {
-  symbol?: string;
-  rangeLabel?: string;
-  availableRanges?: HistoryFixture["availableRanges"];
-  priceSeries?: HistoryFixture["priceSeries"];
-  eventMarkers?: HistoryFixture["eventMarkers"];
-  eventTimeline?: HistoryFixture["events"];
-  moveSummary?: {
-    text: string;
-    sourceRefIds: string[];
-  };
-  moveReasons?: HistoryFixture["moveReasons"];
-  overlappingIndicators?: HistoryFixture["overlaps"];
-};
-
 export async function getHistoryReplay(params: HistoryReplayParams = {}) {
   const fallback = buildHistoryFixture(params.symbol);
-  const payload = await fetchResearchApiJson<HistoryApiResponse>({
+  const result = await fetchResearchApiJson<HistoryApiResponse>({
     explicitUrlEnv: "HISTORY_API_URL",
     basePath: "/history",
     query: {
@@ -39,19 +30,49 @@ export async function getHistoryReplay(params: HistoryReplayParams = {}) {
     },
   });
 
-  if (!payload?.priceSeries?.length || !payload.eventTimeline?.length) {
-    return fallback;
+  if (result.status === "disabled") {
+    return {
+      ...fallback,
+      dataSource: buildFixtureDataSource({
+        fallback: false,
+        reason: "API URL이 설정되지 않아 샘플 히스토리 리플레이를 표시합니다.",
+      }),
+    };
+  }
+
+  if (result.status === "error") {
+    assertResearchApiAvailable(result, "history");
+    return {
+      ...fallback,
+      dataSource: buildFixtureDataSource({
+        fallback: allowFixtureFallback(),
+        reason: `history API 연결이 실패해 샘플 히스토리 리플레이를 대신 표시합니다. ${result.errorMessage}`,
+      }),
+    };
+  }
+
+  const payload = result.payload;
+
+  if (!payload.priceSeries?.length || !payload.eventTimeline?.length) {
+    return {
+      ...fallback,
+      dataSource: buildFixtureDataSource({
+        fallback: true,
+        reason: "history API 응답에 차트 또는 이벤트 데이터가 부족해 샘플 히스토리 리플레이를 대신 표시합니다.",
+      }),
+    };
   }
 
   return {
-    symbol: payload.symbol ?? fallback.symbol,
-    range: payload.rangeLabel ?? fallback.range,
-    availableRanges: payload.availableRanges ?? fallback.availableRanges,
+    symbol: payload.symbol,
+    range: payload.rangeLabel,
+    availableRanges: payload.availableRanges,
     priceSeries: payload.priceSeries,
-    eventMarkers: payload.eventMarkers ?? [],
+    eventMarkers: payload.eventMarkers,
     events: payload.eventTimeline,
-    moveSummary: payload.moveSummary?.text ?? fallback.moveSummary,
-    moveReasons: payload.moveReasons ?? fallback.moveReasons,
-    overlaps: payload.overlappingIndicators ?? fallback.overlaps,
+    moveSummary: payload.moveSummary.text,
+    moveReasons: payload.moveReasons,
+    overlaps: payload.overlappingIndicators,
+    dataSource: buildPayloadDataSource(payload.sourceRefs),
   } satisfies HistoryFixture;
 }

@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { DataSourceNotice } from "@/components/research/data-source-notice";
 import { InstrumentSearch } from "@/components/research/instrument-search";
 import { ResearchPanel } from "@/components/research/research-panel";
 import { TrendChip } from "@/components/research/trend-chip";
@@ -110,8 +111,9 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
 
   return (
     <div className={layoutTokens.page}>
-      <div className="space-y-2">
+      <div className="space-y-3">
         <p className={typographyTokens.eyebrow}>Stock Workstation</p>
+        <DataSourceNotice source={stock.dataSource} className="max-w-2xl" />
         <h2 className={typographyTokens.title}>
           한 종목의 판단 근거를 차트 중심으로 모아 보는 분석 워크스테이션
         </h2>
@@ -460,7 +462,7 @@ function MetricGrid({
 }: {
   title: string;
   items: Array<{ label: string; value: string; detail: string; tone: string }>;
-  unavailable?: { label: string; reason: string; expectedSource?: string };
+  unavailable?: { label: string; reason: string; expectedSource?: string } | null;
 }) {
   return (
     <div className="space-y-4">

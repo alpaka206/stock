@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { DataSourceNotice } from "@/components/research/data-source-notice";
 import { AiMarketSummaryCard } from "@/features/overview/components/ai-market-summary-card";
 import { IndexStrip } from "@/features/overview/components/index-strip";
 import { MarketHeatmap } from "@/features/overview/components/market-heatmap";
@@ -27,6 +28,7 @@ export function OverviewPage({ data }: OverviewPageProps) {
             주도 섹터를 확인한 뒤 뉴스와 리스크로 다음 화면 이동 경로를
             정합니다.
           </p>
+          <DataSourceNotice source={data.dataSource} className="mt-4 max-w-2xl" />
         </div>
 
         <div className="flex flex-wrap gap-2">

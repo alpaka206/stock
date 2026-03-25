@@ -1,10 +1,19 @@
 import "server-only";
 
 import { overviewFixture } from "@/dev/fixtures/overview";
+import {
+  allowFixtureFallback,
+  assertResearchApiAvailable,
+  buildFixtureDataSource,
+  buildPayloadDataSource,
+  fetchResearchApiJson,
+} from "@/lib/server/research-api";
 import type {
   HeatmapTile,
   IndexStripItem,
   NewsItem,
+  OverviewApiBenchmarkSnapshotItem,
+  OverviewApiResponse,
   OverviewDriverItem,
   OverviewFixture,
   RiskBannerItem,
@@ -14,64 +23,6 @@ import type {
 } from "@/lib/research/types";
 
 const DEFAULT_OVERVIEW_API_TIMEOUT_MS = 15000;
-
-type OverviewApiSourcedText = {
-  text: string;
-  sourceRefIds: string[];
-};
-
-type OverviewApiBenchmarkSnapshotItem = {
-  label: string;
-  symbol: string;
-  category: string;
-  value: number;
-  changePercent: number;
-  note: string;
-  sourceRefIds: string[];
-};
-
-type OverviewApiResponse = {
-  asOf: string;
-  sourceRefs: Array<{
-    id: string;
-    title: string;
-    kind: string;
-    publisher: string;
-    publishedAt: string;
-    url?: string;
-    symbol?: string;
-  }>;
-  missingData: Array<{
-    field: string;
-    reason: string;
-    expectedSource?: string;
-  }>;
-  confidence: {
-    score: number;
-    label: "low" | "medium" | "high";
-    rationale: string;
-  };
-  benchmarkSnapshot?: OverviewApiBenchmarkSnapshotItem[];
-  marketSummary: OverviewApiSourcedText;
-  drivers: OverviewApiSourcedText[];
-  risks: OverviewApiSourcedText[];
-  sectorStrength: Array<{
-    sector: string;
-    score: number;
-    summary: string;
-    changePercent?: number;
-    sourceRefIds: string[];
-  }>;
-  notableNews: Array<{
-    headline: string;
-    source: string;
-    summary?: string;
-    impact: string;
-    publishedAt: string;
-    url: string;
-    sourceRefIds: string[];
-  }>;
-};
 
 const sectorSymbolMap = [
   { keywords: ["반도체", "semiconductor"], symbol: "NVDA" },
@@ -90,43 +41,35 @@ type SectorNavigationTarget = {
 };
 
 export async function getOverviewSnapshot() {
-  const apiUrl = resolveOverviewApiUrl();
+  const result = await fetchResearchApiJson<OverviewApiResponse>({
+    explicitUrlEnv: "OVERVIEW_API_URL",
+    basePath: "/overview",
+    timeoutMs: getOverviewApiTimeoutMs(),
+  });
 
-  if (!apiUrl) {
-    return overviewFixture;
+  if (result.status === "success") {
+    return buildOverviewSnapshot(result.payload);
   }
 
-  try {
-    const response = await fetch(apiUrl, buildOverviewRequestInit());
-
-    if (!response.ok) {
-      return overviewFixture;
-    }
-
-    const payload = (await response.json()) as OverviewApiResponse;
-
-    return buildOverviewSnapshot(payload);
-  } catch {
-    return overviewFixture;
+  if (result.status === "disabled") {
+    return {
+      ...overviewFixture,
+      dataSource: buildFixtureDataSource({
+        fallback: false,
+        reason: "API URL이 설정되지 않아 샘플 데이터를 표시합니다.",
+      }),
+    };
   }
-}
 
-function buildOverviewRequestInit(): RequestInit {
-  const timeoutMs = getOverviewApiTimeoutMs();
-  const requestInit: RequestInit = {
-    headers: {
-      Accept: "application/json",
-    },
-    next: {
-      revalidate: 300,
-    },
+  assertResearchApiAvailable(result, "overview");
+
+  return {
+    ...overviewFixture,
+    dataSource: buildFixtureDataSource({
+      fallback: allowFixtureFallback(),
+      reason: `overview API 연결이 실패해 샘플 데이터를 대신 표시합니다. ${result.errorMessage}`,
+    }),
   };
-
-  if (timeoutMs > 0 && typeof AbortSignal.timeout === "function") {
-    requestInit.signal = AbortSignal.timeout(timeoutMs);
-  }
-
-  return requestInit;
 }
 
 function getOverviewApiTimeoutMs() {
@@ -145,27 +88,10 @@ function getOverviewApiTimeoutMs() {
   return parsedValue;
 }
 
-function resolveOverviewApiUrl() {
-  const explicitUrl = process.env.OVERVIEW_API_URL?.trim();
-
-  if (explicitUrl) {
-    return explicitUrl;
-  }
-
-  const baseUrl =
-    process.env.STOCK_API_BASE_URL?.trim() ??
-    process.env.NEXT_PUBLIC_STOCK_API_BASE_URL?.trim();
-
-  if (!baseUrl) {
-    return null;
-  }
-
-  return `${baseUrl.replace(/\/$/, "")}/overview`;
-}
-
 function buildOverviewSnapshot(payload: OverviewApiResponse): OverviewFixture {
   const driverTexts = payload.drivers.map((driver) => driver.text);
   const riskTexts = payload.risks.map((risk) => risk.text);
+  const usesBenchmarkFallback = shouldUseBenchmarkFallback(payload);
 
   return {
     asOf: formatAsOf(payload.asOf),
@@ -185,6 +111,13 @@ function buildOverviewSnapshot(payload: OverviewApiResponse): OverviewFixture {
       sourceCount: payload.sourceRefs.length,
       missingDataCount: payload.missingData.length,
     },
+    dataSource: usesBenchmarkFallback
+      ? buildFixtureDataSource({
+          fallback: true,
+          reason:
+            "overview API 응답에 benchmarkSnapshot이 없어 지수 스트립은 샘플 데이터를 사용합니다.",
+        })
+      : buildPayloadDataSource(payload.sourceRefs),
   };
 }
 
@@ -226,11 +159,7 @@ function buildSummaryDrivers(payload: OverviewApiResponse): OverviewDriverItem[]
 }
 
 function buildIndexItems(payload: OverviewApiResponse): IndexStripItem[] {
-  if (
-    payload.benchmarkSnapshot === undefined ||
-    (Array.isArray(payload.benchmarkSnapshot) &&
-      payload.benchmarkSnapshot.length === 0)
-  ) {
+  if (shouldUseBenchmarkFallback(payload)) {
     return overviewFixture.indices;
   }
 
@@ -255,6 +184,15 @@ function buildIndexItems(payload: OverviewApiResponse): IndexStripItem[] {
   }
 
   return [];
+}
+
+function shouldUseBenchmarkFallback(payload: OverviewApiResponse) {
+  return (
+    payload.benchmarkSnapshot === undefined ||
+    (Array.isArray(payload.benchmarkSnapshot) &&
+      payload.benchmarkSnapshot.length === 0 &&
+      !isMockPayload(payload))
+  );
 }
 
 function buildNewsItems(payload: OverviewApiResponse): NewsItem[] {

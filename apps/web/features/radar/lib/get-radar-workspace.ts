@@ -1,105 +1,81 @@
 import "server-only";
 
-import { findInstrument, radarFixture } from "@/dev/fixtures";
-import { fetchResearchApiJson } from "@/lib/server/research-api";
-import type { RadarFixture, Tone, WatchlistFolderNode } from "@/lib/research/types";
-
-type RadarApiRow = {
-  symbol: string;
-  name?: string;
-  securityCode?: string;
-  sector: string;
-  folderId?: string;
-  tags?: string[];
-  price: number;
-  changePercent: number;
-  volumeRatio: number;
-  relativeStrength: number;
-  score: number;
-  nextEvent?: string;
-  thesis: string;
-  condition: string;
-};
-
-type RadarApiSectorCard = {
-  sector: string;
-  score: number;
-  thesis: string;
-  catalyst: string;
-  topPick: string;
-};
-
-type RadarApiFolderNode = {
-  id: string;
-  label: string;
-  count: number;
-  description: string;
-  tags?: string[];
-  children?: RadarApiFolderNode[];
-};
-
-type RadarApiSourcedText = {
-  text: string;
-  sourceRefIds: string[];
-};
-
-type RadarApiResponse = {
-  folderTree?: RadarApiFolderNode[];
-  watchlistRows?: RadarApiRow[];
-  sectorCards?: RadarApiSectorCard[];
-  brokerReports?: RadarFixture["reports"];
-  keySchedule?: RadarFixture["schedules"];
-  keyIssues?: Array<{
-    headline: string;
-    summary: string;
-    impact: string;
-    sector?: string;
-    sourceRefIds: string[];
-  }>;
-  topPicks?: RadarFixture["topPicks"];
-  selectedSectorSummary?: RadarApiSourcedText;
-  reportSummary?: RadarApiSourcedText[];
-};
+import { radarFixture } from "@/dev/fixtures";
+import {
+  allowFixtureFallback,
+  assertResearchApiAvailable,
+  buildFixtureDataSource,
+  buildPayloadDataSource,
+  fetchResearchApiJson,
+} from "@/lib/server/research-api";
+import type {
+  RadarApiResponse,
+  RadarFixture,
+  Tone,
+  WatchlistFolderNode,
+} from "@/lib/research/types";
 
 export async function getRadarWorkspace() {
-  const payload = await fetchResearchApiJson<RadarApiResponse>({
+  const result = await fetchResearchApiJson<RadarApiResponse>({
     explicitUrlEnv: "RADAR_API_URL",
     basePath: "/radar",
   });
 
-  if (!payload?.watchlistRows?.length) {
-    return radarFixture;
+  if (result.status === "disabled") {
+    return {
+      ...radarFixture,
+      dataSource: buildFixtureDataSource({
+        fallback: false,
+        reason: "API URL이 설정되지 않아 샘플 watchlist를 표시합니다.",
+      }),
+    };
+  }
+
+  if (result.status === "error") {
+    assertResearchApiAvailable(result, "radar");
+    return {
+      ...radarFixture,
+      dataSource: buildFixtureDataSource({
+        fallback: allowFixtureFallback(),
+        reason: `radar API 연결이 실패해 샘플 watchlist를 대신 표시합니다. ${result.errorMessage}`,
+      }),
+    };
+  }
+
+  const payload = result.payload;
+
+  if (!payload.watchlistRows?.length) {
+    return {
+      ...radarFixture,
+      dataSource: buildFixtureDataSource({
+        fallback: true,
+        reason: "radar API 응답에 watchlistRows가 없어 샘플 watchlist를 대신 표시합니다.",
+      }),
+    };
   }
 
   return {
     folders: mapFolders(payload.folderTree),
-    rows: payload.watchlistRows.map((row) => {
-      const fallbackInstrument = findInstrument(row.symbol);
-
-      return {
-        symbol: row.symbol,
-        name: row.name ?? fallbackInstrument?.name ?? row.symbol,
-        securityCode:
-          row.securityCode ??
-          fallbackInstrument?.securityCode ??
-          `${row.symbol.toUpperCase()}-000`,
-        sector: row.sector,
-        folderId: row.folderId ?? "all",
-        tags: row.tags ?? [],
-        price: row.price,
-        changePercent: row.changePercent,
-        volumeRatio: row.volumeRatio,
-        relativeStrength: row.relativeStrength,
-        score: row.score,
-        nextEvent: row.nextEvent ?? "체크 필요",
-        thesis: row.thesis,
-        condition: row.condition,
-      };
-    }),
-    sectorCards: payload.sectorCards ?? [],
-    schedules: payload.keySchedule ?? [],
+    rows: payload.watchlistRows.map((row) => ({
+      symbol: row.symbol,
+      name: row.name,
+      securityCode: row.securityCode,
+      sector: row.sector,
+      folderId: row.folderId,
+      tags: row.tags,
+      price: row.price,
+      changePercent: row.changePercent,
+      volumeRatio: row.volumeRatio,
+      relativeStrength: row.relativeStrength,
+      score: row.score,
+      nextEvent: row.nextEvent,
+      thesis: row.thesis,
+      condition: row.condition,
+    })),
+    sectorCards: payload.sectorCards,
+    schedules: payload.keySchedule,
     issues:
-      payload.keyIssues?.map((item, index) => ({
+      payload.keyIssues.map((item, index) => ({
         id: `radar-api-issue-${index + 1}`,
         source: "api",
         headline: item.headline,
@@ -108,18 +84,19 @@ export async function getRadarWorkspace() {
         impactLabel: item.impact,
         tone: getToneFromImpact(item.impact),
         sector: item.sector,
-      })) ?? [],
-    reports: payload.brokerReports ?? [],
-    topPicks: payload.topPicks ?? [],
+      })),
+    reports: payload.brokerReports,
+    topPicks: payload.topPicks,
     defaultVisibleColumns: radarFixture.defaultVisibleColumns,
     defaultViewMode: radarFixture.defaultViewMode,
     defaultGroupMode: radarFixture.defaultGroupMode,
     defaultSelectedFolderId: radarFixture.defaultSelectedFolderId,
     savedViews: radarFixture.savedViews,
+    dataSource: buildPayloadDataSource(payload.sourceRefs),
   } satisfies RadarFixture;
 }
 
-function mapFolders(folderTree: RadarApiFolderNode[] | undefined) {
+function mapFolders(folderTree: WatchlistFolderNode[] | undefined) {
   if (!folderTree?.length) {
     return radarFixture.folders;
   }
@@ -127,7 +104,7 @@ function mapFolders(folderTree: RadarApiFolderNode[] | undefined) {
   return folderTree.map((folder) => mapFolderNode(folder));
 }
 
-function mapFolderNode(folder: RadarApiFolderNode): WatchlistFolderNode {
+function mapFolderNode(folder: WatchlistFolderNode): WatchlistFolderNode {
   return {
     id: folder.id,
     label: folder.label,
