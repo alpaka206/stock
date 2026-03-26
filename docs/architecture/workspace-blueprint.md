@@ -167,32 +167,39 @@ Codex가 매번 네 디자인과 4페이지 IA를 다시 물어보지 않게 하
 - **page/component manifest = 구조 기억**
 - **changes/adr = 변경 역사 기억**
 
-## 8. 런타임 AI 프롬프트를 페이지 단위로 나눈다는 뜻
+## 8. 런타임 AI 프롬프트와 계약 파일을 어떻게 나누는가
 
 이건 Codex용 문서와 다르다.
-Codex용 지침은 `AGENTS.md` 에 두고, 실제 서비스가 LLM을 호출할 때 쓰는 프롬프트는 `apps/api/prompts/` 에 둔다.
+Codex용 지침은 `AGENTS.md` 에 두고, 실제 서비스가 LLM을 호출할 때 쓰는 prompt body는 `apps/api/prompts/` 에 둔다.
 
-예:
+canonical runtime contract source:
+
+- `packages/contracts/schemas/overview.schema.json`
+- `packages/contracts/schemas/radar.schema.json`
+- `packages/contracts/schemas/stocks.schema.json`
+- `packages/contracts/schemas/history.schema.json`
+
+prompt body 파일:
 
 - `apps/api/prompts/common/system.rules.md`
 - `apps/api/prompts/overview/system.md`
-- `apps/api/prompts/overview/output.schema.json`
 - `apps/api/prompts/radar/system.md`
-- `apps/api/prompts/radar/output.schema.json`
 - `apps/api/prompts/stock_detail/system.md`
-- `apps/api/prompts/stock_detail/output.schema.json`
 - `apps/api/prompts/history/system.md`
-- `apps/api/prompts/history/output.schema.json`
+
+호환성 복사본:
+
+- `apps/api/prompts/*/output.schema.json`
 
 코드에서는
 
 1. 공통 규칙 파일 읽기
 2. 페이지별 시스템 프롬프트 읽기
-3. 출력 JSON schema 읽기
+3. `packages/contracts/schemas/*.schema.json`에서 canonical output schema 읽기
 4. 실제 데이터 payload 주입
 5. 모델 응답 검증
 
-순서로 동작시키면 된다.
+순서로 동작시킨다.
 
 ## 9. 문서화/변경기록 원칙
 
@@ -222,3 +229,10 @@ Codex용 지침은 `AGENTS.md` 에 두고, 실제 서비스가 LLM을 호출할 
 1. 루트에 3개의 AGENTS.md 를 배치한다.
 2. `design-memory.md` 와 `page-manifest.yaml` 을 먼저 커밋한다.
 3. 그 다음 Codex에 `docs/prompts/00-레포-부트스트랩.md` 부터 순서대로 보낸다.
+## 12. contract source of truth
+
+- runtime JSON schema canonical source는 `packages/contracts/schemas/*.schema.json`
+- `apps/api/prompts/*/output.schema.json`은 호환성 복사본이며 canonical source가 아니다
+- prompt body는 계속 `apps/api/prompts/*/system.md`에 둔다
+- web runtime type은 `packages/contracts/src/index.ts`를 기준으로 본다
+- `python scripts/check_contract_parity.py`가 contracts / Pydantic / legacy prompt copy drift를 실패로 드러낸다
