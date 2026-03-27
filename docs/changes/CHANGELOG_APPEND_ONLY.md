@@ -242,3 +242,80 @@
 - `apps/api/app/schemas/stocks.py`
 - `apps/api/app/services/providers/real.py`
 - `apps/api/prompts/stock_detail/output.schema.json`
+
+## 2026-03-26 11:10 KST
+### 무엇을
+- `packages/contracts`를 추가하고 overview/radar/stocks/history runtime JSON schema와 web TypeScript 계약을 한 위치로 모았다.
+- API prompt loader가 `packages/contracts/schemas/*.schema.json`을 우선 읽도록 바꿨다.
+- 루트 `package.json`, `pnpm-workspace.yaml`, `.gitignore`, `.editorconfig`를 추가해 모노레포 실행 경로를 정리했다.
+- 루트 README, `apps/web/README.md`, `apps/api/README.md`를 실제 실행/검증 경로 기준으로 다시 정리했다.
+- `docs/prompts/00-08` 문서를 복구해 `docs/codex/prompt-order.md`와 실제 repo 경로를 맞췄다.
+- 공통 계약 패키지 채택 결정을 ADR로 추가했다.
+
+### 왜
+- 공통 계약 패키지가 빠져 있어 web loader 타입과 API schema가 따로 움직일 위험이 있었다.
+- 루트 workspace 파일이 없어 모노레포 실행 경로와 문서가 어긋나 있었다.
+- `docs/codex/prompt-order.md`가 가리키는 `docs/prompts/*`가 실제 저장소에 없어 작업 순서 문서가 깨져 있었다.
+
+### 어떻게
+- `packages/contracts/schemas`에 페이지별 schema를 두고, `packages/contracts/src/index.ts`에서 web 타입과 raw API 응답 타입을 함께 제공했다.
+- `apps/web/lib/research/types.ts`는 계약 패키지를 재수출하는 shim으로 축소했다.
+- overview/radar/stocks/history loader의 inline API 타입을 계약 패키지 타입으로 교체했다.
+- 실행 문서는 루트 기준 명령과 앱 디렉터리 직접 실행 경로를 둘 다 적었다.
+
+### 영향 범위
+- `package.json`
+- `pnpm-workspace.yaml`
+- `.gitignore`
+- `.editorconfig`
+- `README.md`
+- `apps/web/README.md`
+- `apps/api/README.md`
+- `apps/api/app/services/prompt_loader.py`
+- `apps/web/lib/research/types.ts`
+- `apps/web/features/overview/lib/get-overview-snapshot.ts`
+- `apps/web/features/radar/lib/get-radar-workspace.ts`
+- `apps/web/features/stocks/lib/get-stock-workstation.ts`
+- `apps/web/features/history/lib/get-history-replay.ts`
+- `packages/contracts/*`
+- `docs/prompts/*`
+- `docs/adr/ADR-0006-공통-계약-패키지-채택.md`
+## 2026-03-26 13:40 KST
+### 무엇을
+- `docs/architecture/workspace-blueprint.md`를 `packages/contracts` 기준의 canonical schema source로 정리했다.
+- `apps/api/AGENTS.md`에 runtime JSON schema의 단일 원천과 prompt compatibility copy 역할을 명시했다.
+### 왜
+- prompt 본문과 output schema의 역할을 문서에서 혼동하지 않도록 하기 위해서다.
+### 어떻게
+- runtime JSON schema canonical source와 compatibility copy의 구분을 문서 끝에 보강했다.
+### 영향 범위
+- 문서/릴리즈 자료만 변경되며 runtime 코드는 바뀌지 않는다.
+
+## 2026-03-26 15:20 KST
+### 무엇을
+- `scripts/check_contract_parity.py`가 Pydantic 실제 required 필드 기준으로 `packages/contracts`, Pydantic schema, legacy prompt output schema copy의 drift를 검증하도록 보강했다.
+- web 4개 loader와 화면 상단 `dataSource` 배지로 live / mock / fixture / fixture fallback 상태를 구분해 silent fallback을 없앴다.
+- `packages/contracts` canonical source와 compatibility copy 역할을 README / AGENTS / workspace blueprint에 다시 맞췄다.
+
+### 왜
+- canonical contract와 Pydantic actual behavior가 어긋나면 validation이 거짓 양성 또는 거짓 음성을 만들 수 있다.
+- mock research data가 live data처럼 보이면 리서치 화면의 신뢰성이 무너진다.
+
+### 어떻게
+- parity guard가 `model_fields[field].is_required()` 기준으로 required 집합을 계산하게 바꿨다.
+- API transport failure는 release-like mode에서 에러로 올리고, 개발/허용 환경에서만 fixture fallback을 사용하며 화면에서는 항상 데이터 출처 상태를 명시한다.
+- `apps/api/prompts/*/output.schema.json`은 compatibility copy임을 문서와 schema comment로 고정했다.
+
+### 영향 범위
+- `scripts/check_contract_parity.py`
+- `apps/web/lib/server/research-api.ts`
+- `apps/web/features/overview/lib/get-overview-snapshot.ts`
+- `apps/web/features/radar/lib/get-radar-workspace.ts`
+- `apps/web/features/stocks/lib/get-stock-workstation.ts`
+- `apps/web/features/history/lib/get-history-replay.ts`
+- `apps/web/components/research/data-source-notice.tsx`
+- `packages/contracts/*`
+- `apps/api/app/services/prompt_loader.py`
+- `apps/api/app/services/page_runtime.py`
+- `apps/api/AGENTS.md`
+- `docs/architecture/workspace-blueprint.md`
