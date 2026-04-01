@@ -9,14 +9,33 @@
         "properties": {
           "id": { "type": "string" },
           "title": { "type": "string" },
-          "kind": { "type": "string", "enum": ["market_data", "news", "fundamentals", "economic", "internal_config", "mock"] },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "market_data",
+              "news",
+              "fundamentals",
+              "economic",
+              "internal_config",
+              "mock"
+            ]
+          },
           "publisher": { "type": "string" },
           "publishedAt": { "type": "string" },
           "url": { "type": "string" },
           "sourceKey": { "type": "string" },
           "symbol": { "type": "string" }
         },
-        "required": ["id", "title", "kind", "publisher", "publishedAt", "url", "sourceKey", "symbol"],
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "publisher",
+          "publishedAt",
+          "url",
+          "sourceKey",
+          "symbol"
+        ],
         "additionalProperties": false
       }
     },
@@ -43,6 +62,83 @@
       "required": ["score", "label", "rationale"],
       "additionalProperties": false
     },
+    "symbol": { "type": "string" },
+    "rangeLabel": { "type": "string" },
+    "availableRanges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "value": { "type": "string" },
+          "label": { "type": "string" }
+        },
+        "required": ["value", "label"],
+        "additionalProperties": false
+      }
+    },
+    "priceSeries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "date": { "type": "string" },
+          "label": { "type": "string" },
+          "close": { "type": "number" },
+          "volume": { "type": "number" }
+        },
+        "required": ["date", "label", "close", "volume"],
+        "additionalProperties": false
+      }
+    },
+    "eventMarkers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "tone": { "type": "string", "enum": ["positive", "negative", "neutral"] },
+          "date": { "type": "string" },
+          "pointLabel": { "type": "string" },
+          "title": { "type": "string" },
+          "detail": { "type": "string" },
+          "href": { "type": "string" }
+        },
+        "required": ["id", "label", "tone", "date", "pointLabel", "title", "detail", "href"],
+        "additionalProperties": false
+      }
+    },
+    "eventTimeline": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "date": { "type": "string" },
+          "title": { "type": "string" },
+          "category": { "type": "string" },
+          "summary": { "type": "string" },
+          "reaction": { "type": "string" },
+          "tone": { "type": "string", "enum": ["positive", "negative", "neutral"] },
+          "source": { "type": "string" },
+          "url": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": [
+          "id",
+          "date",
+          "title",
+          "category",
+          "summary",
+          "reaction",
+          "tone",
+          "source",
+          "url",
+          "sourceRefIds"
+        ],
+        "additionalProperties": false
+      }
+    },
     "moveSummary": {
       "type": "object",
       "properties": {
@@ -52,16 +148,18 @@
       "required": ["text", "sourceRefIds"],
       "additionalProperties": false
     },
-    "turningPoints": {
+    "moveReasons": {
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
-          "date": { "type": "string" },
-          "summary": { "type": "string" },
+          "label": { "type": "string" },
+          "description": { "type": "string" },
+          "tone": { "type": "string", "enum": ["positive", "negative", "neutral"] },
+          "relatedDate": { "type": "string" },
           "sourceRefIds": { "type": "array", "items": { "type": "string" } }
         },
-        "required": ["date", "summary", "sourceRefIds"],
+        "required": ["label", "description", "tone", "relatedDate", "sourceRefIds"],
         "additionalProperties": false
       }
     },
@@ -70,26 +168,13 @@
       "items": {
         "type": "object",
         "properties": {
-          "name": { "type": "string" },
-          "interpretation": { "type": "string" },
+          "label": { "type": "string" },
+          "detail": { "type": "string" },
+          "tone": { "type": "string", "enum": ["positive", "negative", "neutral"] },
+          "relatedDate": { "type": "string" },
           "sourceRefIds": { "type": "array", "items": { "type": "string" } }
         },
-        "required": ["name", "interpretation", "sourceRefIds"],
-        "additionalProperties": false
-      }
-    },
-    "eventTimelineSummary": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "date": { "type": "string" },
-          "title": { "type": "string" },
-          "source": { "type": "string" },
-          "url": { "type": "string" },
-          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
-        },
-        "required": ["date", "title", "source", "url", "sourceRefIds"],
+        "required": ["label", "detail", "tone", "relatedDate", "sourceRefIds"],
         "additionalProperties": false
       }
     },
@@ -106,16 +191,6 @@
       }
     }
   },
-  "required": [
-    "asOf",
-    "sourceRefs",
-    "missingData",
-    "confidence",
-    "moveSummary",
-    "turningPoints",
-    "overlappingIndicators",
-    "eventTimelineSummary",
-    "analogsOrPatterns"
-  ],
+  "required": ["moveSummary"],
   "additionalProperties": false
 }

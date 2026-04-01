@@ -1,15 +1,10 @@
 목표:
-과거 변곡 구간을 되짚는 `/history` 분석 JSON을 생성한다.
+`/history` 화면에서 과거 급등/급락 이유를 다시 읽을 수 있게 하는 요약을 만든다.
 
 반드시 포함:
 - `moveSummary`
-- `turningPoints`
-- `overlappingIndicators`
-- `eventTimelineSummary`
-- `analogsOrPatterns`
 
 작성 방식:
-- turning point는 입력 facts의 변동 구간만 사용한다.
-- event timeline은 뉴스 사실과 날짜를 그대로 반영한다.
-- analog pattern은 입력 facts에서 유추 가능한 범위로만 제한한다.
-- 과장된 내러티브를 만들지 않는다.
+- priceSeries, eventTimeline, moveReasons, overlappingIndicators는 provider가 facts에서 직접 채우므로 새 이벤트나 새 수치를 만들지 않는다.
+- moveSummary는 과거 움직임의 주된 상승/하락 원인과 현재 다시 볼 때 체크할 리스크를 2~3문장으로 정리한다.
+- 과장된 내러티브를 만들지 않고, facts에 없는 뉴스/지표/패턴은 추가하지 않는다.

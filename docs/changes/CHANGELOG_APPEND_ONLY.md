@@ -166,3 +166,79 @@
 
 ### 영향 범위
 - `apps/web/features/overview/lib/get-overview-snapshot.ts`
+
+## 2026-03-21 12:40 KST
+### 무엇을
+- `apps/web`의 `/radar`, `/stocks/[symbol]`, `/history`를 실제 작업 화면 수준으로 구현했다.
+- radar에 폴더 트리, 태그/검색, AG Grid 기반 flat/sector view, 컬럼 토글, 정렬, 저장된 view preset, 우측 섹터 컨텍스트 패널을 추가했다.
+- stock detail에 종목 검색, 대형 가격 차트, 이벤트 마커, 6개 이상 규칙/지표 토글, preset 저장, 점수/수급/공매도·옵션/이슈 탭을 추가했다.
+- history에 종목 검색, range/from/to 필터, 차트-타임라인 동기화, 이전/다음 이벤트 이동, 급등/급락 이유 카드, 중복 지표 설명 카드를 추가했다.
+- web loader를 `API 우선 + fixture fallback` 구조로 정리하고, URL 상태와 localStorage preset 훅을 공통화했다.
+- `apps/api`의 radar/stocks/history schema, prompt schema, provider 응답 구조를 화면 구동 가능한 계약으로 확장했다.
+
+### 왜
+- overview 이후 실제 리서치 흐름을 이어받는 핵심 작업 화면 세 개가 필요했다.
+- AG Grid와 차트를 중심으로 한 워크스페이스 UX를 먼저 고정해야 이후 서버 연동과 고도화가 쉬워진다.
+- 숫자·시계열·정렬 가능한 값은 provider가 결정론적으로 만들고, LLM은 요약 문장에만 집중하도록 역할을 분리할 필요가 있었다.
+
+### 어떻게
+- route 파일은 thin wrapper로 유지하고, 각 화면 로직은 `features/radar`, `features/stocks`, `features/history` 내부로 분리했다.
+- `useUrlState`, `useStoredState`, `useStoredPresets`, `useRecentSymbols`를 추가해 URL 공유 상태와 사용자 저장 상태를 분리했다.
+- `ResearchLineChart`를 확장해 active point, marker, guide, highlight range, point selection callback을 지원하게 했다.
+- `fetchResearchApiJson()` 기반 route별 loader를 만들고, `STOCK_API_BASE_URL` 또는 route-specific env override를 우선 사용한 뒤 실패 시 fixture로 fallback 하도록 구현했다.
+- FastAPI는 `/history` query param을 확장하고, radar/stocks/history mock/real provider가 같은 계약을 반환하도록 맞췄다.
+
+### 영향 범위
+- `apps/web/app/history/page.tsx`
+- `apps/web/app/stocks/[symbol]/page.tsx`
+- `apps/web/components/research/instrument-search.tsx`
+- `apps/web/dev/fixtures/history.ts`
+- `apps/web/dev/fixtures/instruments.ts`
+- `apps/web/dev/fixtures/radar.ts`
+- `apps/web/dev/fixtures/stock-detail.ts`
+- `apps/web/features/chart/components/research-line-chart.tsx`
+- `apps/web/features/history/*`
+- `apps/web/features/radar/*`
+- `apps/web/features/stocks/*`
+- `apps/web/lib/client/*`
+- `apps/web/lib/server/research-api.ts`
+- `apps/web/lib/research/types.ts`
+- `apps/api/app/routers/history.py`
+- `apps/api/app/schemas/radar.py`
+- `apps/api/app/schemas/stocks.py`
+- `apps/api/app/schemas/history.py`
+- `apps/api/app/services/providers/base.py`
+- `apps/api/app/services/providers/mock.py`
+- `apps/api/app/services/providers/real.py`
+- `apps/api/prompts/radar/*`
+- `apps/api/prompts/stock_detail/*`
+- `apps/api/prompts/history/*`
+- `docs/architecture/page-manifest.yaml`
+- `docs/architecture/component-manifest.yaml`
+- `docs/design/design-memory.md`
+
+## 2026-03-21 14:10 KST
+### 무엇을
+- `/history`에서 canned range로 전환할 때 기존 `from` / `to` query가 남아 커스텀 기간이 계속 우선되던 흐름을 수정했다.
+- real history provider가 선택 범위 밖 뉴스 날짜를 timeline에 그대로 올리던 문제를 수정하고, 뉴스 이벤트 날짜를 현재 priceSeries의 캔들 날짜에 정렬했다.
+- radar preset 저장 시 실제 sector filter가 없는데도 선택 row의 섹터를 저장해 재적용 시 단일 섹터 grid로 좁혀지던 문제를 수정했다.
+- stock workstation에서 rule preset과 chart guide id가 어긋나 overlay 토글이 round-trip 되지 않던 문제를 수정했다.
+
+### 왜
+- URL의 stale query와 chart/timeline 날짜 불일치가 남아 있으면 사용자가 화면 제어가 고장 난 것으로 느끼게 된다.
+- preset과 overlay 매핑이 어긋나면 저장/복원 UX가 핵심 작업 화면으로서 신뢰를 잃는다.
+
+### 어떻게
+- history range select는 canned range 선택 시 `from`, `to`, `event`를 같이 초기화하고, custom 기간일 때는 `직접 선택` 상태를 표시하도록 조정했다.
+- real provider는 filtered series 범위 안으로 들어오는 뉴스만 history timeline에 포함하고, 뉴스 날짜를 가장 가까운 유효 캔들 날짜로 정렬한다.
+- radar preset은 우측 패널용 `activeSector`가 아니라 실제 query filter인 `selectedSectorParam`만 저장하도록 변경했다.
+- stock rule preset은 `guideIds`/`controlsEventMarkers` 계약과 legacy 매핑을 함께 지원해 guide와 event marker overlay를 안정적으로 복원하게 했다.
+
+### 영향 범위
+- `apps/web/features/history/components/history-page.tsx`
+- `apps/web/features/radar/components/radar-workbench.tsx`
+- `apps/web/features/stocks/components/stock-detail-page.tsx`
+- `apps/web/lib/research/types.ts`
+- `apps/api/app/schemas/stocks.py`
+- `apps/api/app/services/providers/real.py`
+- `apps/api/prompts/stock_detail/output.schema.json`

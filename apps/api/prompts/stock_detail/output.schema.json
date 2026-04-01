@@ -9,14 +9,33 @@
         "properties": {
           "id": { "type": "string" },
           "title": { "type": "string" },
-          "kind": { "type": "string", "enum": ["market_data", "news", "fundamentals", "economic", "internal_config", "mock"] },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "market_data",
+              "news",
+              "fundamentals",
+              "economic",
+              "internal_config",
+              "mock"
+            ]
+          },
           "publisher": { "type": "string" },
           "publishedAt": { "type": "string" },
           "url": { "type": "string" },
           "sourceKey": { "type": "string" },
           "symbol": { "type": "string" }
         },
-        "required": ["id", "title", "kind", "publisher", "publishedAt", "url", "sourceKey", "symbol"],
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "publisher",
+          "publishedAt",
+          "url",
+          "sourceKey",
+          "symbol"
+        ],
         "additionalProperties": false
       }
     },
@@ -43,146 +62,191 @@
       "required": ["score", "label", "rationale"],
       "additionalProperties": false
     },
-    "score": {
+    "thesis": { "type": "string" },
+    "instrument": {
+      "type": "object",
+      "properties": {
+        "symbol": { "type": "string" },
+        "name": { "type": "string" },
+        "exchange": { "type": "string" },
+        "securityCode": { "type": "string" },
+        "sector": { "type": "string" },
+        "marketCap": { "type": "string" }
+      },
+      "required": ["symbol", "name", "exchange", "securityCode", "sector", "marketCap"],
+      "additionalProperties": false
+    },
+    "latestPrice": { "type": "number" },
+    "changePercent": { "type": "number" },
+    "priceSeries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "date": { "type": "string" },
+          "label": { "type": "string" },
+          "close": { "type": "number" },
+          "volume": { "type": "number" }
+        },
+        "required": ["date", "label", "close", "volume"],
+        "additionalProperties": false
+      }
+    },
+    "eventMarkers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "tone": { "type": "string", "enum": ["positive", "negative", "neutral"] },
+          "date": { "type": "string" },
+          "pointLabel": { "type": "string" },
+          "title": { "type": "string" },
+          "detail": { "type": "string" },
+          "href": { "type": "string" }
+        },
+        "required": ["id", "label", "tone", "date", "pointLabel", "title", "detail", "href"],
+        "additionalProperties": false
+      }
+    },
+    "indicatorGuides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "value": { "type": "number" },
+          "tone": { "type": "string", "enum": ["positive", "negative", "neutral"] },
+          "description": { "type": "string" },
+          "enabled": { "type": "boolean" }
+        },
+        "required": ["id", "label", "value", "tone", "description", "enabled"],
+        "additionalProperties": false
+      }
+    },
+    "rulePresetDefinitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "description": { "type": "string" },
+          "enabledByDefault": { "type": "boolean" },
+          "tone": { "type": ["string", "null"], "enum": ["positive", "negative", "neutral", null] },
+          "guideIds": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "controlsEventMarkers": { "type": "boolean" }
+        },
+        "required": ["id", "label", "description", "enabledByDefault", "tone", "guideIds", "controlsEventMarkers"],
+        "additionalProperties": false
+      }
+    },
+    "scoreSummary": {
       "type": "object",
       "properties": {
         "total": { "type": "number" },
+        "confidence": {
+          "type": "object",
+          "properties": {
+            "score": { "type": "number" },
+            "label": { "type": "string", "enum": ["low", "medium", "high"] },
+            "rationale": { "type": "string" }
+          },
+          "required": ["score", "label", "rationale"],
+          "additionalProperties": false
+        },
         "breakdown": {
-          "type": "object",
-          "properties": {
-            "technical": { "type": "number" },
-            "flow": { "type": "number" },
-            "catalyst": { "type": "number" },
-            "risk": { "type": "number" }
-          },
-          "required": ["technical", "flow", "catalyst", "risk"],
-          "additionalProperties": false
-        },
-        "sourceRefIds": { "type": "array", "items": { "type": "string" } }
-      },
-      "required": ["total", "breakdown", "sourceRefIds"],
-      "additionalProperties": false
-    },
-    "signals": {
-      "type": "object",
-      "properties": {
-        "positive": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "text": { "type": "string" },
-              "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+              "label": { "type": "string" },
+              "score": { "type": "number" },
+              "summary": { "type": "string" }
             },
-            "required": ["text", "sourceRefIds"],
-            "additionalProperties": false
-          }
-        },
-        "negative": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "text": { "type": "string" },
-              "sourceRefIds": { "type": "array", "items": { "type": "string" } }
-            },
-            "required": ["text", "sourceRefIds"],
+            "required": ["label", "score", "summary"],
             "additionalProperties": false
           }
         }
       },
-      "required": ["positive", "negative"],
+      "required": ["total", "confidence", "breakdown"],
       "additionalProperties": false
     },
-    "flowSummary": {
-      "type": "object",
-      "properties": {
-        "text": { "type": "string" },
-        "sourceRefIds": { "type": "array", "items": { "type": "string" } }
-      },
-      "required": ["text", "sourceRefIds"],
-      "additionalProperties": false
-    },
-    "optionsShortSummary": {
-      "type": "object",
-      "properties": {
-        "text": { "type": "string" },
-        "sourceRefIds": { "type": "array", "items": { "type": "string" } }
-      },
-      "required": ["text", "sourceRefIds"],
-      "additionalProperties": false
-    },
-    "issueSummary": {
+    "flowMetrics": {
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
-          "text": { "type": "string" },
-          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+          "label": { "type": "string" },
+          "value": { "type": "string" },
+          "detail": { "type": "string" },
+          "tone": { "type": "string", "enum": ["positive", "negative", "neutral"] }
         },
-        "required": ["text", "sourceRefIds"],
+        "required": ["label", "value", "detail", "tone"],
         "additionalProperties": false
       }
     },
-    "chartNotes": {
+    "flowUnavailable": {
       "type": "object",
       "properties": {
-        "trend": {
-          "type": "object",
-          "properties": {
-            "text": { "type": "string" },
-            "sourceRefIds": { "type": "array", "items": { "type": "string" } }
-          },
-          "required": ["text", "sourceRefIds"],
-          "additionalProperties": false
-        },
-        "support": {
-          "type": "object",
-          "properties": {
-            "text": { "type": "string" },
-            "sourceRefIds": { "type": "array", "items": { "type": "string" } }
-          },
-          "required": ["text", "sourceRefIds"],
-          "additionalProperties": false
-        },
-        "resistance": {
-          "type": "object",
-          "properties": {
-            "text": { "type": "string" },
-            "sourceRefIds": { "type": "array", "items": { "type": "string" } }
-          },
-          "required": ["text", "sourceRefIds"],
-          "additionalProperties": false
-        }
+        "label": { "type": "string" },
+        "reason": { "type": "string" },
+        "expectedSource": { "type": "string" }
       },
-      "required": ["trend", "support", "resistance"],
+      "required": ["label", "reason", "expectedSource"],
       "additionalProperties": false
     },
-    "risks": {
+    "optionsShortMetrics": {
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
-          "text": { "type": "string" },
-          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+          "label": { "type": "string" },
+          "value": { "type": "string" },
+          "detail": { "type": "string" },
+          "tone": { "type": "string", "enum": ["positive", "negative", "neutral"] }
         },
-        "required": ["text", "sourceRefIds"],
+        "required": ["label", "value", "detail", "tone"],
         "additionalProperties": false
       }
+    },
+    "optionsUnavailable": {
+      "type": "object",
+      "properties": {
+        "label": { "type": "string" },
+        "reason": { "type": "string" },
+        "expectedSource": { "type": "string" }
+      },
+      "required": ["label", "reason", "expectedSource"],
+      "additionalProperties": false
+    },
+    "issueCards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string" },
+          "source": { "type": "string" },
+          "summary": { "type": "string" },
+          "tone": { "type": "string", "enum": ["positive", "negative", "neutral"] },
+          "category": { "type": "string" },
+          "href": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["title", "source", "summary", "tone", "category", "href", "sourceRefIds"],
+        "additionalProperties": false
+      }
+    },
+    "relatedSymbols": {
+      "type": "array",
+      "items": { "type": "string" }
     }
   },
-  "required": [
-    "asOf",
-    "sourceRefs",
-    "missingData",
-    "confidence",
-    "score",
-    "signals",
-    "flowSummary",
-    "optionsShortSummary",
-    "issueSummary",
-    "chartNotes",
-    "risks"
-  ],
+  "required": ["thesis"],
   "additionalProperties": false
 }

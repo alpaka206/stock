@@ -1,6 +1,28 @@
 export type TrendDirection = "up" | "down" | "flat";
 export type Tone = "positive" | "negative" | "neutral";
 
+export type SavedViewPreset<TValue> = {
+  id: string;
+  name: string;
+  value: TValue;
+  updatedAt: string;
+};
+
+export type AvailabilityState = {
+  label: string;
+  reason: string;
+  expectedSource?: string;
+};
+
+export type InstrumentCatalogItem = {
+  symbol: string;
+  name: string;
+  securityCode: string;
+  aliases: string[];
+  sector?: string;
+  exchange?: string;
+};
+
 export type IndexStripItem = {
   name: string;
   symbol: string;
@@ -20,6 +42,8 @@ export type NewsItem = {
   impactLabel: string;
   tone: Tone;
   href?: string;
+  sector?: string;
+  sourceRefIds?: string[];
 };
 
 export type SectorStrengthItem = {
@@ -86,12 +110,14 @@ export type WatchlistFolderNode = {
   label: string;
   count: number;
   description: string;
+  tags?: string[];
   children?: WatchlistFolderNode[];
 };
 
 export type RadarColumnKey =
   | "symbol"
   | "name"
+  | "securityCode"
   | "price"
   | "changePercent"
   | "score"
@@ -101,11 +127,32 @@ export type RadarColumnKey =
   | "nextEvent"
   | "thesis";
 
+export type RadarViewMode = "core" | "volume" | "risk";
+export type RadarGroupMode = "flat" | "sector";
+
+export type RadarSortItem = {
+  colId: RadarColumnKey;
+  sort: "asc" | "desc";
+};
+
+export type RadarViewPresetState = {
+  folderId: string;
+  query: string;
+  viewMode: RadarViewMode;
+  groupMode: RadarGroupMode;
+  sector: string;
+  selectedSymbol: string;
+  visibleColumns: RadarColumnKey[];
+  sortModel: RadarSortItem[];
+};
+
 export type WatchlistRow = {
   symbol: string;
   name: string;
+  securityCode: string;
   sector: string;
   folderId: string;
+  tags: string[];
   price: number;
   changePercent: number;
   volumeRatio: number;
@@ -114,6 +161,7 @@ export type WatchlistRow = {
   nextEvent: string;
   thesis: string;
   condition: string;
+  sourceRefIds?: string[];
 };
 
 export type SectorInsightCard = {
@@ -122,25 +170,32 @@ export type SectorInsightCard = {
   thesis: string;
   catalyst: string;
   topPick: string;
+  sourceRefIds?: string[];
 };
 
 export type ScheduleItem = {
+  sector?: string;
   time: string;
   title: string;
   note: string;
+  sourceRefIds?: string[];
 };
 
 export type BrokerReportItem = {
+  sector?: string;
   house: string;
   symbol: string;
   stance: string;
   summary: string;
+  sourceRefIds?: string[];
 };
 
 export type TopPickItem = {
+  sector?: string;
   symbol: string;
   reason: string;
   score: number;
+  sourceRefIds?: string[];
 };
 
 export type RadarFixture = {
@@ -152,24 +207,47 @@ export type RadarFixture = {
   reports: BrokerReportItem[];
   topPicks: TopPickItem[];
   defaultVisibleColumns: RadarColumnKey[];
+  defaultViewMode: RadarViewMode;
+  defaultGroupMode: RadarGroupMode;
+  defaultSelectedFolderId: string;
+  savedViews: SavedViewPreset<RadarViewPresetState>[];
 };
 
 export type PricePoint = {
   label: string;
   close: number;
   volume: number;
+  date?: string;
 };
 
 export type ChartGuide = {
+  id: string;
   label: string;
   value: number;
   tone: Tone;
+  description?: string;
+  enabled?: boolean;
 };
 
-export type RulePreset = {
+export type ChartMarker = {
+  id: string;
+  label: string;
+  tone: Tone;
+  date?: string;
+  pointLabel?: string;
+  title?: string;
+  detail?: string;
+  href?: string;
+};
+
+export type IndicatorRuleDefinition = {
+  id: string;
   label: string;
   description: string;
-  enabled: boolean;
+  enabledByDefault: boolean;
+  tone?: Tone;
+  guideIds?: string[];
+  controlsEventMarkers?: boolean;
 };
 
 export type ScoreBreakdownItem = {
@@ -181,7 +259,7 @@ export type ScoreBreakdownItem = {
 export type FlowItem = {
   label: string;
   value: string;
-  delta: string;
+  detail: string;
   tone: Tone;
 };
 
@@ -197,24 +275,51 @@ export type StockIssueItem = {
   source: string;
   summary: string;
   tone: Tone;
+  category?: string;
+  href?: string;
 };
 
-export type StockFixture = {
+export type StockInstrument = {
   symbol: string;
   name: string;
   exchange: string;
+  securityCode: string;
+  sector: string;
+  marketCap: string;
+};
+
+export type StockScoreSummary = {
+  total: number;
+  confidence: OverviewConfidence;
+  breakdown: ScoreBreakdownItem[];
+};
+
+export type StockRulePresetState = {
+  presetId: string;
+  indicatorIds: string[];
+};
+
+export type StockFixture = {
+  instrument: StockInstrument;
   price: number;
   changePercent: number;
-  marketCap: string;
   thesis: string;
-  chartPoints: PricePoint[];
+  priceSeries: PricePoint[];
+  eventMarkers: ChartMarker[];
   indicatorGuides: ChartGuide[];
-  rulePresets: RulePreset[];
-  scoreBreakdown: ScoreBreakdownItem[];
-  flows: FlowItem[];
-  shortOptionMetrics: ShortOptionMetric[];
+  rulePresetDefinitions: IndicatorRuleDefinition[];
+  scoreSummary: StockScoreSummary;
+  flowMetrics: FlowItem[];
+  flowUnavailable?: AvailabilityState;
+  optionsShortMetrics: ShortOptionMetric[];
+  optionsUnavailable?: AvailabilityState;
   issues: StockIssueItem[];
   relatedSymbols: string[];
+};
+
+export type HistoryRangeOption = {
+  value: string;
+  label: string;
 };
 
 export type HistoryEvent = {
@@ -225,26 +330,33 @@ export type HistoryEvent = {
   summary: string;
   reaction: string;
   tone: Tone;
+  source?: string;
+  url?: string;
+  sourceRefIds?: string[];
 };
 
 export type MoveReason = {
   label: string;
   description: string;
   tone: Tone;
+  relatedDate?: string;
 };
 
 export type OverlapIndicator = {
   label: string;
   detail: string;
   tone: Tone;
+  relatedDate?: string;
 };
 
 export type HistoryFixture = {
   symbol: string;
   range: string;
-  presets: string[];
-  chartPoints: PricePoint[];
+  availableRanges: HistoryRangeOption[];
+  priceSeries: PricePoint[];
+  eventMarkers: ChartMarker[];
   events: HistoryEvent[];
+  moveSummary: string;
   moveReasons: MoveReason[];
   overlaps: OverlapIndicator[];
 };
