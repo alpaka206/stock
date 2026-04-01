@@ -4,6 +4,7 @@ import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+import { DataSourceNotice } from "@/components/research/data-source-notice";
 import { InstrumentSearch } from "@/components/research/instrument-search";
 import { ResearchPanel } from "@/components/research/research-panel";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,7 @@ export function HistoryPage({ history }: HistoryPageProps) {
         description="종목과 날짜 범위를 바꾸면서 과거 급등·급락 이유를 다시 읽는다."
       >
         <div className="space-y-4">
+          <DataSourceNotice source={history.dataSource} />
           <InstrumentSearch
             selectedSymbol={history.symbol}
             label="기록 다시 보기"

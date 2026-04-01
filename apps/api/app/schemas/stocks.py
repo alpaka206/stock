@@ -77,7 +77,7 @@ class MetricCard(BaseModel):
 class AvailabilityState(BaseModel):
     label: str
     reason: str
-    expectedSource: str = ""
+    expectedSource: str
 
 
 class IssueCard(BaseModel):
@@ -95,14 +95,14 @@ class StockDetailResponse(AnalysisEnvelope):
     latestPrice: float
     changePercent: float
     thesis: str
-    priceSeries: list[PriceSeriesPoint] = Field(default_factory=list)
-    eventMarkers: list[ChartMarker] = Field(default_factory=list)
-    indicatorGuides: list[IndicatorGuide] = Field(default_factory=list)
-    rulePresetDefinitions: list[RulePresetDefinition] = Field(default_factory=list)
+    priceSeries: list[PriceSeriesPoint]
+    eventMarkers: list[ChartMarker]
+    indicatorGuides: list[IndicatorGuide]
+    rulePresetDefinitions: list[RulePresetDefinition]
     scoreSummary: ScoreSummary
-    flowMetrics: list[MetricCard] = Field(default_factory=list)
-    flowUnavailable: AvailabilityState | None = None
-    optionsShortMetrics: list[MetricCard] = Field(default_factory=list)
-    optionsUnavailable: AvailabilityState | None = None
-    issueCards: list[IssueCard] = Field(default_factory=list)
-    relatedSymbols: list[str] = Field(default_factory=list)
+    flowMetrics: list[MetricCard]
+    flowUnavailable: AvailabilityState
+    optionsShortMetrics: list[MetricCard]
+    optionsUnavailable: AvailabilityState
+    issueCards: list[IssueCard]
+    relatedSymbols: list[str]

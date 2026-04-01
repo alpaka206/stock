@@ -26,7 +26,7 @@ async def build_page_response(
     try:
         payload = await provider_call(prompt_bundle=prompt_bundle, **provider_kwargs)
         validator.validate(
-            page_key=page_key, schema=prompt_bundle.output_schema, payload=payload
+            page_key=page_key, schema=prompt_bundle.contract_schema, payload=payload
         )
         return response_model.model_validate(payload)
     except ProviderConfigurationError as exc:

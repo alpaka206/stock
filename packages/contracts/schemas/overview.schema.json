@@ -1,5 +1,5 @@
 {
-  "$comment": "Compatibility LLM structured-output schema copy. Canonical API contract: packages/contracts/schemas/history.schema.json",
+  "$comment": "Canonical source: packages/contracts/schemas/overview.schema.json. apps/api/prompts/overview/output.schema.json is a compatibility copy checked by scripts/check_contract_parity.py.",
   "type": "object",
   "properties": {
     "asOf": { "type": "string" },
@@ -63,84 +63,32 @@
       "required": ["score", "label", "rationale"],
       "additionalProperties": false
     },
-    "symbol": { "type": "string" },
-    "rangeLabel": { "type": "string" },
-    "availableRanges": {
+    "benchmarkSnapshot": {
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
-          "value": { "type": "string" },
-          "label": { "type": "string" }
-        },
-        "required": ["value", "label"],
-        "additionalProperties": false
-      }
-    },
-    "priceSeries": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "date": { "type": "string" },
           "label": { "type": "string" },
-          "close": { "type": "number" },
-          "volume": { "type": "number" }
-        },
-        "required": ["date", "label", "close", "volume"],
-        "additionalProperties": false
-      }
-    },
-    "eventMarkers": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string" },
-          "label": { "type": "string" },
-          "tone": { "type": "string", "enum": ["positive", "negative", "neutral"] },
-          "date": { "type": "string" },
-          "pointLabel": { "type": "string" },
-          "title": { "type": "string" },
-          "detail": { "type": "string" },
-          "href": { "type": "string" }
-        },
-        "required": ["id", "label", "tone", "date", "pointLabel", "title", "detail", "href"],
-        "additionalProperties": false
-      }
-    },
-    "eventTimeline": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string" },
-          "date": { "type": "string" },
-          "title": { "type": "string" },
+          "symbol": { "type": "string" },
           "category": { "type": "string" },
-          "summary": { "type": "string" },
-          "reaction": { "type": "string" },
-          "tone": { "type": "string", "enum": ["positive", "negative", "neutral"] },
-          "source": { "type": "string" },
-          "url": { "type": "string" },
+          "value": { "type": "number" },
+          "changePercent": { "type": "number" },
+          "note": { "type": "string" },
           "sourceRefIds": { "type": "array", "items": { "type": "string" } }
         },
         "required": [
-          "id",
-          "date",
-          "title",
+          "label",
+          "symbol",
           "category",
-          "summary",
-          "reaction",
-          "tone",
-          "source",
-          "url",
+          "value",
+          "changePercent",
+          "note",
           "sourceRefIds"
         ],
         "additionalProperties": false
       }
     },
-    "moveSummary": {
+    "marketSummary": {
       "type": "object",
       "properties": {
         "text": { "type": "string" },
@@ -149,37 +97,7 @@
       "required": ["text", "sourceRefIds"],
       "additionalProperties": false
     },
-    "moveReasons": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "label": { "type": "string" },
-          "description": { "type": "string" },
-          "tone": { "type": "string", "enum": ["positive", "negative", "neutral"] },
-          "relatedDate": { "type": "string" },
-          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
-        },
-        "required": ["label", "description", "tone", "relatedDate", "sourceRefIds"],
-        "additionalProperties": false
-      }
-    },
-    "overlappingIndicators": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "label": { "type": "string" },
-          "detail": { "type": "string" },
-          "tone": { "type": "string", "enum": ["positive", "negative", "neutral"] },
-          "relatedDate": { "type": "string" },
-          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
-        },
-        "required": ["label", "detail", "tone", "relatedDate", "sourceRefIds"],
-        "additionalProperties": false
-      }
-    },
-    "analogsOrPatterns": {
+    "drivers": {
       "type": "array",
       "items": {
         "type": "object",
@@ -190,6 +108,58 @@
         "required": ["text", "sourceRefIds"],
         "additionalProperties": false
       }
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["text", "sourceRefIds"],
+        "additionalProperties": false
+      }
+    },
+    "sectorStrength": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "sector": { "type": "string" },
+          "score": { "type": "number" },
+          "summary": { "type": "string" },
+          "changePercent": { "type": "number" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["sector", "score", "summary", "sourceRefIds"],
+        "additionalProperties": false
+      }
+    },
+    "notableNews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "headline": { "type": "string" },
+          "source": { "type": "string" },
+          "summary": { "type": "string" },
+          "impact": { "type": "string" },
+          "publishedAt": { "type": "string" },
+          "url": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": [
+          "headline",
+          "source",
+          "summary",
+          "impact",
+          "publishedAt",
+          "url",
+          "sourceRefIds"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "required": [
@@ -197,16 +167,11 @@
     "sourceRefs",
     "missingData",
     "confidence",
-    "symbol",
-    "rangeLabel",
-    "availableRanges",
-    "priceSeries",
-    "eventMarkers",
-    "eventTimeline",
-    "moveSummary",
-    "moveReasons",
-    "overlappingIndicators",
-    "analogsOrPatterns"
+    "marketSummary",
+    "drivers",
+    "risks",
+    "sectorStrength",
+    "notableNews"
   ],
   "additionalProperties": false
 }

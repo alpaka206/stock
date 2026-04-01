@@ -27,7 +27,7 @@ class SourceRef(BaseModel):
 class MissingDataItem(BaseModel):
     field: str
     reason: str
-    expectedSource: str = ""
+    expectedSource: str
 
 
 class Confidence(BaseModel):
@@ -44,5 +44,5 @@ class SourcedText(BaseModel):
 class AnalysisEnvelope(BaseModel):
     asOf: datetime
     sourceRefs: list[SourceRef]
-    missingData: list[MissingDataItem] = Field(default_factory=list)
+    missingData: list[MissingDataItem]
     confidence: Confidence

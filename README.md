@@ -1,350 +1,85 @@
 # AI 주식 리서치 워크스페이스
 
-뉴스, 기술적 분석, 수급, 옵션/공매도, 히스토리 리플레이를  
-하나의 흐름으로 연결해 **투자 판단에 필요한 정보를 한 화면에서 읽을 수 있도록** 만드는 주식 리서치 웹앱입니다.
+뉴스, 차트, 섹터, 수급, 옵션/공매도, 점수, 과거 이벤트를 한 흐름 안에서 읽는 모노레포다.
 
-> 이 프로젝트는 매수/매도 지시를 내리는 자동 매매 도구가 아니라,  
-> **분산된 투자 정보를 통합하고 해석을 돕는 리서치 워크스페이스**를 목표로 합니다.
+고정 메인 화면:
 
----
+1. `/overview`
+2. `/radar`
+3. `/stocks/[symbol]`
+4. `/history`
 
-## 왜 이 프로젝트를 시작했는가
+## 저장소 구조
 
-현재 사용 중인 증권 앱인 **토스증권**은 종목 뉴스 확인에는 편하지만,  
-실제 투자 판단에 필요한 기술적 분석 정보까지 한 번에 보기에는 아쉬움이 있었습니다.
+- `apps/web`: Next.js App Router 프론트엔드
+- `apps/api`: FastAPI 백엔드
+- `packages/contracts`: 공통 JSON schema / TypeScript 계약 패키지
+- `docs`: architecture manifest, design memory, ADR, changelog, Codex prompt 문서
+- `scripts`: 검증 및 보조 스크립트
 
-예를 들어 어떤 종목을 볼 때,
-
-- 뉴스는 증권 앱에서 보고
-- 차트는 다른 사이트로 이동해서 보고
-- 매물대와 지지/저항은 또 다른 툴에서 확인하고
-- 수급과 옵션/공매도 흐름도 별도로 찾아봐야 했습니다
-
-즉, **뉴스 → 차트 → 수급 → 리포트 → 과거 이슈 재확인**까지  
-계속 여러 사이트를 오가야 하는 구조였고,  
-이 때문에 투자 판단까지 걸리는 시간과 피로도가 컸습니다.
-
-이 프로젝트는 이 불편함에서 시작했습니다.
-
-핵심 문제는 단순히 “정보가 부족하다”가 아니라,  
-**정보가 너무 흩어져 있어서 하나의 흐름으로 읽히지 않는 것**입니다.
-
-그래서 이 저장소는  
-**AI를 활용해 분산된 투자 정보를 한 화면 흐름으로 묶는 리서치 워크스페이스**를 만드는 것을 목표로 합니다.
-
----
-
-## 해결하고 싶은 문제
-
-현재 투자자가 겪는 대표적인 불편은 아래와 같습니다.
-
-- 종목 뉴스는 볼 수 있지만 기술적 분석 정보가 부족하다
-- 매물대, 수급, 옵션 데이터 등을 다른 서비스에서 따로 확인해야 한다
-- 뉴스, 차트, 섹터, 리포트, 과거 변곡점 정보를 한 번에 이어서 보기 어렵다
-- 결국 투자 판단 전까지 여러 도구를 반복해서 이동해야 한다
-
-이 프로젝트는 이런 문제를 해결하기 위해  
-**시장 맥락 → 섹터 흐름 → 종목 분석 → 과거 검증**을 하나의 워크플로우로 연결합니다.
-
----
-
-## 프로젝트 목표
-
-AI를 활용해 다음 흐름을 하나의 서비스 안에서 연결합니다.
-
-1. **시장 시황 분석**
-2. **섹터 분석**
-3. **기술적 지표 기반 종목 점수화**
-4. **관심종목/우선검토 리스트 구성**
-5. **차트 위 지지/저항/채널/이벤트 신호 시각화**
-6. **과거 이벤트와 변곡점 리플레이**
-
-결과적으로 이 서비스는 단순 뉴스 모음이 아니라,
-
-> **뉴스 + 기술적 분석 + 수급 + 옵션/공매도 + 히스토리 검증**을  
-> 한 흐름으로 읽을 수 있는 AI 기반 주식 리서치 워크스페이스
-
-를 지향합니다.
-
----
-
-## 핵심 가치
-
-이 프로젝트는 아래 4가지를 중요하게 생각합니다.
-
-### 1. 한 화면 흐름
-
-정보를 많이 주는 것보다,  
-**판단에 필요한 정보가 자연스럽게 이어져 보이는 구조**를 더 중요하게 봅니다.
-
-### 2. 설명 가능한 분석
-
-점수나 신호를 보여주더라도  
-“왜 이런 결과가 나왔는지”를 함께 설명할 수 있어야 합니다.
-
-### 3. AI와 규칙 엔진의 분리
-
-가격/수급/지표 계산 같은 수치 로직은 가능한 한 **결정론적 로직**으로 처리하고,  
-AI는 요약, 해석, 우선순위화, 맥락 설명에 집중합니다.
-
-### 4. 장기적으로 확장 가능한 구조
-
-가볍게 붙였다가 버리는 MVP가 아니라,  
-처음부터 문서화와 구조를 갖춘 상태로 시작해  
-나중에 데이터 소스, 분석 모델, 시각화 기능을 확장할 수 있도록 설계합니다.
-
----
-
-## 주요 기능
-
-### 1) AI 기반 시황 분석
-
-- 주요 지수 흐름 요약
-- 지수 등락 원인 정리
-- 뉴스/거시 이슈 기반 해설
-- 단기/중기 리스크 포인트 요약
-
-### 2) AI 기반 섹터 분석
-
-- 섹터별 강세/약세 원인 정리
-- 섹터 내 자금 유입 여부
-- 순환매 흐름 탐지
-- 관련 리포트/이슈/일정 요약
-
-### 3) 기술적 지표 기반 종목 분석
-
-- RSI, MACD, 이동평균선, 거래량
-- 매물대, 지지/저항
-- 수급 흐름
-- 옵션/공매도 관련 참고 지표
-- 여러 지표를 조합한 종목 점수화
-
-### 4) 관심종목 및 우선검토 리스트
-
-- 관심종목 폴더/뷰 관리
-- 종목별 점수/이슈/섹터 맥락 정리
-- 우선검토 종목 선별
-- 조건부 시나리오 관리
-
-### 5) 차트 기반 시각화
-
-- 차트 위 지지/저항 구간 표시
-- 채널 및 추세 시각화
-- 이벤트 시점 표시
-- 종목 흐름과 뉴스/수급의 연결
-
-### 6) 과거 히스토리 리플레이
-
-- 특정 날짜 구간 기준 차트 재확인
-- 당시 뉴스/이슈 타임라인 정리
-- 급등/급락/변곡점 원인 복기
-- 현재와 유사한 패턴 비교 기반 마련
-
----
-
-## 4개 메인 화면
-
-이 프로젝트는 기능을 쌓기 전에,  
-먼저 아래 4개의 메인 화면을 고정하고 그 안에서 확장하는 방식을 따릅니다.
-
-### `/overview` — 시황 대시보드
-
-오늘 시장을 빠르게 읽는 화면입니다.
-
-- 주요 지수 스트립
-- 시황 요약
-- market heatmap
-- 주요 뉴스
-- 오늘 강한 섹터
-- 리스크 요약
-
-### `/radar` — 관심종목 + 섹터 인텔리전스
-
-관심종목을 관리하면서, 동시에 섹터 흐름과 이슈를 보는 화면입니다.
-
-- 관심종목 그리드
-- 폴더/뷰 관리
-- 컬럼 토글
-- 섹터 요약 카드
-- 증권사 리포트/이슈/일정 패널
-- 우선검토 종목 정리
-
-### `/stocks/[symbol]` — 종목 분석 워크스테이션
-
-하나의 종목을 깊게 분석하는 화면입니다.
-
-- 종목 검색
-- 캔들 차트
-- 보조지표 조건
-- 점수 breakdown
-- 수급/옵션/공매도 요약
-- 종목/섹터/시황 이슈 연결
-
-### `/history` — 과거 이벤트/변곡점 리플레이
-
-과거 특정 시점의 흐름을 다시 읽는 화면입니다.
-
-- 날짜 범위 선택
-- 과거 차트 리플레이
-- 이벤트 타임라인
-- AI 해설
-- 지표 중첩 구간 설명
-
----
-
-## 이 프로젝트가 지향하는 사용자 경험
-
-이 서비스는 단순히 데이터를 많이 보여주는 화면이 아니라,  
-아래 흐름이 **자연스럽게 이어지는 경험**을 목표로 합니다.
-
-**시장 맥락 → 섹터 흐름 → 종목 분석 → 차트 확인 → 과거 검증**
-
-즉,  
-사용자가 더 이상 여러 사이트를 오가며  
-같은 종목을 여러 관점으로 따로 확인하지 않도록 만드는 것이 핵심입니다.
-
----
-
-## 설계 원칙
-
-- 투자 판단을 돕는 **리서치 도구**로 설계한다
-- 직접적인 수익 보장 표현이나 확정적 매수/매도 지시는 피한다
-- 데이터 계산 로직과 AI 해석 로직을 분리한다
-- 구조 변경 시 문서와 함께 업데이트한다
-- 변경 이력은 누적 기록으로 남긴다
-- 나중에 다시 설명하지 않아도 되도록 저장소 내부 문서에 설계 의도를 남긴다
-
----
-
-## 기술 스택
-
-### Frontend
-
-- Next.js App Router
-- TypeScript
-- Tailwind CSS
-- shadcn/ui
-- AG Grid Community
-- TanStack Query
-- next-themes
-- 금융 차트 라이브러리
-
-### Backend
-
-- FastAPI
-- Pydantic
-- Python 3.12+
-- 화면 단위 endpoint 구조
-- 페이지 단위 런타임 AI 프롬프트 파일 구성
-
-### Documentation / Workflow
+## 먼저 읽을 문서
 
 - `AGENTS.md`
-- `docs/design/design-memory.md`
 - `docs/architecture/page-manifest.yaml`
 - `docs/architecture/component-manifest.yaml`
-- `docs/adr/`
-- `docs/changes/CHANGELOG_APPEND_ONLY.md`
+- `docs/design/design-memory.md`
+- `docs/codex/prompt-order.md`
 
----
+## 실행
 
-## 문서 구조
+### web
 
-이 저장소는 단순 코드 저장소가 아니라,  
-**제품 의도와 구조를 계속 기억하는 저장소**를 목표로 합니다.
+루트에서:
 
-주요 문서는 아래와 같습니다.
+```powershell
+pnpm install
+pnpm dev:web
+```
 
-- `README.md`  
-  프로젝트의 목적, 배경, 핵심 화면, 개발 방향을 설명하는 문서
+브라우저:
 
-- `docs/architecture/workspace-blueprint.md`  
-  워크스페이스 구조, 기술 스택, 세팅 방식, 구현 방향을 정리한 청사진 문서
+- `http://localhost:3000/overview`
+- `http://localhost:3000/radar`
+- `http://localhost:3000/stocks/NVDA`
+- `http://localhost:3000/history`
 
-- `AGENTS.md`  
-  Codex가 작업 시 따라야 할 상위 규칙
+### api
 
-- `apps/web/AGENTS.md`  
-  프론트엔드 구현 규칙
+```powershell
+cd apps/api
+python -m pip install .
+python -m uvicorn app.main:app --reload
+```
 
-- `apps/api/AGENTS.md`  
-  백엔드 및 AI 프롬프트 구성 규칙
+환경 변수는 `apps/api/.env.example`를 기준으로 맞춘다.
 
-- `docs/design/design-memory.md`  
-  화면 톤, 밀도, 레이아웃 의도, 금융 대시보드 감각을 기록하는 문서
+## 검증
 
-- `docs/architecture/page-manifest.yaml`  
-  4개 메인 페이지의 목적과 필수 구성요소를 기록하는 문서
+```powershell
+pnpm lint:web
+pnpm typecheck:web
+pnpm build:web
+pnpm check:contracts
+python -m py_compile apps/api/app/main.py apps/api/app/schemas/common.py apps/api/app/schemas/overview.py apps/api/app/schemas/radar.py apps/api/app/schemas/stocks.py apps/api/app/schemas/history.py apps/api/app/services/providers/mock.py apps/api/app/services/providers/real.py
+```
 
-- `docs/architecture/component-manifest.yaml`  
-  페이지별 주요 컴포넌트 구조를 기록하는 문서
+FastAPI mock smoke 예시:
 
-- `docs/adr/`  
-  중요한 기술적/구조적 결정을 남기는 ADR 문서 모음
+```powershell
+python -c "import sys; sys.path.insert(0, r'apps/api'); from fastapi.testclient import TestClient; from app.main import app; client = TestClient(app); print(client.get('/overview').status_code, client.get('/radar').status_code, client.get('/stocks/NVDA').status_code, client.get('/history').status_code)"
+```
 
-- `docs/changes/CHANGELOG_APPEND_ONLY.md`  
-  변경사항과 이유를 누적 기록하는 문서
+## 계약 원칙
 
----
+- runtime JSON schema 단일 소스는 `packages/contracts/schemas/*.schema.json`
+- web 타입은 `packages/contracts/src/index.ts`를 기준으로 참조
+- API prompt body는 `apps/api/prompts/*/system.md`
+- `apps/api/prompts/*/output.schema.json`은 호환성 복사본이며 canonical source가 아니다
+- drift 검증은 `python scripts/check_contract_parity.py`
 
-## 시작하기
+## 데이터 신뢰 원칙
 
-프로젝트 기본 세팅과 구조는 아래 청사진 문서를 기준으로 진행합니다.
-
-- [`docs/architecture/workspace-blueprint.md`](./docs/architecture/workspace-blueprint.md)
-
-권장 시작 순서:
-
-1. 루트 `AGENTS.md` 배치
-2. `apps/web/AGENTS.md`, `apps/api/AGENTS.md` 배치
-3. `docs/design/design-memory.md` 작성
-4. `docs/architecture/page-manifest.yaml` 작성
-5. `docs/architecture/component-manifest.yaml` 작성
-6. `docs/adr/`, `docs/changes/` 생성
-7. 워크스페이스 초기 세팅
-8. 4개 메인 화면 스캐폴딩
-9. 화면 단위 API와 런타임 AI 프롬프트 연결
-
----
-
-## 현재 상태
-
-현재 이 저장소는  
-**AI 주식 리서치 워크스페이스를 만들기 위한 설계 및 초기 구조화 단계**에 있습니다.
-
-앞으로 순차적으로 아래를 구현합니다.
-
-- 웹앱 기본 스캐폴딩
-- 4개 메인 화면 구현
-- 공통 데이터 계약 정리
-- AI 프롬프트 구조 정리
-- 히스토리 리플레이와 종목 분석 흐름 연결
-- 문서/변경기록 체계 정착
-
----
-
-## 주의
-
-이 프로젝트는 투자 판단을 돕는 연구/개발 목적의 도구입니다.
-
-- 특정 종목의 수익을 보장하지 않습니다
-- 투자 판단의 최종 책임은 사용자에게 있습니다
-- 실제 서비스에서는 데이터 출처, 시점, 신뢰도, 누락 여부를 명확히 표시해야 합니다
-
----
-
-## 앞으로의 방향
-
-이 프로젝트는 단기적으로는  
-**분산된 투자 정보를 한 화면 흐름으로 묶는 것**에 집중하고,
-
-장기적으로는  
-**사용자 맞춤형 관심종목 관리, 히스토리 기반 학습, 설명 가능한 AI 리서치 도구**로 발전시키는 것을 목표로 합니다.
-
----
-
-## 한 줄 요약
-
-이 프로젝트는  
-**“뉴스를 보고, 차트를 보고, 수급을 보고, 과거를 다시 확인하는 과정”을  
-여러 사이트를 오가지 않고 하나의 흐름으로 연결하기 위한 AI 주식 리서치 워크스페이스**입니다.
+- 출처 없는 가격, 뉴스, 레벨, 점수는 만들지 않는다
+- 숫자와 시계열은 provider가 결정론적으로 계산한다
+- 실데이터가 없으면 `missingData` 또는 unavailable 상태로 드러낸다
+- web 화면은 live / mock / fixture 상태를 배지로 노출한다

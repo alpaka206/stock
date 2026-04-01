@@ -76,10 +76,10 @@ class TopPickItem(BaseModel):
 
 class RadarResponse(AnalysisEnvelope):
     selectedSectorSummary: SourcedText
-    folderTree: list[FolderNode] = Field(default_factory=list)
-    watchlistRows: list[WatchlistRow] = Field(default_factory=list)
-    sectorCards: list[SectorCard] = Field(default_factory=list)
-    brokerReports: list[BrokerReportItem] = Field(default_factory=list)
-    keySchedule: list[KeyScheduleItem] = Field(default_factory=list)
-    keyIssues: list[KeyIssueItem] = Field(default_factory=list)
-    topPicks: list[TopPickItem] = Field(default_factory=list)
+    folderTree: list[FolderNode]
+    watchlistRows: list[WatchlistRow]
+    sectorCards: list[SectorCard]
+    brokerReports: list[BrokerReportItem]
+    keySchedule: list[KeyScheduleItem]
+    keyIssues: list[KeyIssueItem]
+    topPicks: list[TopPickItem]

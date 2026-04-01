@@ -64,11 +64,11 @@ class OverlappingIndicator(BaseModel):
 class HistoryResponse(AnalysisEnvelope):
     symbol: str
     rangeLabel: str
-    availableRanges: list[HistoryRangeOption] = Field(default_factory=list)
-    priceSeries: list[PriceSeriesPoint] = Field(default_factory=list)
-    eventMarkers: list[ChartMarker] = Field(default_factory=list)
-    eventTimeline: list[HistoryEventItem] = Field(default_factory=list)
+    availableRanges: list[HistoryRangeOption]
+    priceSeries: list[PriceSeriesPoint]
+    eventMarkers: list[ChartMarker]
+    eventTimeline: list[HistoryEventItem]
     moveSummary: SourcedText
-    moveReasons: list[MoveReasonItem] = Field(default_factory=list)
-    overlappingIndicators: list[OverlappingIndicator] = Field(default_factory=list)
-    analogsOrPatterns: list[SourcedText] = Field(default_factory=list)
+    moveReasons: list[MoveReasonItem]
+    overlappingIndicators: list[OverlappingIndicator]
+    analogsOrPatterns: list[SourcedText]

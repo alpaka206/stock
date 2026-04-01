@@ -1,55 +1,72 @@
 import "server-only";
 
 import { buildStockFixture } from "@/dev/fixtures";
-import { fetchResearchApiJson } from "@/lib/server/research-api";
-import type { AvailabilityState, StockFixture } from "@/lib/research/types";
-
-type StockApiResponse = {
-  instrument?: StockFixture["instrument"];
-  latestPrice?: number;
-  changePercent?: number;
-  thesis?: string;
-  priceSeries?: StockFixture["priceSeries"];
-  eventMarkers?: StockFixture["eventMarkers"];
-  indicatorGuides?: StockFixture["indicatorGuides"];
-  rulePresetDefinitions?: StockFixture["rulePresetDefinitions"];
-  scoreSummary?: StockFixture["scoreSummary"];
-  flowMetrics?: StockFixture["flowMetrics"];
-  flowUnavailable?: AvailabilityState;
-  optionsShortMetrics?: StockFixture["optionsShortMetrics"];
-  optionsUnavailable?: AvailabilityState;
-  issueCards?: StockFixture["issues"];
-  relatedSymbols?: string[];
-};
+import {
+  allowFixtureFallback,
+  assertResearchApiAvailable,
+  buildFixtureDataSource,
+  buildPayloadDataSource,
+  fetchResearchApiJson,
+} from "@/lib/server/research-api";
+import type { StockApiResponse, StockFixture } from "@/lib/research/types";
 
 export async function getStockWorkstation(symbol: string) {
   const fallback = buildStockFixture(symbol);
-  const payload = await fetchResearchApiJson<StockApiResponse>({
+  const result = await fetchResearchApiJson<StockApiResponse>({
     explicitUrlEnv: "STOCK_DETAIL_API_URL",
     basePath: "/stocks",
     pathSuffix: symbol.toUpperCase(),
   });
 
-  if (!payload?.instrument || !payload.priceSeries?.length) {
-    return fallback;
+  if (result.status === "disabled") {
+    return {
+      ...fallback,
+      dataSource: buildFixtureDataSource({
+        fallback: false,
+        reason: "API URL이 설정되지 않아 샘플 종목 워크스테이션을 표시합니다.",
+      }),
+    };
+  }
+
+  if (result.status === "error") {
+    assertResearchApiAvailable(result, "stocks");
+    return {
+      ...fallback,
+      dataSource: buildFixtureDataSource({
+        fallback: allowFixtureFallback(),
+        reason: `stocks API 연결이 실패해 샘플 종목 워크스테이션을 대신 표시합니다. ${result.errorMessage}`,
+      }),
+    };
+  }
+
+  const payload = result.payload;
+
+  if (!payload.priceSeries?.length) {
+    return {
+      ...fallback,
+      dataSource: buildFixtureDataSource({
+        fallback: true,
+        reason: "stocks API 응답에 가격 시계열이 없어 샘플 종목 워크스테이션을 대신 표시합니다.",
+      }),
+    };
   }
 
   return {
     instrument: payload.instrument,
-    price: payload.latestPrice ?? fallback.price,
-    changePercent: payload.changePercent ?? fallback.changePercent,
-    thesis: payload.thesis ?? fallback.thesis,
+    price: payload.latestPrice,
+    changePercent: payload.changePercent,
+    thesis: payload.thesis,
     priceSeries: payload.priceSeries,
-    eventMarkers: payload.eventMarkers ?? [],
-    indicatorGuides: payload.indicatorGuides ?? [],
-    rulePresetDefinitions:
-      payload.rulePresetDefinitions ?? fallback.rulePresetDefinitions,
-    scoreSummary: payload.scoreSummary ?? fallback.scoreSummary,
-    flowMetrics: payload.flowMetrics ?? [],
+    eventMarkers: payload.eventMarkers,
+    indicatorGuides: payload.indicatorGuides,
+    rulePresetDefinitions: payload.rulePresetDefinitions,
+    scoreSummary: payload.scoreSummary,
+    flowMetrics: payload.flowMetrics,
     flowUnavailable: payload.flowUnavailable,
-    optionsShortMetrics: payload.optionsShortMetrics ?? [],
+    optionsShortMetrics: payload.optionsShortMetrics,
     optionsUnavailable: payload.optionsUnavailable,
-    issues: payload.issueCards ?? [],
-    relatedSymbols: payload.relatedSymbols ?? fallback.relatedSymbols,
+    issues: payload.issueCards,
+    relatedSymbols: payload.relatedSymbols,
+    dataSource: buildPayloadDataSource(payload.sourceRefs),
   } satisfies StockFixture;
 }

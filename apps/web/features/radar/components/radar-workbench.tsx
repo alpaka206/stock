@@ -4,6 +4,7 @@ import * as React from "react";
 import type { ColDef } from "ag-grid-community";
 import Link from "next/link";
 
+import { DataSourceNotice } from "@/components/research/data-source-notice";
 import { ResearchPanel } from "@/components/research/research-panel";
 import { TrendChip } from "@/components/research/trend-chip";
 import { Button } from "@/components/ui/button";
@@ -323,6 +324,7 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
               섹터 컨텍스트다. 컬럼 가시성, 정렬, 필터, 저장된 뷰 preset을 모두
               유지하면서 다음 분석 화면으로 자연스럽게 이어진다.
             </p>
+            <DataSourceNotice source={workspace.dataSource} className="mt-4 max-w-2xl" />
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Input

@@ -21,6 +21,10 @@ shared:
       kind: card
       role: 카드 헤더, 액션, content padding을 통일하는 공통 패널
 
+    - name: DataSourceNotice
+      kind: trust
+      role: 실데이터, API mock, fixture fallback 상태를 한국어 배지로 구분해 source trust를 드러내는 공통 안내
+
 pages:
   overview:
     components:

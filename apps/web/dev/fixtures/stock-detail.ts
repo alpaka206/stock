@@ -22,7 +22,7 @@ function scaleSeries(points: PricePoint[], multiplier: number) {
 
 function createStockFixture(
   symbol: string,
-  overrides: Omit<StockFixture, "instrument"> & {
+  overrides: Omit<StockFixture, "instrument" | "dataSource"> & {
     instrument: Partial<StockFixture["instrument"]>;
   }
 ): StockFixture {
@@ -52,6 +52,11 @@ function createStockFixture(
     optionsUnavailable: overrides.optionsUnavailable,
     issues: overrides.issues,
     relatedSymbols: overrides.relatedSymbols,
+    dataSource: {
+      mode: "fixture",
+      label: "샘플 데이터",
+      description: "API가 연결되지 않은 개발 환경 기본 종목 fixture입니다.",
+    },
   };
 }
 
