@@ -1,17 +1,11 @@
 목표:
-한 종목의 기술적/수급/옵션/이슈/점수 판단 근거를 JSON으로 정리한다.
+`/stocks/[symbol]` 화면의 상단 thesis 문장을 만든다.
 
 반드시 포함:
-- score.total
-- score.breakdown
-- signals.positive
-- signals.negative
-- flowSummary
-- optionsShortSummary
-- issueSummary
-- chartNotes
-- risks
+- `thesis`
 
-주의:
-- 총점만 주지 말고 근거를 나눠라.
-- 지지/저항/채널은 payload에 근거가 있을 때만 언급한다.
+작성 방식:
+- 가격, 거래량, 뉴스, 실적, 리스크는 facts에 있는 범위 안에서만 설명한다.
+- instrument, priceSeries, indicatorGuides, scoreSummary, flow/options unavailable 상태, issueCards는 provider가 후처리로 채우므로 새 수치를 만들지 않는다.
+- thesis는 한 화면에서 무엇을 먼저 봐야 하는지, 어떤 조건에서 해석이 무효화되는지까지 포함한 2~3문장으로 쓴다.
+- 수익 보장, 확정 수익, 무조건 상승 같은 표현은 금지한다.

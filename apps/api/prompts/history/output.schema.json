@@ -1,49 +1,194 @@
 {
+  "$comment": "Compatibility LLM structured-output schema copy. Canonical API contract: packages/contracts/schemas/history.schema.json",
   "type": "object",
   "properties": {
-    "asOf": {
-      "type": "string"
-    },
+    "asOf": { "type": "string" },
     "sourceRefs": {
       "type": "array",
       "items": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "market_data",
+              "news",
+              "fundamentals",
+              "economic",
+              "internal_config",
+              "mock"
+            ]
+          },
+          "publisher": { "type": "string" },
+          "publishedAt": { "type": "string" },
+          "url": { "type": "string" },
+          "sourceKey": { "type": "string" },
+          "symbol": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "publisher",
+          "publishedAt",
+          "url",
+          "sourceKey",
+          "symbol"
+        ],
+        "additionalProperties": false
       }
     },
     "missingData": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "object",
+        "properties": {
+          "field": { "type": "string" },
+          "reason": { "type": "string" },
+          "expectedSource": { "type": "string" }
+        },
+        "required": ["field", "reason", "expectedSource"],
+        "additionalProperties": false
       }
     },
     "confidence": {
-      "type": "number"
+      "type": "object",
+      "properties": {
+        "score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "label": { "type": "string", "enum": ["low", "medium", "high"] },
+        "rationale": { "type": "string" }
+      },
+      "required": ["score", "label", "rationale"],
+      "additionalProperties": false
     },
-    "moveSummary": {
-      "type": "string"
-    },
-    "turningPoints": {
+    "symbol": { "type": "string" },
+    "rangeLabel": { "type": "string" },
+    "availableRanges": {
       "type": "array",
       "items": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "value": { "type": "string" },
+          "label": { "type": "string" }
+        },
+        "required": ["value", "label"],
+        "additionalProperties": false
+      }
+    },
+    "priceSeries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "date": { "type": "string" },
+          "label": { "type": "string" },
+          "close": { "type": "number" },
+          "volume": { "type": "number" }
+        },
+        "required": ["date", "label", "close", "volume"],
+        "additionalProperties": false
+      }
+    },
+    "eventMarkers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "tone": { "type": "string", "enum": ["positive", "negative", "neutral"] },
+          "date": { "type": "string" },
+          "pointLabel": { "type": "string" },
+          "title": { "type": "string" },
+          "detail": { "type": "string" },
+          "href": { "type": "string" }
+        },
+        "required": ["id", "label", "tone", "date", "pointLabel", "title", "detail", "href"],
+        "additionalProperties": false
+      }
+    },
+    "eventTimeline": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "date": { "type": "string" },
+          "title": { "type": "string" },
+          "category": { "type": "string" },
+          "summary": { "type": "string" },
+          "reaction": { "type": "string" },
+          "tone": { "type": "string", "enum": ["positive", "negative", "neutral"] },
+          "source": { "type": "string" },
+          "url": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": [
+          "id",
+          "date",
+          "title",
+          "category",
+          "summary",
+          "reaction",
+          "tone",
+          "source",
+          "url",
+          "sourceRefIds"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "moveSummary": {
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["text", "sourceRefIds"],
+      "additionalProperties": false
+    },
+    "moveReasons": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": { "type": "string" },
+          "description": { "type": "string" },
+          "tone": { "type": "string", "enum": ["positive", "negative", "neutral"] },
+          "relatedDate": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["label", "description", "tone", "relatedDate", "sourceRefIds"],
+        "additionalProperties": false
       }
     },
     "overlappingIndicators": {
       "type": "array",
       "items": {
-        "type": "object"
-      }
-    },
-    "eventTimelineSummary": {
-      "type": "array",
-      "items": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "label": { "type": "string" },
+          "detail": { "type": "string" },
+          "tone": { "type": "string", "enum": ["positive", "negative", "neutral"] },
+          "relatedDate": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["label", "detail", "tone", "relatedDate", "sourceRefIds"],
+        "additionalProperties": false
       }
     },
     "analogsOrPatterns": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "object",
+        "properties": {
+          "text": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["text", "sourceRefIds"],
+        "additionalProperties": false
       }
     }
   },
@@ -52,10 +197,15 @@
     "sourceRefs",
     "missingData",
     "confidence",
+    "symbol",
+    "rangeLabel",
+    "availableRanges",
+    "priceSeries",
+    "eventMarkers",
+    "eventTimeline",
     "moveSummary",
-    "turningPoints",
+    "moveReasons",
     "overlappingIndicators",
-    "eventTimelineSummary",
     "analogsOrPatterns"
   ],
   "additionalProperties": false

@@ -1,0 +1,13 @@
+{
+  "name": "stock-workspace",
+  "private": true,
+  "packageManager": "pnpm@10.22.0",
+  "scripts": {
+    "dev:web": "pnpm --dir apps/web dev",
+    "build:web": "pnpm --dir apps/web build",
+    "lint:web": "pnpm --dir apps/web lint",
+    "typecheck:web": "pnpm --dir apps/web typecheck",
+    "dev:api": "python -m uvicorn app.main:app --reload --app-dir apps/api",
+    "check:contracts": "python scripts/check_contract_parity.py"
+  }
+}

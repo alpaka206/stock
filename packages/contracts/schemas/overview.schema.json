@@ -1,0 +1,177 @@
+{
+  "$comment": "Canonical source: packages/contracts/schemas/overview.schema.json. apps/api/prompts/overview/output.schema.json is a compatibility copy checked by scripts/check_contract_parity.py.",
+  "type": "object",
+  "properties": {
+    "asOf": { "type": "string" },
+    "sourceRefs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "market_data",
+              "news",
+              "fundamentals",
+              "economic",
+              "internal_config",
+              "mock"
+            ]
+          },
+          "publisher": { "type": "string" },
+          "publishedAt": { "type": "string" },
+          "url": { "type": "string" },
+          "sourceKey": { "type": "string" },
+          "symbol": { "type": "string" }
+        },
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "publisher",
+          "publishedAt",
+          "url",
+          "sourceKey",
+          "symbol"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "missingData": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "field": { "type": "string" },
+          "reason": { "type": "string" },
+          "expectedSource": { "type": "string" }
+        },
+        "required": ["field", "reason", "expectedSource"],
+        "additionalProperties": false
+      }
+    },
+    "confidence": {
+      "type": "object",
+      "properties": {
+        "score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "label": { "type": "string", "enum": ["low", "medium", "high"] },
+        "rationale": { "type": "string" }
+      },
+      "required": ["score", "label", "rationale"],
+      "additionalProperties": false
+    },
+    "benchmarkSnapshot": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": { "type": "string" },
+          "symbol": { "type": "string" },
+          "category": { "type": "string" },
+          "value": { "type": "number" },
+          "changePercent": { "type": "number" },
+          "note": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": [
+          "label",
+          "symbol",
+          "category",
+          "value",
+          "changePercent",
+          "note",
+          "sourceRefIds"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "marketSummary": {
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["text", "sourceRefIds"],
+      "additionalProperties": false
+    },
+    "drivers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["text", "sourceRefIds"],
+        "additionalProperties": false
+      }
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["text", "sourceRefIds"],
+        "additionalProperties": false
+      }
+    },
+    "sectorStrength": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "sector": { "type": "string" },
+          "score": { "type": "number" },
+          "summary": { "type": "string" },
+          "changePercent": { "type": "number" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["sector", "score", "summary", "sourceRefIds"],
+        "additionalProperties": false
+      }
+    },
+    "notableNews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "headline": { "type": "string" },
+          "source": { "type": "string" },
+          "summary": { "type": "string" },
+          "impact": { "type": "string" },
+          "publishedAt": { "type": "string" },
+          "url": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": [
+          "headline",
+          "source",
+          "summary",
+          "impact",
+          "publishedAt",
+          "url",
+          "sourceRefIds"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "asOf",
+    "sourceRefs",
+    "missingData",
+    "confidence",
+    "marketSummary",
+    "drivers",
+    "risks",
+    "sectorStrength",
+    "notableNews"
+  ],
+  "additionalProperties": false
+}

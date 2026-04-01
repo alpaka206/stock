@@ -1,14 +1,22 @@
 # 목표
-현재까지 구현한 구조를 검증하고 문서를 정리한다.
+최종 검증과 릴리즈 마감 문서를 정리한다.
+
+# 참고 문서
+- README.md
+- apps/web/README.md
+- apps/api/README.md
+- docs/changes/CHANGELOG_APPEND_ONLY.md
+- docs/adr/
 
 # 할 일
-- typecheck, lint, 테스트 명령을 정리한다.
-- README 실행 방법을 실제 구조에 맞게 갱신한다.
-- page/component manifest 가 현재 구조와 맞는지 확인한다.
-- changelog 에 변경 내역을 append 한다.
-- 주요 결정은 ADR 로 남긴다.
+- web lint / typecheck / build를 실행한다.
+- api py_compile과 TestClient smoke test를 실행한다.
+- README 실행 경로를 실제 구조와 맞춘다.
+- changelog를 append-only로 추가한다.
+- 필요하면 ADR을 추가한다.
+- prompt-order와 실제 prompt 문서 경로를 맞춘다.
 
 # 완료 조건
-- README 만 봐도 새 개발자가 프로젝트를 띄울 수 있다.
-- docs 와 실제 코드 구조가 어긋나지 않는다.
-- append-only changelog 원칙이 지켜진다.
+- mock 모드 기준 web과 api가 검증된다.
+- 실행 문서가 실제 명령과 맞는다.
+- changelog와 ADR이 누락 없이 정리된다.
