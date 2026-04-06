@@ -1,15 +1,16 @@
 # Discord Status
 
 - ENABLE_DISCORD_BRIDGE: true
-- DISCORD_ENV_FILE: `.env.discord`
-- `.env.discord` exists: no
+- DISCORD_ENV_FILE: `omx_discord_bridge/.env.discord`
+- `.env.discord` exists: yes
 - `.env.discord` tracked: no
-- required keys:
-  - DISCORD_GUILD_ID
-  - DISCORD_PARENT_CHANNEL_ID
-  - DISCORD_WEBHOOK_URL
-  - ALLOWED_DISCORD_USER_IDS
-  - DISCORD_BOT_TOKEN
 - bridge scaffold: installed
-- runtime: blocked until `.env.discord` exists
-- reply injection: blocked
+- live webhook forwarder: implemented
+- reply polling: implemented
+- shared logs:
+  - `.omx/state/TEAM_CONVERSATION.jsonl`
+  - `.omx/state/DISCORD_INBOX.jsonl`
+  - `.omx/state/DISCORD_INBOX.md`
+- quick test path: `scripts/test-discord-bridge.sh`
+- manual reply sync: `scripts/sync-discord-replies.sh`
+- reply injection: not implemented yet
