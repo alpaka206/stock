@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
@@ -11,12 +11,12 @@ DEFAULT_OVERVIEW_BENCHMARKS = {
     "SPY": "S&P 500",
     "QQQ": "NASDAQ 100",
     "SMH": "반도체",
-    "IWM": "?? 2000",
+    "IWM": "러셀 2000",
 }
 
 DEFAULT_SECTOR_PROXIES = {
     "XLK": "기술주",
-    "XLF": "??",
+    "XLF": "금융",
     "XLE": "에너지",
 }
 
@@ -148,3 +148,4 @@ class Settings(BaseModel):
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()
+
