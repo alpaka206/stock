@@ -7,10 +7,11 @@ medium_findings: 0
 low_findings: 1
 
 ## Findings
-- LOW: `scripts/no_secrets_guard.sh`, `scripts/verify_minimal.sh`, `scripts/github-flow-cycle.sh`, `scripts/omx-loop.sh`, `scripts/omx-watchdog.sh`
-  - shebang ? ?? ?? ??. ?? ?? blocking issue ??.
+- LOW: Discord bridge runtime remains blocked until `.env.discord` exists locally.
+  - This is expected scaffold behavior, not a blocking defect.
 
 ## Summary
-- origin/develop..HEAD ?? blocking issue ??
-- lint/build/test ??
-- push / PR / develop ?? ?? ??
+- issue #17 range reviewed
+- blocking issue ??
+- `pnpm verify:standard` ??
+- push / PR ?? ??
