@@ -18,6 +18,13 @@ export type NavigationItem = {
   matchPrefixes: string[];
 };
 
+export type RouteContext = {
+  activeSection: NavigationSection;
+  label: string;
+  eyebrow: string;
+  description: string;
+};
+
 export const mainNavigation: NavigationItem[] = [
   {
     id: "overview",
@@ -57,19 +64,57 @@ export const mainNavigation: NavigationItem[] = [
   },
 ];
 
-export function isNavigationActive(
-  pathname: string,
-  navigationItem: NavigationItem
-) {
-  return navigationItem.matchPrefixes.some((prefix) => {
-    return pathname === prefix || pathname.startsWith(`${prefix}/`);
-  });
+const auxiliaryRouteContexts: Array<{ prefixes: string[]; context: RouteContext }> = [
+  {
+    prefixes: ["/news"],
+    context: {
+      activeSection: "overview",
+      label: "뉴스 피드",
+      eyebrow: "뉴스 / 요약",
+      description: "해외 속보, 관심종목 뉴스, 국내 공시를 한 흐름으로 보는 보조 화면입니다.",
+    },
+  },
+  {
+    prefixes: ["/calendar"],
+    context: {
+      activeSection: "overview",
+      label: "이벤트 캘린더",
+      eyebrow: "일정 / 실적",
+      description: "실적, IPO, 국내 공시, 뉴스 체크 포인트를 한 화면에서 보는 보조 화면입니다.",
+    },
+  },
+];
+
+function isPrefixMatch(pathname: string, prefixes: string[]) {
+  return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+export function getCurrentRouteContext(pathname: string): RouteContext {
+  const auxiliary = auxiliaryRouteContexts.find((item) =>
+    isPrefixMatch(pathname, item.prefixes)
+  );
+
+  if (auxiliary) {
+    return auxiliary.context;
+  }
+
+  const navigationItem =
+    mainNavigation.find((item) => isPrefixMatch(pathname, item.matchPrefixes)) ??
+    mainNavigation[0];
+
+  return {
+    activeSection: navigationItem.id,
+    label: navigationItem.label,
+    eyebrow: navigationItem.eyebrow,
+    description: navigationItem.description,
+  };
+}
+
+export function isNavigationActive(pathname: string, navigationItem: NavigationItem) {
+  return getCurrentRouteContext(pathname).activeSection === navigationItem.id;
 }
 
 export function getCurrentNavigation(pathname: string) {
-  return (
-    mainNavigation.find((navigationItem) =>
-      isNavigationActive(pathname, navigationItem)
-    ) ?? mainNavigation[0]
-  );
+  const context = getCurrentRouteContext(pathname);
+  return mainNavigation.find((item) => item.id === context.activeSection) ?? mainNavigation[0];
 }

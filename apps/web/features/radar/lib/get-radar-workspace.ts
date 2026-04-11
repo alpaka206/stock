@@ -4,6 +4,7 @@ import { radarFixture } from "@/dev/fixtures";
 import {
   allowFixtureFallback,
   assertResearchApiAvailable,
+  assertResearchApiConfigured,
   buildFixtureDataSource,
   buildPayloadDataSource,
   fetchResearchApiJson,
@@ -22,6 +23,7 @@ export async function getRadarWorkspace() {
   });
 
   if (result.status === "disabled") {
+    assertResearchApiConfigured(result, "radar");
     return {
       ...radarFixture,
       dataSource: buildFixtureDataSource({

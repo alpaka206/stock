@@ -9,6 +9,8 @@ export function useUrlState() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const currentQuery = searchParams.toString();
+  const currentHref = currentQuery ? `${pathname}?${currentQuery}` : pathname;
 
   const replaceParams = React.useCallback(
     (updates: Record<string, UrlUpdateValue>) => {
@@ -25,9 +27,12 @@ export function useUrlState() {
 
       const nextQuery = nextParams.toString();
       const nextHref = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+      if (nextHref === currentHref) {
+        return;
+      }
       router.replace(nextHref, { scroll: false });
     },
-    [pathname, router, searchParams]
+    [currentHref, pathname, router, searchParams]
   );
 
   return {

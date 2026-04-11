@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from csv import DictReader
 from datetime import datetime, timezone
 from hashlib import sha1
+from io import StringIO
 from typing import Any
+import json
 import time
 
 import httpx
@@ -27,7 +30,7 @@ class AlphaVantageClient:
         self.base_url = base_url
         self.timeout_seconds = timeout_seconds
         self.cache_ttl_seconds = cache_ttl_seconds
-        self._cache: dict[str, tuple[float, dict[str, Any]]] = {}
+        self._cache: dict[str, tuple[float, Any]] = {}
 
     async def get_daily_series(self, symbol: str, limit: int = 100) -> list[dict[str, Any]]:
         payload = await self._request(
@@ -138,13 +141,76 @@ class AlphaVantageClient:
             "changePercent": round(change_percent, 2),
         }
 
+    async def get_earnings_calendar(
+        self, *, symbol: str | None = None, horizon: str = "3month"
+    ) -> list[dict[str, Any]]:
+        params = {"function": "EARNINGS_CALENDAR", "horizon": horizon}
+        if symbol:
+            params["symbol"] = symbol
+        rows = await self._request_csv(params)
+        items: list[dict[str, Any]] = []
+        for row in rows:
+            ticker = row.get("symbol", "").strip().upper()
+            if not ticker:
+                continue
+            items.append(
+                {
+                    "symbol": ticker,
+                    "name": row.get("name", "").strip() or ticker,
+                    "reportDate": row.get("reportDate", "").strip(),
+                    "fiscalDateEnding": row.get("fiscalDateEnding", "").strip(),
+                    "estimate": self._to_float(row.get("estimate")),
+                    "currency": row.get("currency", "").strip(),
+                }
+            )
+        return items
+
+    async def get_ipo_calendar(self) -> list[dict[str, Any]]:
+        rows = await self._request_csv({"function": "IPO_CALENDAR"})
+        items: list[dict[str, Any]] = []
+        for row in rows:
+            symbol = row.get("symbol", "").strip().upper()
+            if not symbol:
+                continue
+            items.append(
+                {
+                    "symbol": symbol,
+                    "name": row.get("name", "").strip() or symbol,
+                    "ipoDate": row.get("ipoDate", "").strip(),
+                    "priceRangeLow": self._to_float(row.get("priceRangeLow")),
+                    "priceRangeHigh": self._to_float(row.get("priceRangeHigh")),
+                    "currency": row.get("currency", "").strip(),
+                    "exchange": row.get("exchange", "").strip(),
+                }
+            )
+        return items
+
     async def _request(self, params: dict[str, str]) -> dict[str, Any]:
+        payload = await self._request_raw(params, datatype="json")
+        if not isinstance(payload, dict):
+            raise ExternalServiceError("Alpha Vantage JSON ?? ??? ???? ????.")
+        return payload
+
+    async def _request_csv(self, params: dict[str, str]) -> list[dict[str, str]]:
+        payload = await self._request_raw(params, datatype="csv")
+        if not isinstance(payload, str):
+            raise ExternalServiceError("Alpha Vantage CSV ?? ??? ???? ????.")
+        self._raise_for_csv_errors(payload, self._describe_request(params))
+        reader = DictReader(StringIO(payload))
+        return [
+            {key: (value or "").strip() for key, value in row.items() if key}
+            for row in reader
+        ]
+
+    async def _request_raw(self, params: dict[str, str], *, datatype: str) -> Any:
         if not self.api_key:
             raise ProviderConfigurationError(
-                "real provider를 사용하려면 ALPHA_VANTAGE_API_KEY가 필요합니다."
+                "real provider? ????? ALPHA_VANTAGE_API_KEY? ?????."
             )
 
         merged = {**params, "apikey": self.api_key}
+        if datatype == "csv":
+            merged["datatype"] = "csv"
         cache_key = self._cache_key(merged)
         now = time.time()
         if cache_key in self._cache:
@@ -157,30 +223,34 @@ class AlphaVantageClient:
             async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
                 response = await client.get(self.base_url, params=merged)
                 response.raise_for_status()
-                payload = response.json()
+                if datatype == "csv":
+                    payload = response.text
+                else:
+                    payload = response.json()
         except httpx.HTTPStatusError as exc:
             status_code = exc.response.status_code
             if status_code == 429:
                 raise ExternalRateLimitError(
-                    f"Alpha Vantage {request_target} 요청이 rate limit에 걸렸습니다."
+                    f"Alpha Vantage {request_target} ??? rate limit? ?????."
                 ) from exc
             raise ExternalServiceError(
-                f"Alpha Vantage {request_target} 요청이 HTTP {status_code}로 실패했습니다."
+                f"Alpha Vantage {request_target} ??? HTTP {status_code}? ??????."
             ) from exc
         except httpx.TimeoutException as exc:
             raise ExternalServiceError(
-                f"Alpha Vantage {request_target} 요청이 시간 초과되었습니다."
+                f"Alpha Vantage {request_target} ??? ?? ???????."
             ) from exc
         except httpx.RequestError as exc:
             raise ExternalServiceError(
-                f"Alpha Vantage {request_target} 요청 중 네트워크 오류가 발생했습니다."
+                f"Alpha Vantage {request_target} ?? ? ???? ??? ??????."
             ) from exc
         except ValueError as exc:
             raise ExternalServiceError(
-                f"Alpha Vantage {request_target} 응답 JSON을 해석하지 못했습니다."
+                f"Alpha Vantage {request_target} ?? {datatype.upper()}? ???? ?????."
             ) from exc
 
-        self._raise_for_provider_errors(payload)
+        if datatype == "json":
+            self._raise_for_provider_errors(payload)
         self._cache[cache_key] = (now + self.cache_ttl_seconds, payload)
         return payload
 
@@ -191,6 +261,15 @@ class AlphaVantageClient:
 
         if "Error Message" in payload:
             raise ExternalServiceError(str(payload["Error Message"]))
+
+    def _raise_for_csv_errors(self, payload: str, request_target: str) -> None:
+        normalized = payload.strip()
+        if not normalized:
+            raise ExternalServiceError(f"Alpha Vantage {request_target} CSV ??? ?? ????.")
+        if normalized.startswith("{"):
+            parsed = json.loads(normalized)
+            self._raise_for_provider_errors(parsed)
+            raise ExternalServiceError(f"Alpha Vantage {request_target} CSV ??? ?? ????.")
 
     def _cache_key(self, params: dict[str, str]) -> str:
         serialized = "&".join(f"{key}={params[key]}" for key in sorted(params))

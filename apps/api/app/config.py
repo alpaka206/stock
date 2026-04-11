@@ -4,30 +4,32 @@ from functools import lru_cache
 from pathlib import Path
 import os
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 DEFAULT_OVERVIEW_BENCHMARKS = {
     "SPY": "S&P 500",
     "QQQ": "NASDAQ 100",
-    "SMH": "반도체",
-    "IWM": "러셀 2000",
+    "SMH": "???",
+    "IWM": "?? 2000",
 }
 
 DEFAULT_SECTOR_PROXIES = {
-    "XLK": "기술주",
-    "XLF": "금융",
-    "XLE": "에너지",
+    "XLK": "???",
+    "XLF": "??",
+    "XLE": "???",
 }
 
 DEFAULT_RADAR_SYMBOLS = ["NVDA", "AMD", "AVGO", "MSFT", "CRWD"]
 DEFAULT_RADAR_SECTORS = {
-    "NVDA": "반도체",
-    "AMD": "반도체",
-    "AVGO": "반도체",
-    "MSFT": "소프트웨어",
-    "CRWD": "사이버보안",
+    "NVDA": "???",
+    "AMD": "???",
+    "AVGO": "???",
+    "MSFT": "?????",
+    "CRWD": "?????",
 }
+ALLOWED_PROVIDERS = {"mock", "real"}
+ALLOWED_LLM_PROVIDERS = {"auto", "openai", "gemini", "none"}
 
 
 def _parse_csv(value: str | None, fallback: list[str]) -> list[str]:
@@ -57,6 +59,9 @@ class Settings(BaseModel):
     default_provider: str = Field(
         default_factory=lambda: os.getenv("STOCK_API_PROVIDER", "mock")
     )
+    llm_provider: str = Field(
+        default_factory=lambda: os.getenv("RESEARCH_LLM_PROVIDER", "auto")
+    )
     prompt_root: Path = Field(
         default_factory=lambda: Path(__file__).resolve().parents[1] / "prompts"
     )
@@ -74,11 +79,31 @@ class Settings(BaseModel):
             "ALPHA_VANTAGE_BASE_URL", "https://www.alphavantage.co/query"
         )
     )
+    opendart_api_key: str | None = Field(
+        default_factory=lambda: os.getenv("OPENDART_API_KEY")
+    )
+    opendart_base_url: str = Field(
+        default_factory=lambda: os.getenv(
+            "OPENDART_BASE_URL", "https://opendart.fss.or.kr/api"
+        )
+    )
     openai_api_key: str | None = Field(
         default_factory=lambda: os.getenv("OPENAI_API_KEY")
     )
     openai_model: str = Field(
         default_factory=lambda: os.getenv("OPENAI_MODEL", "gpt-5-mini")
+    )
+    gemini_api_key: str | None = Field(
+        default_factory=lambda: os.getenv("GEMINI_API_KEY")
+    )
+    gemini_model: str = Field(
+        default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    )
+    gemini_base_url: str = Field(
+        default_factory=lambda: os.getenv(
+            "GEMINI_BASE_URL",
+            "https://generativelanguage.googleapis.com/v1beta/models",
+        )
     )
     overview_benchmarks: dict[str, str] = Field(
         default_factory=lambda: _parse_symbol_map(
@@ -100,6 +125,24 @@ class Settings(BaseModel):
             os.getenv("STOCK_RADAR_SECTORS"), DEFAULT_RADAR_SECTORS
         )
     )
+
+    @field_validator("default_provider")
+    @classmethod
+    def validate_default_provider(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if normalized not in ALLOWED_PROVIDERS:
+            allowed = ", ".join(sorted(ALLOWED_PROVIDERS))
+            raise ValueError(f"STOCK_API_PROVIDER? {allowed} ? ???? ???.")
+        return normalized
+
+    @field_validator("llm_provider")
+    @classmethod
+    def validate_llm_provider(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if normalized not in ALLOWED_LLM_PROVIDERS:
+            allowed = ", ".join(sorted(ALLOWED_LLM_PROVIDERS))
+            raise ValueError(f"RESEARCH_LLM_PROVIDER? {allowed} ? ???? ???.")
+        return normalized
 
 
 @lru_cache(maxsize=1)

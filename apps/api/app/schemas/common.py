@@ -16,6 +16,7 @@ class SourceRef(BaseModel):
         "economic",
         "internal_config",
         "mock",
+        "disclosure",
     ]
     publisher: str
     publishedAt: datetime

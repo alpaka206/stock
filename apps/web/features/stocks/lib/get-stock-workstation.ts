@@ -4,6 +4,7 @@ import { buildStockFixture } from "@/dev/fixtures";
 import {
   allowFixtureFallback,
   assertResearchApiAvailable,
+  assertResearchApiConfigured,
   buildFixtureDataSource,
   buildPayloadDataSource,
   fetchResearchApiJson,
@@ -19,6 +20,7 @@ export async function getStockWorkstation(symbol: string) {
   });
 
   if (result.status === "disabled") {
+    assertResearchApiConfigured(result, "stocks");
     return {
       ...fallback,
       dataSource: buildFixtureDataSource({

@@ -8,8 +8,12 @@
     "sourceRef": {
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "title": { "type": "string" },
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
         "kind": {
           "type": "string",
           "enum": [
@@ -18,14 +22,25 @@
             "fundamentals",
             "economic",
             "internal_config",
-            "mock"
+            "mock",
+            "disclosure"
           ]
         },
-        "publisher": { "type": "string" },
-        "publishedAt": { "type": "string" },
-        "url": { "type": "string" },
-        "sourceKey": { "type": "string" },
-        "symbol": { "type": "string" }
+        "publisher": {
+          "type": "string"
+        },
+        "publishedAt": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "sourceKey": {
+          "type": "string"
+        },
+        "symbol": {
+          "type": "string"
+        }
       },
       "required": [
         "id",
@@ -42,40 +57,87 @@
     "missingDataItem": {
       "type": "object",
       "properties": {
-        "field": { "type": "string" },
-        "reason": { "type": "string" },
-        "expectedSource": { "type": "string" }
+        "field": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "expectedSource": {
+          "type": "string"
+        }
       },
-      "required": ["field", "reason", "expectedSource"],
+      "required": [
+        "field",
+        "reason",
+        "expectedSource"
+      ],
       "additionalProperties": false
     },
     "confidence": {
       "type": "object",
       "properties": {
-        "score": { "type": "number", "minimum": 0, "maximum": 1 },
-        "label": { "type": "string", "enum": ["low", "medium", "high"] },
-        "rationale": { "type": "string" }
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "label": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "rationale": {
+          "type": "string"
+        }
       },
-      "required": ["score", "label", "rationale"],
+      "required": [
+        "score",
+        "label",
+        "rationale"
+      ],
       "additionalProperties": false
     },
     "sourcedText": {
       "type": "object",
       "properties": {
-        "text": { "type": "string" },
-        "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        "text": {
+          "type": "string"
+        },
+        "sourceRefIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       },
-      "required": ["text", "sourceRefIds"],
+      "required": [
+        "text",
+        "sourceRefIds"
+      ],
       "additionalProperties": false
     },
     "scoreBreakdownItem": {
       "type": "object",
       "properties": {
-        "label": { "type": "string" },
-        "score": { "type": "number" },
-        "summary": { "type": "string" }
+        "label": {
+          "type": "string"
+        },
+        "score": {
+          "type": "number"
+        },
+        "summary": {
+          "type": "string"
+        }
       },
-      "required": ["label", "score", "summary"],
+      "required": [
+        "label",
+        "score",
+        "summary"
+      ],
       "additionalProperties": false
     }
   }
