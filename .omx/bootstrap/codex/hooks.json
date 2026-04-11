@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "note": "Project-local fallback hooks draft. Native .codex hooks are intentionally not used in this repository.",
+  "pre_iteration": [
+    "Read AGENTS.md",
+    "Read .omx/state/TASK.md",
+    "Read .omx/state/STATE.md",
+    "Read .omx/state/BACKLOG.md"
+  ],
+  "pre_commit": [
+    "scripts/no_secrets_guard.sh",
+    "scripts/verify_minimal.sh"
+  ],
+  "pre_push": [
+    "scripts/no_secrets_guard.sh",
+    "scripts/verify_minimal.sh"
+  ]
+}
