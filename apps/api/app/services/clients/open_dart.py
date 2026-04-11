@@ -28,7 +28,7 @@ class OpenDartClient:
         corp_cls: str = "Y",
     ) -> list[dict[str, Any]]:
         if not self.api_key:
-            raise ExternalServiceError("\uad6d\ub0b4 \uacf5\uc2dc\ub97c \ubcf4\ub824\uba74 OPENDART_API_KEY\uac00 \ud544\uc694\ud569\ub2c8\ub2e4.")
+            raise ExternalServiceError("국내 공시를 보려면 OPENDART_API_KEY가 필요합니다.")
 
         end_date = datetime.now(timezone.utc).date()
         begin_date = end_date - timedelta(days=max(days, 1) - 1)
@@ -75,19 +75,19 @@ class OpenDartClient:
                 payload = response.json()
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 429:
-                raise ExternalRateLimitError("OpenDART \uc694\uccad\uc774 rate limit\uc5d0 \uac78\ub838\uc2b5\ub2c8\ub2e4.") from exc
+                raise ExternalRateLimitError("OpenDART 요청이 rate limit에 걸렸습니다.") from exc
             raise ExternalServiceError(
-                f"OpenDART \uc694\uccad\uc774 HTTP {exc.response.status_code}\ub85c \uc2e4\ud328\ud588\uc2b5\ub2c8\ub2e4."
+                f"OpenDART 요청이 HTTP {exc.response.status_code}로 실패했습니다."
             ) from exc
         except httpx.TimeoutException as exc:
-            raise ExternalServiceError("OpenDART \uc694\uccad\uc774 \uc2dc\uac04 \ucd08\uacfc\ub418\uc5c8\uc2b5\ub2c8\ub2e4.") from exc
+            raise ExternalServiceError("OpenDART 요청이 시간 초과되었습니다.") from exc
         except httpx.RequestError as exc:
-            raise ExternalServiceError("OpenDART \uc694\uccad \uc911 \ub124\ud2b8\uc6cc\ud06c \uc624\ub958\uac00 \ubc1c\uc0dd\ud588\uc2b5\ub2c8\ub2e4.") from exc
+            raise ExternalServiceError("OpenDART 요청 중 네트워크 오류가 발생했습니다.") from exc
         except ValueError as exc:
-            raise ExternalServiceError("OpenDART \uc751\ub2f5 JSON\uc744 \ud574\uc11d\ud558\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4.") from exc
+            raise ExternalServiceError("OpenDART 응답 JSON을 해석하지 못했습니다.") from exc
 
         status = str(payload.get("status", ""))
         if status not in {"000", "013"}:
             message = payload.get("message") or payload.get("status") or "unknown"
-            raise ExternalServiceError(f"OpenDART \uc751\ub2f5 \uc624\ub958: {message}")
+            raise ExternalServiceError(f"OpenDART 응답 오류: {message}")
         return payload

@@ -10,23 +10,23 @@ from pydantic import BaseModel, Field, field_validator
 DEFAULT_OVERVIEW_BENCHMARKS = {
     "SPY": "S&P 500",
     "QQQ": "NASDAQ 100",
-    "SMH": "???",
+    "SMH": "반도체",
     "IWM": "?? 2000",
 }
 
 DEFAULT_SECTOR_PROXIES = {
-    "XLK": "???",
+    "XLK": "기술주",
     "XLF": "??",
-    "XLE": "???",
+    "XLE": "에너지",
 }
 
 DEFAULT_RADAR_SYMBOLS = ["NVDA", "AMD", "AVGO", "MSFT", "CRWD"]
 DEFAULT_RADAR_SECTORS = {
-    "NVDA": "???",
-    "AMD": "???",
-    "AVGO": "???",
-    "MSFT": "?????",
-    "CRWD": "?????",
+    "NVDA": "반도체",
+    "AMD": "반도체",
+    "AVGO": "반도체",
+    "MSFT": "소프트웨어",
+    "CRWD": "사이버보안",
 }
 ALLOWED_PROVIDERS = {"mock", "real"}
 ALLOWED_LLM_PROVIDERS = {"auto", "openai", "gemini", "none"}
@@ -132,7 +132,7 @@ class Settings(BaseModel):
         normalized = value.strip().lower()
         if normalized not in ALLOWED_PROVIDERS:
             allowed = ", ".join(sorted(ALLOWED_PROVIDERS))
-            raise ValueError(f"STOCK_API_PROVIDER? {allowed} ? ???? ???.")
+            raise ValueError(f"STOCK_API_PROVIDER must be one of: {allowed}.")
         return normalized
 
     @field_validator("llm_provider")
@@ -141,7 +141,7 @@ class Settings(BaseModel):
         normalized = value.strip().lower()
         if normalized not in ALLOWED_LLM_PROVIDERS:
             allowed = ", ".join(sorted(ALLOWED_LLM_PROVIDERS))
-            raise ValueError(f"RESEARCH_LLM_PROVIDER? {allowed} ? ???? ???.")
+            raise ValueError(f"RESEARCH_LLM_PROVIDER must be one of: {allowed}.")
         return normalized
 
 

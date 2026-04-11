@@ -21,14 +21,12 @@ def build_deterministic_page_summary(
     payload["confidence"] = {
         "score": 0.58,
         "label": "medium",
-        "rationale": f"AI provider ?? source-based deterministic summary? ??????. {fallback_reason}",
+        "rationale": f"Used deterministic summary fallback because no AI provider was available. {fallback_reason}",
     }
     return payload
 
 
-def _build_overview_summary(
-    *, facts: dict[str, Any], missing_data: list[dict[str, str]]
-) -> dict[str, Any]:
+def _build_overview_summary(*, facts: dict[str, Any], missing_data: list[dict[str, str]]) -> dict[str, Any]:
     benchmarks = list(facts.get("benchmarks", []))
     sector_proxies = list(facts.get("sectorProxies", []))
     news_items = list(facts.get("notableNews", []))
@@ -43,41 +41,41 @@ def _build_overview_summary(
     summary_parts: list[str] = []
     if lead_benchmark:
         summary_parts.append(
-            f"{lead_benchmark.get('label', '?? ??')}? {lead_benchmark.get('changePercent', 0):+.2f}% ??????"
+            f"{lead_benchmark.get('label', 'Benchmark')} moved {lead_benchmark.get('changePercent', 0):+.2f}%."
         )
     if lead_sector:
         summary_parts.append(
-            f"{lead_sector.get('label', '?? ??')}? ?? ?? ??? ????"
+            f"{lead_sector.get('label', 'Lead sector')} is leading the session."
         )
     if treasury:
         summary_parts.append(
-            f"10?? ??? {treasury.get('value', 0):.2f}% ?????"
+            f"US 10Y yield is near {treasury.get('value', 0):.2f}%."
         )
     if first_news:
         summary_parts.append(
-            f"?? ??? '{first_news.get('title', '')}' ?????"
+            f"Top headline is '{first_news.get('title', '')}'."
         )
-    market_summary = _join_sentences(summary_parts) or "?? ??? ??? ???? ?? ???? ????."
+    market_summary = _join_sentences(summary_parts) or "Not enough market facts were available to build a deterministic overview summary."
 
     drivers: list[dict[str, Any]] = []
     if lead_sector:
         drivers.append(
             _sourced_text(
-                f"{lead_sector.get('label', '?? ??')}? {lead_sector.get('changePercent', 0):+.2f}%? ??? ?? ?? ??? ?? ?????.",
+                f"{lead_sector.get('label', 'Lead sector')} should be checked first.",
                 lead_sector.get("sourceRefIds", []),
             )
         )
     if first_news:
         drivers.append(
             _sourced_text(
-                f"?? ????? '{first_news.get('title', '')}' ??? ?? ?????.",
+                f"Main news driver: '{first_news.get('title', '')}'.",
                 first_news.get("sourceRefIds", []),
             )
         )
     if lead_gainer and lead_gainer.get("symbol"):
         drivers.append(
             _sourced_text(
-                f"?? ?? ?? ????? {lead_gainer.get('symbol')} ??? ??? ? ????.",
+                f"Top gainer context includes {lead_gainer.get('symbol')}.",
                 lead_gainer.get("sourceRefIds", []),
             )
         )
@@ -86,26 +84,26 @@ def _build_overview_summary(
     if treasury:
         change_percent = float(treasury.get("changePercent", 0))
         risk_text = (
-            f"10?? ?? ??? {change_percent:+.2f}%p?? ?? ?? ?? ???? ?? ?? ???."
+            f"US 10Y yield changed {change_percent:+.2f}%p, so rate-sensitive names may stay volatile."
             if change_percent > 0
-            else f"?? ??? ????? ?? ?? ??? ?? ???? ???."
+            else "Rate pressure eased, but concentration risk should still be monitored."
         )
         risks.append(_sourced_text(risk_text, treasury.get("sourceRefIds", [])))
     if missing_data:
         risks.append(
             _sourced_text(
-                f"?? ???? {len(missing_data)}? ?? ?? ? ????? ?? ?? ?????.",
+                f"Missing-data count is {len(missing_data)}, so interpretation should stay conservative.",
                 [],
             )
         )
     if not risks:
-        risks.append(_sourced_text("??? ?? ?? ???? ?? ?? ?????.", []))
+        risks.append(_sourced_text("Watch for sector rotation and concentration risk.", []))
 
     sector_strength = [
         {
-            "sector": proxy.get("label", "???"),
+            "sector": proxy.get("label", "Unclassified"),
             "score": round(max(45.0, min(92.0, 60 + float(proxy.get("changePercent", 0)) * 10)), 1),
-            "summary": f"{proxy.get('label', '?? ??')} ???? ???? ??? ???? ??? ????.",
+            "summary": f"Derived from {proxy.get('label', 'this sector')} move and benchmark context.",
             "sourceRefIds": proxy.get("sourceRefIds", []),
         }
         for proxy in sector_proxies[:3]
@@ -124,57 +122,51 @@ def _build_overview_summary(
     ]
     return {
         "marketSummary": _sourced_text(market_summary, _merge_ref_ids(lead_benchmark, lead_sector, first_news, treasury)),
-        "drivers": drivers[:3] or [_sourced_text("?? ??? ?? ???? ?????.", [])],
+        "drivers": drivers[:3] or [_sourced_text("Check the leading sector and top headline first.", [])],
         "risks": risks[:2],
         "sectorStrength": sector_strength,
         "notableNews": notable_news,
     }
 
 
-def _build_radar_summary(
-    *, facts: dict[str, Any], missing_data: list[dict[str, str]]
-) -> dict[str, Any]:
+def _build_radar_summary(*, facts: dict[str, Any], missing_data: list[dict[str, str]]) -> dict[str, Any]:
     sector_cards = list(facts.get("sectorCards", []))
     top_card = sector_cards[0] if sector_cards else None
     if not top_card:
-        text = "??? ??? ?? ?? ???? ?? ???? ????."
+        text = "Not enough sector data was available to build a radar summary."
         refs: list[str] = []
     else:
         text = (
-            f"{top_card.get('sector', '?? ??')}??? {top_card.get('topPick', '')}? ??? ??, "
-            f"?? ??? {top_card.get('catalyst', '?? ?? ??')}???."
+            f"{top_card.get('sector', 'Lead sector')} is led by {top_card.get('topPick', '')}, "
+            f"with {top_card.get('catalyst', 'sector news')} as the main catalyst."
         )
         if missing_data:
-            text += " ?? ???? ?? ??? ??? ??? ?? ???? ???."
+            text += " Missing data remains, so event timing should still be checked manually."
         refs = top_card.get("sourceRefIds", [])
     return {"selectedSectorSummary": _sourced_text(text, refs)}
 
 
-def _build_stock_summary(
-    *, facts: dict[str, Any], missing_data: list[dict[str, str]]
-) -> dict[str, Any]:
+def _build_stock_summary(*, facts: dict[str, Any], missing_data: list[dict[str, str]]) -> dict[str, Any]:
     symbol = facts.get("symbol", "")
     company = facts.get("company", {}) or {}
     issue_cards = list(facts.get("issueCards", []))
     lead_issue = issue_cards[0] if issue_cards else None
-    sector = company.get("sector", "") or "?? ??"
+    sector = company.get("sector", "") or "related sector"
     if lead_issue:
         text = (
-            f"{sector} ?? ??? {symbol}? '{lead_issue.get('title', '')}' ??? ????, "
-            f"?? ?? ??? ?? ??? ???? ?? ?? ???."
+            f"Within {sector}, {symbol} is currently centered on '{lead_issue.get('title', '')}', "
+            f"and follow-through should be checked with price and volume together."
         )
         refs = lead_issue.get("sourceRefIds", [])
     else:
-        text = f"{symbol}? {sector} ? ?? ??? ??? ?? ??? ???? ?? ?????."
+        text = f"{symbol} should be evaluated with relative strength and event timing together."
         refs = []
     if missing_data:
-        text += " ??/?? ?? ???? ?? ???? ?? ?? ??? ?????."
-    return {"thesis": text}
+        text += " Flow and option data remain unavailable."
+    return {"thesis": text, "thesisSourceRefIds": refs}
 
 
-def _build_history_summary(
-    *, facts: dict[str, Any], missing_data: list[dict[str, str]]
-) -> dict[str, Any]:
+def _build_history_summary(*, facts: dict[str, Any], missing_data: list[dict[str, str]]) -> dict[str, Any]:
     move_reasons = list(facts.get("moveReasons", []))
     event_timeline = list(facts.get("eventTimeline", []))
     refs = move_reasons[0].get("sourceRefIds", []) if move_reasons else []
@@ -184,10 +176,10 @@ def _build_history_summary(
         text = " / ".join(event.get("summary", "") for event in event_timeline[:2])
         refs = event_timeline[0].get("sourceRefIds", [])
     else:
-        text = "?? ??? ??? ?? ???? ?? ???? ????."
+        text = "Not enough history facts were available to build a move summary."
     analogs = [
         _sourced_text(
-            "?? ???? ?? ???? ??? ??? ?? ???? ?????.",
+            "Use the overlap between turning points and event timing as the first review pattern.",
             refs,
         )
     ]
@@ -208,7 +200,7 @@ def _top_change_item(items: list[dict[str, Any]]) -> dict[str, Any] | None:
 
 
 def _join_sentences(parts: list[str]) -> str:
-    return ". ".join(part.strip().rstrip(".") for part in parts if part).strip()
+    return " ".join(part.strip() for part in parts if part).strip()
 
 
 def _merge_ref_ids(*items: Any) -> list[str]:
@@ -222,7 +214,7 @@ def _merge_ref_ids(*items: Any) -> list[str]:
 def _impact_from_sentiment(value: str) -> str:
     normalized = value.lower()
     if "bullish" in normalized or "positive" in normalized:
-        return "??"
+        return "Positive"
     if "bearish" in normalized or "negative" in normalized:
-        return "??"
-    return "??"
+        return "Negative"
+    return "Neutral"
