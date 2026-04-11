@@ -35,6 +35,9 @@ PY_COMPILE_TARGETS = [
 ]
 
 STEP_GROUPS = {
+    "text": [
+        {"name": "text quality", "command": ["python", "scripts/text_quality_guard.py"]},
+    ],
     "web": [
         {"name": "web lint", "command": [PNPM_BIN, "lint:web"]},
         {"name": "web typecheck", "command": [PNPM_BIN, "typecheck:web"]},
@@ -49,7 +52,7 @@ STEP_GROUPS = {
         {"name": "api smoke", "command": ["python", "scripts/api_smoke.py"]},
     ],
 }
-STEP_GROUPS["standard"] = [*STEP_GROUPS["web"], *STEP_GROUPS["api"]]
+STEP_GROUPS["standard"] = [*STEP_GROUPS["text"], *STEP_GROUPS["web"], *STEP_GROUPS["api"]]
 STEP_GROUPS["release"] = [
     {"name": "release readiness", "command": ["python", "scripts/verify_release_readiness.py"]}
 ]

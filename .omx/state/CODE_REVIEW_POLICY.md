@@ -13,6 +13,12 @@ Severity:
 - LOW only: proceed
 - final OK: no blocking finding
 
+Verification failure policy:
+- any failed guard or verify step becomes the next highest-priority task
+- fix the exact failure first
+- rerun the failed command, then rerun the full gate
+- do not continue unrelated feature work while the failure is active unless it is explicitly blocked
+
 Writing style:
 - issue / PR / commit: Korean first
 - style: concise noun/result form

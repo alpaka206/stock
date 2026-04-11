@@ -17,7 +17,7 @@ Read first:
 ## Top-level contract
 - PRIMARY_TASK: build a site that surfaces the information and analysis needed for stock research
 - MIN_EXIT_CONDITION: charts, real-time global news, and disclosures are usable; QA is complete; main is updated; `https://stock-mu-seven.vercel.app/overview` works
-- AUTO_CONTINUE_POLICY: keep choosing the next smallest verifiable task until MIN_EXIT_CONDITION is met
+- AUTO_CONTINUE_POLICY: keep choosing the next smallest verifiable task until the exit condition is met
 - RELEASE_TO_MAIN_POLICY: auto-merge-if-green
 - ENABLE_DISCORD_BRIDGE: true
 - DISCORD_ENV_FILE: `.env.discord`
@@ -39,6 +39,12 @@ Read first:
 - `scripts/omx-loop.sh` supports infinite operation with `MAX_ITERATIONS=0` or `INFINITE_MODE=true`.
 - Heartbeat, watchdog, and journal output must stay current.
 - After 3 consecutive failures, stop repeating the same tactic and record the cause and next fallback.
+
+## Verification failure policy
+- Any failed guard, lint, build, test, smoke, or release check becomes the next highest-priority task.
+- Record the failing command, symptom, likely cause, and next fix in `.omx/state/VERIFY_LAST_FAILURE.md`.
+- Rerun the failed command first, then rerun the broader gate.
+- Do not continue unrelated feature work while a live verification failure remains, unless it is explicitly blocked.
 
 ## Git flow
 - Permanent branches: `main`, `develop`
