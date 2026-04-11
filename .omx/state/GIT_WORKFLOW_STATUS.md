@@ -1,0 +1,22 @@
+# Git Workflow Status
+
+- Repo: `alpaka206/stock`
+- Current branch: `chore/14-deploy-gate-fallback-review`
+- Integration branch: `develop` (remote exists)
+- Production branch: `main`
+- Permanent branches: `main`, `develop`
+- `gh auth status`: authenticated as `alpaka206`
+- Repo settings actual:
+  - allow_auto_merge=true
+  - allow_squash_merge=true
+  - allow_merge_commit=true
+  - delete_branch_on_merge=false
+- Branch protection state: remote ruleset ?? ??, ?? ?? ?? ?
+- Direct push to `main`/`develop`: ??
+- Force push / hard reset on permanent branches: ??
+- Issue-first policy: active
+- Review gate: `lint/build/test` + `Codex ?? OK` ? push/PR
+- Issue/PR/?? ??: ??? ??, ??? ???/???
+- RELEASE_TO_MAIN_POLICY: `auto-merge-if-green`
+- Current linked issue: `#14`
+- Existing merged PR on old branch: `#12`

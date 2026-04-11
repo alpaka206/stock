@@ -114,6 +114,10 @@ export function allowFixtureFallback() {
   return process.env.NODE_ENV !== "production";
 }
 
+function isFixtureFallbackLocked() {
+  return process.env[RESEARCH_FIXTURE_FALLBACK_ENV]?.trim().toLowerCase() === "false";
+}
+
 export function buildFixtureDataSource({
   reason,
   fallback,
@@ -154,12 +158,25 @@ export function buildPayloadDataSource(sourceRefs: SourceRef[]): ResearchDataSou
 }
 
 export function assertResearchApiAvailable(result: ResearchApiFetchResult<unknown>, pageLabel: string) {
-  if (result.status !== "error" || allowFixtureFallback()) {
+  if (result.status !== "error" || !isFixtureFallbackLocked()) {
     return;
   }
 
   throw new Error(
     `${pageLabel} API 연결이 실패했습니다. release 모드에서는 샘플 데이터로 자동 대체하지 않습니다. ${result.errorMessage}`
+  );
+}
+
+export function assertResearchApiConfigured(
+  result: ResearchApiFetchResult<unknown>,
+  pageLabel: string
+) {
+  if (result.status !== "disabled" || !isFixtureFallbackLocked()) {
+    return;
+  }
+
+  throw new Error(
+    `${pageLabel} API URL이 설정되지 않았습니다. release 모드에서는 fixture fallback을 허용하지 않습니다. STOCK_API_BASE_URL 또는 route별 API URL을 설정해야 합니다.`
   );
 }
 

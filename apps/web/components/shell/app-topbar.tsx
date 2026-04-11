@@ -16,11 +16,11 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { getCurrentNavigation } from "@/lib/navigation";
+import { getCurrentRouteContext } from "@/lib/navigation";
 
 export function AppTopbar() {
   const pathname = usePathname();
-  const navigationItem = getCurrentNavigation(pathname);
+  const routeContext = getCurrentRouteContext(pathname);
   const [open, setOpen] = React.useState(false);
 
   return (
@@ -57,10 +57,10 @@ export function AppTopbar() {
 
           <div className="min-w-0">
             <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              {navigationItem.eyebrow}
+              {routeContext.eyebrow}
             </p>
             <h1 className="truncate text-lg font-semibold tracking-tight">
-              {navigationItem.label}
+              {routeContext.label}
             </h1>
           </div>
         </div>

@@ -23,12 +23,16 @@ class PromptLoader:
         "radar": "radar",
         "stocks": "stock_detail",
         "history": "history",
+        "news": "news",
+        "calendar": "calendar",
     }
     CONTRACT_SCHEMA_MAP = {
         "overview": "overview.schema.json",
         "radar": "radar.schema.json",
         "stocks": "stocks.schema.json",
         "history": "history.schema.json",
+        "news": "news.schema.json",
+        "calendar": "calendar.schema.json",
     }
 
     def __init__(self, prompt_root: Path) -> None:

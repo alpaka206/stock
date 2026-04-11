@@ -14,6 +14,10 @@ class OpenAIResearchClient:
         self.model = model
         self._client = AsyncOpenAI(api_key=api_key) if api_key else None
 
+    @property
+    def is_configured(self) -> bool:
+        return self._client is not None
+
     async def generate_page_response(
         self,
         *,
@@ -69,6 +73,45 @@ class OpenAIResearchClient:
             raise ExternalServiceError("OpenAI 응답에서 구조화된 JSON을 추출하지 못했습니다.")
 
         return json.loads(output_text)
+
+    async def probe_health(self) -> dict[str, bool]:
+        if self._client is None:
+            raise ProviderConfigurationError(
+                "real provider를 사용하려면 OPENAI_API_KEY가 필요합니다."
+            )
+
+        response = await self._client.responses.create(
+            model=self.model,
+            instructions=(
+                "Return a strict JSON object that confirms the health probe succeeded."
+            ),
+            input="health probe",
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name": "openai_health_probe",
+                    "schema": {
+                        "type": "object",
+                        "properties": {"ok": {"type": "boolean"}},
+                        "required": ["ok"],
+                        "additionalProperties": False,
+                    },
+                    "strict": True,
+                }
+            },
+        )
+
+        output_text = getattr(response, "output_text", "")
+        if not output_text:
+            output_text = self._extract_output_text(response)
+        if not output_text:
+            raise ExternalServiceError("OpenAI health probe 응답을 비워서 반환했습니다.")
+
+        payload = json.loads(output_text)
+        if payload.get("ok") is not True:
+            raise ExternalServiceError("OpenAI health probe 응답이 유효하지 않습니다.")
+
+        return {"ok": True}
 
     def _extract_output_text(self, response: Any) -> str:
         chunks: list[str] = []

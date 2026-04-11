@@ -5,8 +5,9 @@ from typing import Any, Awaitable, Callable, TypeVar
 
 from app.config import Settings
 from app.services.clients.alpha_vantage import AlphaVantageClient
-from app.services.clients.openai_responses import OpenAIResearchClient
-from app.services.errors import ExternalServiceError
+from app.services.clients.summary_router import ResearchSummaryClient
+from app.services.deterministic_summary import build_deterministic_page_summary
+from app.services.errors import ExternalServiceError, ProviderConfigurationError
 from app.services.prompt_loader import PromptBundle
 from app.services.providers.base import ResearchProvider
 from app.services.research_metrics import (
@@ -37,9 +38,14 @@ class RealResearchProvider(ResearchProvider):
             timeout_seconds=settings.request_timeout_seconds,
             cache_ttl_seconds=settings.provider_cache_ttl_seconds,
         )
-        self.llm = OpenAIResearchClient(
-            api_key=settings.openai_api_key,
-            model=settings.openai_model,
+        self.llm = ResearchSummaryClient(
+            llm_provider=settings.llm_provider,
+            openai_api_key=settings.openai_api_key,
+            openai_model=settings.openai_model,
+            gemini_api_key=settings.gemini_api_key,
+            gemini_model=settings.gemini_model,
+            gemini_base_url=settings.gemini_base_url,
+            timeout_seconds=settings.request_timeout_seconds,
         )
 
     async def get_overview(self, *, prompt_bundle: PromptBundle) -> dict[str, Any]:
@@ -1349,14 +1355,23 @@ class RealResearchProvider(ResearchProvider):
         missing_data: list[dict[str, str]],
     ) -> dict[str, Any]:
         if not source_refs:
-            raise ExternalServiceError(f"{page_key} 분석에 사용할 실데이터 sourceRefs가 없습니다.")
-        return await self.llm.generate_page_response(
-            prompt_bundle=prompt_bundle,
-            page_key=page_key,
-            facts=facts,
-            source_refs=dedupe_source_refs(source_refs),
-            missing_data=missing_data,
-        )
+            raise ExternalServiceError(f"{page_key} ??? ??? ???? sourceRefs? ????.")
+        deduped_source_refs = dedupe_source_refs(source_refs)
+        try:
+            return await self.llm.generate_page_response(
+                prompt_bundle=prompt_bundle,
+                page_key=page_key,
+                facts=facts,
+                source_refs=deduped_source_refs,
+                missing_data=missing_data,
+            )
+        except (ProviderConfigurationError, ExternalServiceError) as exc:
+            return build_deterministic_page_summary(
+                page_key=page_key,
+                facts=facts,
+                missing_data=missing_data,
+                fallback_reason=str(exc),
+            )
 
     async def _build_benchmark_cards(
         self, source_refs: list[dict[str, Any]], missing_data: list[dict[str, str]]

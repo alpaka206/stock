@@ -1,23 +1,31 @@
-# AI 주식 리서치 워크스페이스
+# AI ?? ??? ??????
 
-뉴스, 차트, 섹터, 수급, 옵션/공매도, 점수, 과거 이벤트를 한 흐름 안에서 읽는 모노레포다.
+??, ??, ??, ??, ??/???, ??, ?? ???? ? ?? ??? ?? ?????.
 
-고정 메인 화면:
+?? ?? ??:
 
 1. `/overview`
 2. `/radar`
 3. `/stocks/[symbol]`
 4. `/history`
 
-## 저장소 구조
+?? ??:
 
-- `apps/web`: Next.js App Router 프론트엔드
-- `apps/api`: FastAPI 백엔드
-- `packages/contracts`: 공통 JSON schema / TypeScript 계약 패키지
-- `docs`: architecture manifest, design memory, ADR, changelog, Codex prompt 문서
-- `scripts`: 검증 및 보조 스크립트
+- `/news`: ?? ??, ???? ??, ?? ?? ??
+- `/calendar`: ??, IPO, ??, ?? ?? ??? ???
 
-## 먼저 읽을 문서
+`watchlist` ??? ?? ?? route? ??? ?? `/radar` ??? ????.
+
+## ??? ??
+
+- `apps/web`: Next.js App Router ?????
+- `apps/api`: FastAPI ???
+- `packages/contracts`: ?? JSON schema / TypeScript ?? ???
+- `docs`: architecture manifest, design memory, ADR, changelog, Codex prompt ??
+- `scripts`: ?? ? ?? ????
+- `.omx`: ???, ?? ??, OMX ?? ???
+
+## ?? ?? ??
 
 - `AGENTS.md`
 - `docs/architecture/page-manifest.yaml`
@@ -25,23 +33,25 @@
 - `docs/design/design-memory.md`
 - `docs/codex/prompt-order.md`
 
-## 실행
+## ??
 
 ### web
 
-루트에서:
+????:
 
 ```powershell
 pnpm install
 pnpm dev:web
 ```
 
-브라우저:
+????:
 
 - `http://localhost:3000/overview`
 - `http://localhost:3000/radar`
 - `http://localhost:3000/stocks/NVDA`
 - `http://localhost:3000/history`
+- `http://localhost:3000/news`
+- `http://localhost:3000/calendar`
 
 ### api
 
@@ -51,35 +61,63 @@ python -m pip install .
 python -m uvicorn app.main:app --reload
 ```
 
-환경 변수는 `apps/api/.env.example`를 기준으로 맞춘다.
+?? API ??? ?? ?? `apps/api/.env.example`? ??? ?? ?? ? `STOCK_API_PROVIDER=real`? ????.
 
-## 검증
+## ??
 
 ```powershell
-pnpm lint:web
-pnpm typecheck:web
-pnpm build:web
+pnpm verify:standard
+```
+
+?? ??:
+
+```powershell
+pnpm verify:web
+pnpm verify:api
+pnpm smoke:api
 pnpm check:contracts
-python -m py_compile apps/api/app/main.py apps/api/app/schemas/common.py apps/api/app/schemas/overview.py apps/api/app/schemas/radar.py apps/api/app/schemas/stocks.py apps/api/app/schemas/history.py apps/api/app/services/providers/mock.py apps/api/app/services/providers/real.py
+python scripts/verify_workspace.py --group standard --json
 ```
 
-FastAPI mock smoke 예시:
+## ?? ??
 
-```powershell
-python -c "import sys; sys.path.insert(0, r'apps/api'); from fastapi.testclient import TestClient; from app.main import app; client = TestClient(app); print(client.get('/overview').status_code, client.get('/radar').status_code, client.get('/stocks/NVDA').status_code, client.get('/history').status_code)"
-```
+- runtime JSON schema ?? ??? `packages/contracts/schemas/*.schema.json`
+- web ??? `packages/contracts/src/index.ts`? ???? ??
+- API prompt body? `apps/api/prompts/*/system.md`
+- `apps/api/prompts/*/output.schema.json`? ??? ????? canonical source? ???
+- drift ??? `python scripts/check_contract_parity.py`
 
-## 계약 원칙
+## ??? ?? ??
 
-- runtime JSON schema 단일 소스는 `packages/contracts/schemas/*.schema.json`
-- web 타입은 `packages/contracts/src/index.ts`를 기준으로 참조
-- API prompt body는 `apps/api/prompts/*/system.md`
-- `apps/api/prompts/*/output.schema.json`은 호환성 복사본이며 canonical source가 아니다
-- drift 검증은 `python scripts/check_contract_parity.py`
+- ?? ?? ??, ??, ??, ??? ??? ???
+- ??? ???? provider? ?????? ????
+- ????? ??? `missingData` ?? unavailable ??? ????
+- web ??? live / mock / fixture ??? ??? ????
+- `news`, `calendar` ?? ??? ?? 4??? ?? sourceRefs / missingData / confidence ??? ????
 
-## 데이터 신뢰 원칙
+## Autonomous Delivery
 
-- 출처 없는 가격, 뉴스, 레벨, 점수는 만들지 않는다
-- 숫자와 시계열은 provider가 결정론적으로 계산한다
-- 실데이터가 없으면 `missingData` 또는 unavailable 상태로 드러낸다
-- web 화면은 live / mock / fixture 상태를 배지로 노출한다
+- unattended ??? ?? -> ?? ??? -> `pnpm verify:standard` -> ?? ?? ??? ????
+- ?? ??? ??? ???? `pnpm verify:standard:json`? ????
+- ?? ?? ???? web lint, web typecheck, web build, contract parity, API py_compile, FastAPI smoke? ????
+
+## 2026-04-09 Deploy-ready hardening update
+
+- 릴리스 게이트 명령을 추가했다.
+  - `pnpm verify:release`
+  - `pnpm verify:release:json`
+- `pnpm verify:release`는 아래를 모두 확인한다.
+  - `STOCK_API_PROVIDER=real`
+  - `ALPHA_VANTAGE_API_KEY`, `OPENDART_API_KEY`, `OPENAI_API_KEY`
+  - `RESEARCH_ALLOW_FIXTURE_FALLBACK=false`
+  - `STOCK_API_BASE_URL` 또는 route별 API URL
+  - API `/readyz?probe=remote`
+  - `/overview`, `/radar`, `/stocks/NVDA`, `/history`, `/news`, `/calendar` 실경로 smoke
+- 웹 env 예시는 `apps/web/.env.example`, API env 예시는 `apps/api/.env.example`를 사용한다.
+- 실제 배포 실행은 범위 밖이지만, 유효한 env가 주어지면 바로 배포 가능한 상태를 목표로 유지한다.
+
+## Free LLM Option
+
+- `RESEARCH_LLM_PROVIDER=auto`?? `OPENAI_API_KEY`? ?? ?? OpenAI? ?? ?????.
+- `OPENAI_API_KEY`? ?? `GEMINI_API_KEY`? ??? Gemini? ?? 4?? ??? ?????.
+- ? ?? ?? ??? ?? 4??? source-based deterministic summary? ????, `/news`, `/calendar`? ???? deterministic payload? ?????.

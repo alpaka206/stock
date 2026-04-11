@@ -7,7 +7,8 @@ export type SourceRefKind =
   | "fundamentals"
   | "economic"
   | "internal_config"
-  | "mock";
+  | "mock"
+  | "disclosure";
 
 export type SourceRef = {
   id: string;
@@ -522,4 +523,77 @@ export type HistoryApiResponse = AnalysisEnvelope & {
     }
   >;
   analogsOrPatterns: SourcedText[];
+};
+
+
+export type NewsFeedArticle = {
+  id: string;
+  headline: string;
+  source: string;
+  summary: string;
+  impact: string;
+  publishedAt: string;
+  url: string;
+  symbol?: string;
+  market: "global" | "watchlist" | "domestic";
+  sourceRefIds?: string[];
+};
+
+export type NewsFeedFixture = {
+  asOf: string;
+  marketSummary: string;
+  drivers: OverviewDriverItem[];
+  featuredNews: NewsFeedArticle[];
+  watchlistNews: NewsFeedArticle[];
+  domesticDisclosures: NewsFeedArticle[];
+  dataSource: ResearchDataSource;
+};
+
+export type NewsApiResponse = AnalysisEnvelope & {
+  marketSummary: SourcedText;
+  newsDrivers: SourcedText[];
+  featuredNews: NewsFeedArticle[];
+  watchlistNews: NewsFeedArticle[];
+  domesticDisclosures: NewsFeedArticle[];
+};
+
+export type CalendarEventItem = {
+  id: string;
+  title: string;
+  category: "earnings" | "ipo" | "macro" | "disclosure" | "news";
+  market: "watchlist" | "global" | "domestic";
+  date: string;
+  time: string;
+  summary: string;
+  source: string;
+  symbol?: string;
+  url?: string;
+  tone: Tone;
+  sourceRefIds?: string[];
+};
+
+export type CalendarHighlight = {
+  label: string;
+  value: string;
+  detail: string;
+  tone: Tone;
+  sourceRefIds?: string[];
+};
+
+export type CalendarFixture = {
+  asOf: string;
+  summary: string;
+  highlights: CalendarHighlight[];
+  watchlistEvents: CalendarEventItem[];
+  marketEvents: CalendarEventItem[];
+  domesticEvents: CalendarEventItem[];
+  dataSource: ResearchDataSource;
+};
+
+export type CalendarApiResponse = AnalysisEnvelope & {
+  calendarSummary: SourcedText;
+  highlights: CalendarHighlight[];
+  watchlistEvents: CalendarEventItem[];
+  marketEvents: CalendarEventItem[];
+  domesticEvents: CalendarEventItem[];
 };

@@ -39,6 +39,18 @@ export function OverviewPage({ data }: OverviewPageProps) {
             레이더 열기
           </Link>
           <Link
+            href="/news"
+            className="inline-flex h-9 items-center justify-center rounded-[calc(var(--radius)*1.05)] border border-border/70 bg-background/70 px-4 text-sm font-semibold transition hover:bg-muted"
+          >
+            뉴스 피드
+          </Link>
+          <Link
+            href="/calendar"
+            className="inline-flex h-9 items-center justify-center rounded-[calc(var(--radius)*1.05)] border border-border/70 bg-background/70 px-4 text-sm font-semibold transition hover:bg-muted"
+          >
+            이벤트 캘린더
+          </Link>
+          <Link
             href="/history"
             className="inline-flex h-9 items-center justify-center rounded-[calc(var(--radius)*1.05)] border border-border/70 bg-background/70 px-4 text-sm font-semibold transition hover:bg-muted"
           >

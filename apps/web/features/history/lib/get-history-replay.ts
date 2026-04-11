@@ -4,6 +4,7 @@ import { buildHistoryFixture } from "@/dev/fixtures";
 import {
   allowFixtureFallback,
   assertResearchApiAvailable,
+  assertResearchApiConfigured,
   buildFixtureDataSource,
   buildPayloadDataSource,
   fetchResearchApiJson,
@@ -31,6 +32,7 @@ export async function getHistoryReplay(params: HistoryReplayParams = {}) {
   });
 
   if (result.status === "disabled") {
+    assertResearchApiConfigured(result, "history");
     return {
       ...fallback,
       dataSource: buildFixtureDataSource({

@@ -4,6 +4,7 @@ import { overviewFixture } from "@/dev/fixtures/overview";
 import {
   allowFixtureFallback,
   assertResearchApiAvailable,
+  assertResearchApiConfigured,
   buildFixtureDataSource,
   buildPayloadDataSource,
   fetchResearchApiJson,
@@ -52,6 +53,7 @@ export async function getOverviewSnapshot() {
   }
 
   if (result.status === "disabled") {
+    assertResearchApiConfigured(result, "overview");
     return {
       ...overviewFixture,
       dataSource: buildFixtureDataSource({

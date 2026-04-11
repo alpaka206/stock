@@ -54,3 +54,26 @@ python ..\..\scripts\check_contract_parity.py
 python -m py_compile app/main.py app/schemas/common.py app/schemas/overview.py app/schemas/radar.py app/schemas/stocks.py app/schemas/history.py app/services/providers/mock.py app/services/providers/real.py
 python -c "from fastapi.testclient import TestClient; from app.main import app; client = TestClient(app); print(client.get('/overview').status_code, client.get('/radar').status_code, client.get('/stocks/NVDA').status_code, client.get('/history').status_code)"
 ```
+
+## Deploy-ready hardening
+
+- liveness는 `/health`, readiness는 `/readyz`로 분리된다.
+- `/readyz`
+  - `probe=config`: prompt/contracts/provider wiring과 필수 설정 표면을 점검
+  - `probe=remote`: real provider 3종(Alpha Vantage, OpenDART, OpenAI)에 실제 probe를 시도
+- 실배포 승인 기준은 `probe=remote`를 포함한 `pnpm verify:release` 통과다.
+- API 컨테이너 배포 템플릿은 `apps/api/Dockerfile`을 사용한다.
+
+## Free / Alternate LLM Path
+
+- `RESEARCH_LLM_PROVIDER=auto`? ??????.
+- `OPENAI_API_KEY`? ??? OpenAI? ?? ?????.
+- `OPENAI_API_KEY`? ?? `GEMINI_API_KEY`? ??? Gemini? ?????.
+- ? ?? ?? ??? provider ??? ???? `/overview`, `/radar`, `/stocks/{symbol}`, `/history`? deterministic summary? degrade ???.
+
+?? env:
+
+- `RESEARCH_LLM_PROVIDER` = `auto` | `openai` | `gemini` | `none`
+- `GEMINI_API_KEY`
+- `GEMINI_MODEL` (?? `gemini-2.5-flash`)
+- `GEMINI_BASE_URL` (?? Google Generative Language API endpoint)
