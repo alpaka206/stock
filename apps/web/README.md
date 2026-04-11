@@ -1,41 +1,46 @@
 # apps/web
 
-금융 리서치 워크스페이스의 Next.js 프론트엔드다.
+?? ??? ??????? Next.js ??????.
 
-고정 route:
+?? ?? route:
 
 - `/overview`
 - `/radar`
 - `/stocks/[symbol]`
 - `/history`
 
-## 실행
+?? route:
 
-루트 기준:
+- `/news`
+- `/calendar`
+
+`watchlist`? ?? ?? route? ??? `/radar`? ?? / preset / grid ???? ????.
+
+## ??
+
+?? ??:
 
 ```powershell
 pnpm install
 pnpm dev:web
 ```
 
-앱 디렉터리 직접 실행:
+? ???? ?? ??:
 
 ```powershell
 cd apps/web
 pnpm dev
 ```
 
-## 검증
+## ??
 
-루트 기준:
+?? ??:
 
 ```powershell
-pnpm lint:web
-pnpm typecheck:web
-pnpm build:web
+pnpm verify:web
 ```
 
-앱 디렉터리 기준:
+? ???? ??:
 
 ```powershell
 cd apps/web
@@ -44,17 +49,45 @@ pnpm typecheck
 pnpm build
 ```
 
-## 구조 원칙
+## Web Runtime Env
 
-- route 파일은 thin wrapper를 유지한다
-- 화면 조립과 상태 로직은 `features/*` 아래에 둔다
-- 사용자 상태와 서버 상태를 분리한다
-- grid는 AG Grid Community 범위 안에서만 사용한다
-- 사용자 노출 문구는 한국어 우선이다
-- API 우선 + fixture fallback 구조를 유지하되, live / mock / fixture 상태를 화면 상단 배지로 명시한다
+- `STOCK_API_BASE_URL`: ?? API base URL
+- `OVERVIEW_API_URL`: overview ?? override URL
+- `RADAR_API_URL`: radar ?? override URL
+- `STOCK_DETAIL_API_URL`: stock detail ?? override URL (`{symbol}` ?? `:symbol` ??)
+- `HISTORY_API_URL`: history ?? override URL
+- `NEWS_API_URL`: news ?? override URL
+- `CALENDAR_API_URL`: calendar ?? override URL
+- `OVERVIEW_API_TIMEOUT_MS`: overview ?? fetch timeout override
+- `RESEARCH_ALLOW_FIXTURE_FALLBACK`: `true`/`false`, production fallback ?? ??
 
-## 공통 계약
+## ?? ??
 
-- UI/loader 타입 기준 패키지: `packages/contracts`
+- route ??? thin wrapper? ????
+- ?? ??? ?? ??? `features/*` ??? ??
+- ??? ??? ?? ??? ????
+- grid? AG Grid Community ?? ???? ????
+- ??? ?? ??? ??? ????
+- API ?? + fixture fallback ??? ????, live / mock / fixture ??? ?? ?? ??? ????
+- `/news`, `/calendar`? overview ??? ?? ???? sidebar ?? item? ???? ???
+
+## ?? ??
+
+- UI/loader ?? ?? ???: `packages/contracts`
 - web re-export shim: `lib/research/types.ts`
-- API fetch adapter는 `packages/contracts`의 raw response 타입을 기준으로 mapping 한다
+- API fetch adapter? `packages/contracts`? raw response ??? ???? mapping ??
+
+## Autonomous Delivery
+
+- web-only ?? ??? `pnpm verify:web`? ????
+- unattended ?? ??? ??? `pnpm verify:standard`? ? ? ? ????
+
+## Deploy-ready hardening
+
+- env 예시 파일: `apps/web/.env.example`
+- production 후보에서는 아래를 기본으로 둔다.
+  - `RESEARCH_ALLOW_FIXTURE_FALLBACK=false`
+  - `STOCK_API_BASE_URL` 또는 route별 API URL 지정
+- API URL이 비어 있는데 fallback도 허용되지 않으면 각 loader는 fixture로 숨기지 않고 즉시 에러를 낸다.
+- 릴리스 검증은 루트에서 `pnpm verify:release`로 수행한다.
+- `/`, `/overview`, `/radar`는 live research 성격과 빌드 안정성을 위해 dynamic route로 유지한다.
