@@ -1,93 +1,44 @@
 # apps/web
 
-?? ??? ??????? Next.js ??????.
+Next.js frontend for the stock research workspace.
 
-?? ?? route:
-
+## Routes
+Primary routes:
 - `/overview`
 - `/radar`
 - `/stocks/[symbol]`
 - `/history`
 
-?? route:
-
+Auxiliary routes:
 - `/news`
 - `/calendar`
 
-`watchlist`? ?? ?? route? ??? `/radar`? ?? / preset / grid ???? ????.
+`watchlist` remains part of `/radar`.
 
-## ??
-
-?? ??:
-
+## Local Run
 ```powershell
 pnpm install
 pnpm dev:web
 ```
 
-? ???? ?? ??:
-
-```powershell
-cd apps/web
-pnpm dev
-```
-
-## ??
-
-?? ??:
-
+## Verification
 ```powershell
 pnpm verify:web
 ```
 
-? ???? ??:
+## Runtime Environment
+- `STOCK_API_BASE_URL`
+- `OVERVIEW_API_URL`
+- `RADAR_API_URL`
+- `STOCK_DETAIL_API_URL`
+- `HISTORY_API_URL`
+- `NEWS_API_URL`
+- `CALENDAR_API_URL`
+- `OVERVIEW_API_TIMEOUT_MS`
+- `RESEARCH_ALLOW_FIXTURE_FALLBACK`
 
-```powershell
-cd apps/web
-pnpm lint
-pnpm typecheck
-pnpm build
-```
-
-## Web Runtime Env
-
-- `STOCK_API_BASE_URL`: ?? API base URL
-- `OVERVIEW_API_URL`: overview ?? override URL
-- `RADAR_API_URL`: radar ?? override URL
-- `STOCK_DETAIL_API_URL`: stock detail ?? override URL (`{symbol}` ?? `:symbol` ??)
-- `HISTORY_API_URL`: history ?? override URL
-- `NEWS_API_URL`: news ?? override URL
-- `CALENDAR_API_URL`: calendar ?? override URL
-- `OVERVIEW_API_TIMEOUT_MS`: overview ?? fetch timeout override
-- `RESEARCH_ALLOW_FIXTURE_FALLBACK`: `true`/`false`, production fallback ?? ??
-
-## ?? ??
-
-- route ??? thin wrapper? ????
-- ?? ??? ?? ??? `features/*` ??? ??
-- ??? ??? ?? ??? ????
-- grid? AG Grid Community ?? ???? ????
-- ??? ?? ??? ??? ????
-- API ?? + fixture fallback ??? ????, live / mock / fixture ??? ?? ?? ??? ????
-- `/news`, `/calendar`? overview ??? ?? ???? sidebar ?? item? ???? ???
-
-## ?? ??
-
-- UI/loader ?? ?? ???: `packages/contracts`
-- web re-export shim: `lib/research/types.ts`
-- API fetch adapter? `packages/contracts`? raw response ??? ???? mapping ??
-
-## Autonomous Delivery
-
-- web-only ?? ??? `pnpm verify:web`? ????
-- unattended ?? ??? ??? `pnpm verify:standard`? ? ? ? ????
-
-## Deploy-ready hardening
-
-- env 예시 파일: `apps/web/.env.example`
-- production 후보에서는 아래를 기본으로 둔다.
-  - `RESEARCH_ALLOW_FIXTURE_FALLBACK=false`
-  - `STOCK_API_BASE_URL` 또는 route별 API URL 지정
-- API URL이 비어 있는데 fallback도 허용되지 않으면 각 loader는 fixture로 숨기지 않고 즉시 에러를 낸다.
-- 릴리스 검증은 루트에서 `pnpm verify:release`로 수행한다.
-- `/`, `/overview`, `/radar`는 live research 성격과 빌드 안정성을 위해 dynamic route로 유지한다.
+## Notes
+- Route files stay thin.
+- Feature logic stays under `features/*`.
+- API-first loading is preferred.
+- Fixture fallback must be explicit, not silent.

@@ -1,64 +1,29 @@
 # Deployment
 
 ## Current Status
-- Dockerfile, compose, CI/CD workflow? ?? ??.
-- web? API? ????? ?? ????? ?? ??? ?? ????.
-- `/health`? liveness ??? ????.
-
-## Decisions
-- web? API? ?? ????.
-- ?? ??? low-ops hosting ?? ?????, ???? ?? ??? ???.
-- production??? fixture fallback? ?? real provider ??? ????.
+- The repository assumes split deployment.
+- Web and API are separate runtimes.
+- `/health` is liveness only.
+- `/readyz` is the readiness endpoint.
 
 ## Recommended Topology
-- Web
-  - Build: `pnpm --dir apps/web build`
-  - Start: `pnpm --dir apps/web start`
-  - Hosting ??: Vercel, Netlify, ?? Node runtime
-- API
-  - Install: `cd apps/api && python -m pip install .`
-  - Start: `python -m uvicorn app.main:app --host 0.0.0.0 --port 8000`
-  - Hosting ??: Railway, Render, Fly.io, ?? Python runtime
-- Contract / docs
-  - canonical schema? repo? ????? web/API ?? commit?? ????
+- Web: Vercel
+- API: Render / Railway / equivalent Python hosting
+- Optional DB later: Turso for user data and cache
 
-## Release Checklist
-1. `pnpm install`
-2. `pnpm verify:standard`
-3. API env real mode ?? (`ALPHA_VANTAGE_API_KEY`, `OPENAI_API_KEY`, `OPENDART_API_KEY` ??)
-4. Web env ?? (`STOCK_API_BASE_URL`, `RESEARCH_ALLOW_FIXTURE_FALLBACK=false` ??)
-5. API `/health` ??
-6. ?? smoke: `/overview`, `/radar`, `/stocks/NVDA`, `/history`, `/news`, `/calendar`
+## Release Gate
+1. `pnpm verify:standard`
+2. Real API env configured
+3. Web API target configured
+4. `/health` and `/readyz` pass
+5. Smoke target routes
 
-## Operational Notes
-- production??? `STOCK_API_PROVIDER=real`? ????, ??? provider ?? startup fail? ???.
-- `RESEARCH_ALLOW_FIXTURE_FALLBACK=false`? ?????. ?????? fixture fallback? ?? ??? ?? ? ??.
-- overview fan-out? Alpha Vantage quota? ??? ??? ? ???? cache TTL ?? upstream cache? ????.
-- OpenDART ?? ??? ?? ?? ??? ??? ????.
+## Required Runtime Targets
+- Frontend must know the public API base URL
+- Backend must have the required provider env vars
+- `RESEARCH_ALLOW_FIXTURE_FALLBACK=false` is recommended for deployment-like environments
 
 ## Remaining Risks
-- auth / inbound rate limit / edge cache / WAF? ??.
-- readiness endpoint? provider connectivity check? ??.
-- preview / staging / production ??? ??? ?? ?? ????.
-- real provider?? OpenAI hard dependency? ?? 4??? ?? ??.
-
-## Next Work
-- platform-specific deploy config? ????.
-- readiness / structured logging / metrics? ???.
-- CI?? `pnpm verify:standard`? real-provider gated smoke? ?? ????.
-- release rollback ?????? ????.
-
-## 2026-04-09 Deploy-ready hardening update
-- API deploy template:
-  - `apps/api/Dockerfile`
-  - root `.dockerignore`
-- 운영 엔드포인트:
-  - liveness: `/health`
-  - readiness: `/readyz?probe=config|remote`
-- 릴리스 게이트:
-  - `pnpm verify:release`
-  - 실 provider 3종(Alpha Vantage, OpenDART, OpenAI) 모두 정상일 때만 배포 승인
-- production 웹 정책:
-  - `RESEARCH_ALLOW_FIXTURE_FALLBACK=false`
-  - `STOCK_API_BASE_URL` 또는 route별 API URL 필수
-- 실제 배포 실행은 범위 밖이며, 이 문서의 목적은 deploy-ready 상태까지의 기준을 고정하는 것이다.
+- Free hosting spin-down can slow cold starts
+- Alpha Vantage quota remains a production risk
+- Branch protection rulesets are not yet configured remotely

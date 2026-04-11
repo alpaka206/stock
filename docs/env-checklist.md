@@ -1,86 +1,41 @@
 # Environment Checklist
 
-## Current Status
-- API? web ?? env ???? live/mock/fallback ??? ????.
-- `apps/api/.env.example`? ?? settings surface? ????.
-- production-safe ??? ?? web? API env? ???? ???? ??.
+## API
+- `STOCK_API_PROVIDER`
+- `STOCK_API_TIMEOUT_SECONDS`
+- `STOCK_API_CACHE_TTL_SECONDS`
+- `ALPHA_VANTAGE_API_KEY`
+- `ALPHA_VANTAGE_BASE_URL`
+- `OPENDART_API_KEY`
+- `OPENDART_BASE_URL`
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL`
+- `RESEARCH_LLM_PROVIDER`
+- `GEMINI_API_KEY`
+- `GEMINI_MODEL`
+- `GEMINI_BASE_URL`
+- `STOCK_RADAR_SYMBOLS`
+- `STOCK_RADAR_SECTORS`
+- `STOCK_OVERVIEW_BENCHMARKS`
+- `STOCK_SECTOR_PROXIES`
 
-## Decisions
-- API? `mock`? ??? ?? ????? ??.
-- real provider ??? ??? ?? ?? ??? ??? ??.
-- web? ?? base URL + route-specific override? ?? ????.
+## Web
+- `STOCK_API_BASE_URL`
+- `OVERVIEW_API_URL`
+- `RADAR_API_URL`
+- `STOCK_DETAIL_API_URL`
+- `HISTORY_API_URL`
+- `NEWS_API_URL`
+- `CALENDAR_API_URL`
+- `OVERVIEW_API_TIMEOUT_MS`
+- `RESEARCH_ALLOW_FIXTURE_FALLBACK`
 
-## API Env
+## Discord
+- `.env.discord` stays local-only
+- Only key presence is checked
+- Values are never printed or committed
 
-| Key | Required | Default | ?? |
-| --- | --- | --- | --- |
-| `STOCK_API_PROVIDER` | ??? | `mock` | `mock` ?? `real`? ?? |
-| `STOCK_API_TIMEOUT_SECONDS` | ??? | `12` | ?? API ?? timeout |
-| `STOCK_API_CACHE_TTL_SECONDS` | ??? | `60` | Alpha Vantage ??? cache TTL |
-| `ALPHA_VANTAGE_API_KEY` | real?? ?? | ?? | ??? ???, ??, ??, ?? |
-| `ALPHA_VANTAGE_BASE_URL` | ??? | `https://www.alphavantage.co/query` | Alpha Vantage endpoint override |
-| `OPENDART_API_KEY` | ??? | ?? | ?? ??/?? ?? |
-| `OPENDART_BASE_URL` | ??? | `https://opendart.fss.or.kr/api` | OpenDART endpoint override |
-| `OPENAI_API_KEY` | ?? 4?? real?? ?? | ?? | overview/radar/stocks/history structured output |
-| `OPENAI_MODEL` | ??? | `gpt-5-mini` | OpenAI model override |
-| `STOCK_RADAR_SYMBOLS` | ??? | `NVDA,AMD,AVGO,MSFT,CRWD` | radar ?? watchlist ?? |
-| `STOCK_RADAR_SECTORS` | ??? | ?? ??? | radar ??-?? ?? |
-| `STOCK_OVERVIEW_BENCHMARKS` | ??? | ?? ??? | overview ???? strip ?? |
-| `STOCK_SECTOR_PROXIES` | ??? | ?? ??? | overview ?? proxy |
-
-## Web Env
-
-| Key | Required | Default | ?? |
-| --- | --- | --- | --- |
-| `STOCK_API_BASE_URL` | live API ?? ? ?? | ?? | ?? route ?? API base URL |
-| `OVERVIEW_API_URL` | ??? | ?? | overview ?? override |
-| `RADAR_API_URL` | ??? | ?? | radar ?? override |
-| `STOCK_DETAIL_API_URL` | ??? | ?? | stock detail ?? override (`{symbol}` ?? `:symbol` ??) |
-| `HISTORY_API_URL` | ??? | ?? | history ?? override |
-| `NEWS_API_URL` | ??? | ?? | news ?? override |
-| `CALENDAR_API_URL` | ??? | ?? | calendar ?? override |
-| `OVERVIEW_API_TIMEOUT_MS` | ??? | `15000` | overview fetch timeout override |
-| `RESEARCH_ALLOW_FIXTURE_FALLBACK` | ??? | ?? ?? `true`, production `false` ?? | API ?? ? fixture fallback ?? ?? |
-
-## Recommended Profiles
-- Local mock
-  - API: `STOCK_API_PROVIDER=mock`
-  - Web: API URL ??? ??
-- Local real
-  - API: `STOCK_API_PROVIDER=real`, `ALPHA_VANTAGE_API_KEY`, `OPENAI_API_KEY` ??
-  - Web: `STOCK_API_BASE_URL=http://localhost:8000`
-- Production candidate
-  - API: real mode + Alpha/OpenAI keys + OpenDART key ??
-  - Web: `STOCK_API_BASE_URL` ?? route-specific URLs ??, `RESEARCH_ALLOW_FIXTURE_FALLBACK=false`
-
-## Remaining Risks
-- secrets? ??? real smoke? ??? ??? ? ??.
-- `OPENAI_API_KEY`? ?? ? ?? 4?? real path? ?? graceful degrade? ???.
-- route-specific URL? base URL? ??? ?? ??? ???? ? ??.
-
-## Next Work
-- web/.env.example ?? ??? ????.
-- production env sample? ?? ??? ??? ?? ???.
-- secrets manager / platform env naming? ????.
-
-## 2026-04-09 추가 규칙
-- 웹 env 예시 파일: `apps/web/.env.example`
-- 릴리스 검증 추가 필수값
-  - `STOCK_API_PROVIDER=real`
-  - `ALPHA_VANTAGE_API_KEY`
-  - `OPENDART_API_KEY`
-  - `OPENAI_API_KEY`
-  - `RESEARCH_ALLOW_FIXTURE_FALLBACK=false`
-  - `STOCK_API_BASE_URL` 또는 route별 API URL
-- 이 값이 비어 있으면 `pnpm verify:release`는 즉시 실패해야 한다.
-
-## 2026-04-11 ?? ??
-- `RESEARCH_LLM_PROVIDER=auto`? ????? ??.
-- `OPENAI_API_KEY`? ??? `GEMINI_API_KEY`? ??? ?? 4?? real summary? ??? ? ??.
-- `OPENAI_API_KEY`? `GEMINI_API_KEY`? ?? ??? deterministic fallback?? ???? ??? ???? ?? ????.
-- free-tier ?? ???? ?? ????.
-  - `STOCK_API_PROVIDER=real`
-  - `RESEARCH_LLM_PROVIDER=auto`
-  - `ALPHA_VANTAGE_API_KEY`
-  - `GEMINI_API_KEY`
-  - `RESEARCH_ALLOW_FIXTURE_FALLBACK=false`
+## Recommended Local Mode
+- API: `STOCK_API_PROVIDER=real`
+- LLM: `RESEARCH_LLM_PROVIDER=auto` or `none`
+- Web: `STOCK_API_BASE_URL=http://localhost:8000`

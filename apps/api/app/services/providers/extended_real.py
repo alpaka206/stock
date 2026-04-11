@@ -117,30 +117,30 @@ class ExtendedRealResearchProvider(RealResearchProvider):
         return self._finalize_payload(payload, source_refs, missing_data)
 
     def _build_news_market_summary(self, featured_news, watchlist_news, domestic_disclosures) -> str:
-        featured = featured_news[0]["title"] if featured_news else "\ud574\uc678 \ud5e4\ub4dc\ub77c\uc778\uc774 \uc544\uc9c1 \ubd80\uc871\ud569\ub2c8\ub2e4"
-        watchlist = watchlist_news[0]["title"] if watchlist_news else "\uad00\uc2ec\uc885\ubaa9 \ub274\uc2a4\uac00 \uc544\uc9c1 \uc801\uc2b5\ub2c8\ub2e4"
-        domestic = domestic_disclosures[0]["headline"] if domestic_disclosures else "OpenDART \uc5f0\ub3d9 \ub610\ub294 \ucd5c\uc2e0 \uacf5\uc2dc\uac00 \uc5c6\uc2b5\ub2c8\ub2e4"
-        return f"\ud574\uc678 \uba54\uc778 \ud5e4\ub4dc\ub77c\uc778\uc740 '{featured}' \uc911\uc2ec\uc73c\ub85c \uc6c0\uc9c1\uc774\uace0, \uad00\uc2ec\uc885\ubaa9 \ud750\ub984\uc740 '{watchlist}'\ub97c \uc6b0\uc120 \ud655\uc778\ud560 \uad6c\uac04\uc785\ub2c8\ub2e4. \uad6d\ub0b4\ub294 '{domestic}' \uacf5\uc2dc\ub97c \ud568\uaed8 \ubd10\uc57c \ud569\ub2c8\ub2e4."
+        featured = featured_news[0]["title"] if featured_news else "해외 헤드라인이 아직 부족합니다"
+        watchlist = watchlist_news[0]["title"] if watchlist_news else "관심종목 뉴스가 아직 적습니다"
+        domestic = domestic_disclosures[0]["headline"] if domestic_disclosures else "OpenDART 연동 또는 최신 공시가 없습니다"
+        return f"해외 메인 헤드라인은 '{featured}' 중심으로 움직이고, 관심종목 흐름은 '{watchlist}'를 우선 확인할 구간입니다. 국내는 '{domestic}' 공시를 함께 봐야 합니다."
 
     def _build_news_drivers(self, featured_news, watchlist_news, domestic_disclosures):
         items = []
         if featured_news:
             items.append({
-                "text": f"\ud574\uc678 \ud5e4\ub4dc\ub77c\uc778\uc740 {featured_news[0]['source']} \ubc1c {featured_news[0]['title']}\ub97c \uc6b0\uc120 \ud655\uc778\ud569\ub2c8\ub2e4.",
+                "text": f"해외 헤드라인은 {featured_news[0]['source']} 발 {featured_news[0]['title']}를 우선 확인합니다.",
                 "sourceRefIds": featured_news[0].get("sourceRefIds", []),
             })
         if watchlist_news:
-            symbol = watchlist_news[0].get("tickers", [""])[0] if watchlist_news[0].get("tickers") else "\ud575\uc2ec \uc2ec\ubcfc"
+            symbol = watchlist_news[0].get("tickers", [""])[0] if watchlist_news[0].get("tickers") else "핵심 심볼"
             items.append({
-                "text": f"\uad00\uc2ec\uc885\ubaa9\uc740 {symbol} \uad00\ub828 \ub274\uc2a4 \ubc18\uc751\uc774 \uac00\uc7a5 \ube60\ub985\ub2c8\ub2e4.",
+                "text": f"관심종목은 {symbol} 관련 뉴스 반응이 가장 빠릅니다.",
                 "sourceRefIds": watchlist_news[0].get("sourceRefIds", []),
             })
         if domestic_disclosures:
             items.append({
-                "text": f"\uad6d\ub0b4\ub294 {domestic_disclosures[0]['headline']} \uacf5\uc2dc\ub97c \uccb4\ud06c \ud3ec\uc778\ud2b8\ub85c \ub461\ub2c8\ub2e4.",
+                "text": f"국내는 {domestic_disclosures[0]['headline']} 공시를 체크 포인트로 둡니다.",
                 "sourceRefIds": domestic_disclosures[0].get("sourceRefIds", []),
             })
-        return items or [{"text": "\ud604\uc7ac \uc5f0\uacb0\ub41c \ub274\uc2a4/\uacf5\uc2dc \ub370\uc774\ud130\uac00 \ucda9\ubd84\ud558\uc9c0 \uc54a\uc2b5\ub2c8\ub2e4.", "sourceRefIds": []}]
+        return items or [{"text": "현재 연결된 뉴스/공시 데이터가 충분하지 않습니다.", "sourceRefIds": []}]
 
     def _build_news_feed_items(self, articles, *, market: str):
         items = []
@@ -164,7 +164,7 @@ class ExtendedRealResearchProvider(RealResearchProvider):
         items = []
         for index, disclosure in enumerate(disclosures[:8]):
             ref = build_source_ref(
-                title=disclosure.get("reportName", "\uad6d\ub0b4 \uacf5\uc2dc"),
+                title=disclosure.get("reportName", "국내 공시"),
                 kind="disclosure",
                 publisher="OpenDART",
                 published_at=disclosure.get("receiptDate", ""),
@@ -175,10 +175,10 @@ class ExtendedRealResearchProvider(RealResearchProvider):
             source_refs.append(ref)
             items.append({
                 "id": f"domestic-disclosure-{index + 1}",
-                "headline": disclosure.get("corpName", "\uad6d\ub0b4 \uacf5\uc2dc"),
+                "headline": disclosure.get("corpName", "국내 공시"),
                 "source": "OpenDART",
                 "summary": disclosure.get("reportName", ""),
-                "impact": "\uacf5\uc2dc",
+                "impact": "공시",
                 "publishedAt": self._to_iso(disclosure.get("receiptDate", "")),
                 "url": disclosure.get("url", ""),
                 "symbol": disclosure.get("stockCode", ""),
@@ -202,12 +202,12 @@ class ExtendedRealResearchProvider(RealResearchProvider):
             source_refs.append(ref)
             events.append({
                 "id": f"watchlist-earnings-{index + 1}",
-                "title": f"{row.get('symbol', '')} \uc2e4\uc801 \uc608\uc815",
+                "title": f"{row.get('symbol', '')} 실적 예정",
                 "category": "earnings",
                 "market": "watchlist",
                 "date": row.get("reportDate", ""),
-                "time": "\uc608\uc815",
-                "summary": f"{row.get('name', row.get('symbol', ''))} \uc2e4\uc801 \ubc1c\ud45c \uc608\uc815\uc785\ub2c8\ub2e4.",
+                "time": "예정",
+                "summary": f"{row.get('name', row.get('symbol', ''))} 실적 발표 예정입니다.",
                 "source": "Alpha Vantage",
                 "symbol": row.get("symbol", ""),
                 "url": "",
@@ -226,7 +226,7 @@ class ExtendedRealResearchProvider(RealResearchProvider):
                 "category": "news",
                 "market": "watchlist",
                 "date": article.get("publishedAt", "")[:10],
-                "time": article.get("publishedAt", "")[11:16] or "\ubbf8\uc815",
+                "time": article.get("publishedAt", "")[11:16] or "미정",
                 "summary": article.get("summary", ""),
                 "source": article.get("source", "Alpha Vantage"),
                 "symbol": symbol,
@@ -250,14 +250,14 @@ class ExtendedRealResearchProvider(RealResearchProvider):
             source_refs.append(ref)
             low = row.get("priceRangeLow", 0.0)
             high = row.get("priceRangeHigh", 0.0)
-            detail = f"\uacf5\ubaa8\uac00 \ubc94\uc704 {low:.2f}~{high:.2f} {row.get('currency', '')}" if (low or high) else "\uacf5\ubaa8\uac00 \ubc94\uc704 \ubbf8\uc815"
+            detail = f"공모가 범위 {low:.2f}~{high:.2f} {row.get('currency', '')}" if (low or high) else "공모가 범위 미정"
             events.append({
                 "id": f"ipo-event-{index + 1}",
                 "title": f"{row.get('name', row.get('symbol', ''))} IPO",
                 "category": "ipo",
                 "market": "global",
                 "date": row.get("ipoDate", ""),
-                "time": row.get("exchange", "\ubbf8\uc815"),
+                "time": row.get("exchange", "미정"),
                 "summary": detail,
                 "source": "Alpha Vantage",
                 "symbol": row.get("symbol", ""),
@@ -271,7 +271,7 @@ class ExtendedRealResearchProvider(RealResearchProvider):
         events = []
         for index, disclosure in enumerate(disclosures[:8]):
             ref = build_source_ref(
-                title=disclosure.get("reportName", "\uad6d\ub0b4 \uacf5\uc2dc"),
+                title=disclosure.get("reportName", "국내 공시"),
                 kind="disclosure",
                 publisher="OpenDART",
                 published_at=disclosure.get("receiptDate", ""),
@@ -282,11 +282,11 @@ class ExtendedRealResearchProvider(RealResearchProvider):
             source_refs.append(ref)
             events.append({
                 "id": f"domestic-calendar-{index + 1}",
-                "title": disclosure.get("corpName", "\uad6d\ub0b4 \uacf5\uc2dc"),
+                "title": disclosure.get("corpName", "국내 공시"),
                 "category": "disclosure",
                 "market": "domestic",
                 "date": self._to_date(disclosure.get("receiptDate", "")),
-                "time": "\uacf5\uc2dc",
+                "time": "공시",
                 "summary": disclosure.get("reportName", ""),
                 "source": "OpenDART",
                 "symbol": disclosure.get("stockCode", ""),
@@ -300,23 +300,23 @@ class ExtendedRealResearchProvider(RealResearchProvider):
         items = []
         if watchlist_events:
             items.append({
-                "label": "\uad00\uc2ec\uc885\ubaa9 \uc2e4\uc801",
-                "value": f"{len(watchlist_events)}\uac74",
+                "label": "관심종목 실적",
+                "value": f"{len(watchlist_events)}건",
                 "detail": watchlist_events[0]["title"],
                 "tone": "positive" if len(watchlist_events) >= 2 else "neutral",
                 "sourceRefIds": watchlist_events[0].get("sourceRefIds", []),
             })
         if market_events:
             items.append({
-                "label": "IPO \uce98\ub9b0\ub354",
-                "value": f"{len(market_events)}\uac74",
+                "label": "IPO 캘린더",
+                "value": f"{len(market_events)}건",
                 "detail": market_events[0]["title"],
                 "tone": "neutral",
                 "sourceRefIds": market_events[0].get("sourceRefIds", []),
             })
         if treasury:
             ref = build_source_ref(
-                title="\ubbf8\uad6d 10\ub144\ubb3c \uad6d\ucc44 \uc218\uc775\ub960",
+                title="미국 10년물 국채 수익률",
                 kind="economic",
                 publisher="Alpha Vantage",
                 published_at=treasury.get("date", ""),
@@ -324,16 +324,16 @@ class ExtendedRealResearchProvider(RealResearchProvider):
             )
             source_refs.append(ref)
             items.append({
-                "label": "\ubbf8\uad6d 10\ub144\ubb3c",
+                "label": "미국 10년물",
                 "value": f"{treasury.get('value', 0):.2f}%",
-                "detail": f"\uc804\uc77c \ub300\ube44 {treasury.get('changePercent', 0):+.2f}%p",
+                "detail": f"전일 대비 {treasury.get('changePercent', 0):+.2f}%p",
                 "tone": "negative" if treasury.get("changePercent", 0) > 0 else "positive",
                 "sourceRefIds": [ref["id"]],
             })
         if domestic_events:
             items.append({
-                "label": "\uad6d\ub0b4 \uacf5\uc2dc",
-                "value": f"{len(domestic_events)}\uac74",
+                "label": "국내 공시",
+                "value": f"{len(domestic_events)}건",
                 "detail": domestic_events[0]["title"],
                 "tone": "neutral",
                 "sourceRefIds": domestic_events[0].get("sourceRefIds", []),
@@ -341,10 +341,10 @@ class ExtendedRealResearchProvider(RealResearchProvider):
         return items[:4]
 
     def _build_calendar_summary(self, watchlist_events, market_events, domestic_events, treasury) -> str:
-        watchlist = f"\uad00\uc2ec\uc885\ubaa9 \uc2e4\uc801\uc740 {watchlist_events[0]['title']}\ubd80\ud130 \uccb4\ud06c" if watchlist_events else "\uad00\uc2ec\uc885\ubaa9 \uc2e4\uc801 \uc77c\uc815\uc740 \uc544\uc9c1 \ubd80\uc871\ud569\ub2c8\ub2e4"
-        market = f"IPO\ub294 {market_events[0]['title']}\uac00 \uac00\uc7a5 \uac00\uae5d\uc2b5\ub2c8\ub2e4" if market_events else "IPO \uc77c\uc815\uc740 \uc544\uc9c1 \ubd80\uc871\ud569\ub2c8\ub2e4"
-        domestic = f"\uad6d\ub0b4 \uacf5\uc2dc\ub294 {domestic_events[0]['title']} \uad00\ub828 \uacf5\uc2dc\ub97c \uc6b0\uc120 \ud655\uc778" if domestic_events else "OpenDART \uc5f0\ub3d9 \ub610\ub294 \ucd5c\uc2e0 \uacf5\uc2dc\uac00 \uc5c6\uc2b5\ub2c8\ub2e4"
-        macro = f"10\ub144\ubb3c \uae08\ub9ac\ub294 {treasury.get('value', 0):.2f}% \uc218\uc900" if treasury else "\ub9e4\ud06c\ub85c \uae08\ub9ac \ub370\uc774\ud130\uac00 \uc5c6\uc2b5\ub2c8\ub2e4"
+        watchlist = f"관심종목 실적은 {watchlist_events[0]['title']}부터 체크" if watchlist_events else "관심종목 실적 일정은 아직 부족합니다"
+        market = f"IPO는 {market_events[0]['title']}가 가장 가깝습니다" if market_events else "IPO 일정은 아직 부족합니다"
+        domestic = f"국내 공시는 {domestic_events[0]['title']} 관련 공시를 우선 확인" if domestic_events else "OpenDART 연동 또는 최신 공시가 없습니다"
+        macro = f"10년물 금리는 {treasury.get('value', 0):.2f}% 수준" if treasury else "매크로 금리 데이터가 없습니다"
         return f"{watchlist}. {market}. {domestic}. {macro}."
 
     def _merge_ref_ids(self, *groups) -> list[str]:

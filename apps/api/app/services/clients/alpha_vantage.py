@@ -188,13 +188,13 @@ class AlphaVantageClient:
     async def _request(self, params: dict[str, str]) -> dict[str, Any]:
         payload = await self._request_raw(params, datatype="json")
         if not isinstance(payload, dict):
-            raise ExternalServiceError("Alpha Vantage JSON ?? ??? ???? ????.")
+            raise ExternalServiceError("Alpha Vantage JSON response type was invalid.")
         return payload
 
     async def _request_csv(self, params: dict[str, str]) -> list[dict[str, str]]:
         payload = await self._request_raw(params, datatype="csv")
         if not isinstance(payload, str):
-            raise ExternalServiceError("Alpha Vantage CSV ?? ??? ???? ????.")
+            raise ExternalServiceError("Alpha Vantage CSV response type was invalid.")
         self._raise_for_csv_errors(payload, self._describe_request(params))
         reader = DictReader(StringIO(payload))
         return [
@@ -205,7 +205,7 @@ class AlphaVantageClient:
     async def _request_raw(self, params: dict[str, str], *, datatype: str) -> Any:
         if not self.api_key:
             raise ProviderConfigurationError(
-                "real provider? ????? ALPHA_VANTAGE_API_KEY? ?????."
+                "ALPHA_VANTAGE_API_KEY is required for real provider mode."
             )
 
         merged = {**params, "apikey": self.api_key}
@@ -231,22 +231,22 @@ class AlphaVantageClient:
             status_code = exc.response.status_code
             if status_code == 429:
                 raise ExternalRateLimitError(
-                    f"Alpha Vantage {request_target} ??? rate limit? ?????."
+                    f"Alpha Vantage {request_target} hit a rate limit."
                 ) from exc
             raise ExternalServiceError(
-                f"Alpha Vantage {request_target} ??? HTTP {status_code}? ??????."
+                f"Alpha Vantage {request_target} failed with HTTP {status_code}."
             ) from exc
         except httpx.TimeoutException as exc:
             raise ExternalServiceError(
-                f"Alpha Vantage {request_target} ??? ?? ???????."
+                f"Alpha Vantage {request_target} timed out."
             ) from exc
         except httpx.RequestError as exc:
             raise ExternalServiceError(
-                f"Alpha Vantage {request_target} ?? ? ???? ??? ??????."
+                f"Alpha Vantage {request_target} failed with a network error."
             ) from exc
         except ValueError as exc:
             raise ExternalServiceError(
-                f"Alpha Vantage {request_target} ?? {datatype.upper()}? ???? ?????."
+                f"Alpha Vantage {request_target} returned invalid {datatype.upper()} data."
             ) from exc
 
         if datatype == "json":
@@ -265,11 +265,11 @@ class AlphaVantageClient:
     def _raise_for_csv_errors(self, payload: str, request_target: str) -> None:
         normalized = payload.strip()
         if not normalized:
-            raise ExternalServiceError(f"Alpha Vantage {request_target} CSV ??? ?? ????.")
+            raise ExternalServiceError(f"Alpha Vantage {request_target} returned an empty CSV payload.")
         if normalized.startswith("{"):
             parsed = json.loads(normalized)
             self._raise_for_provider_errors(parsed)
-            raise ExternalServiceError(f"Alpha Vantage {request_target} CSV ??? ?? ????.")
+            raise ExternalServiceError(f"Alpha Vantage {request_target} returned an empty CSV payload.")
 
     def _cache_key(self, params: dict[str, str]) -> str:
         serialized = "&".join(f"{key}={params[key]}" for key in sorted(params))
