@@ -1,14 +1,14 @@
-## ?? ?? ??
+## Summary
 -
 
-## ?? ??
+## Changes
 -
 
-## ???
+## Test
 - [ ] lint
 - [ ] build
 - [ ] test / smoke
-- [ ] Codex ?? ?? blocking issue ??
+- [ ] no blocking finding from Codex review
 
-## ?? ???
+## Review Focus
 -

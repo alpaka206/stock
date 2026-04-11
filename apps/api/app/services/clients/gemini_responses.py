@@ -42,7 +42,7 @@ class GeminiResearchClient:
     ) -> dict[str, Any]:
         if not self.api_key:
             raise ProviderConfigurationError(
-                "gemini provider? ????? GEMINI_API_KEY? ?????."
+                "GEMINI_API_KEY is required for gemini provider mode."
             )
 
         instructions = "\n\n".join(
@@ -86,17 +86,17 @@ class GeminiResearchClient:
         payload = await self._request_json(request_payload, request_target=page_key)
         output_text = self._extract_output_text(payload)
         if not output_text:
-            raise ExternalServiceError("Gemini ???? ???? JSON? ???? ?????.")
+            raise ExternalServiceError("Gemini did not return structured JSON output.")
 
         try:
             return json.loads(output_text)
         except json.JSONDecodeError as exc:
-            raise ExternalServiceError("Gemini JSON ??? ???? ?????.") from exc
+            raise ExternalServiceError("Gemini JSON output could not be parsed.") from exc
 
     async def probe_health(self) -> dict[str, bool]:
         if not self.api_key:
             raise ProviderConfigurationError(
-                "gemini provider? ????? GEMINI_API_KEY? ?????."
+                "GEMINI_API_KEY is required for gemini provider mode."
             )
 
         payload = await self._request_json(
@@ -120,11 +120,11 @@ class GeminiResearchClient:
         )
         output_text = self._extract_output_text(payload)
         if not output_text:
-            raise ExternalServiceError("Gemini health probe ??? ??? ??????.")
+            raise ExternalServiceError("Gemini health probe returned empty output.")
 
         result = json.loads(output_text)
         if result.get("ok") is not True:
-            raise ExternalServiceError("Gemini health probe ??? ???? ????.")
+            raise ExternalServiceError("Gemini health probe returned an invalid payload.")
         return {"ok": True}
 
     async def _request_json(
@@ -147,28 +147,28 @@ class GeminiResearchClient:
             status_code = exc.response.status_code
             if status_code == 429:
                 raise ExternalRateLimitError(
-                    f"Gemini {request_target} ??? rate limit? ?????."
+                    f"Gemini {request_target} hit a rate limit."
                 ) from exc
             raise ExternalServiceError(
-                f"Gemini {request_target} ??? HTTP {status_code}? ??????."
+                f"Gemini {request_target} failed with HTTP {status_code}."
             ) from exc
         except httpx.TimeoutException as exc:
             raise ExternalServiceError(
-                f"Gemini {request_target} ??? ?? ???????."
+                f"Gemini {request_target} timed out."
             ) from exc
         except httpx.RequestError as exc:
             raise ExternalServiceError(
-                f"Gemini {request_target} ?? ? ???? ??? ??????."
+                f"Gemini {request_target} failed with a network error."
             ) from exc
         except ValueError as exc:
             raise ExternalServiceError(
-                f"Gemini {request_target} ?? JSON? ???? ?????."
+                f"Gemini {request_target} returned invalid JSON."
             ) from exc
 
         if payload.get("promptFeedback", {}).get("blockReason"):
             block_reason = payload["promptFeedback"]["blockReason"]
             raise ExternalServiceError(
-                f"Gemini {request_target} ??? ???????: {block_reason}"
+                f"Gemini {request_target} was blocked: {block_reason}"
             )
         return payload
 

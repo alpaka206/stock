@@ -56,7 +56,7 @@ class ResearchSummaryClient:
         providers = self._iter_provider_clients()
         if not providers:
             raise ProviderConfigurationError(
-                "?? ??? LLM provider? ?? deterministic fallback?? ?????."
+                "No configured LLM provider is available; deterministic fallback in use."
             )
 
         for provider_name, client in providers:
@@ -82,14 +82,14 @@ class ResearchSummaryClient:
         if isinstance(last_error, Exception):
             raise last_error
         raise ProviderConfigurationError(
-            "?? ??? LLM provider? ?? deterministic fallback?? ?????."
+            "No configured LLM provider is available; deterministic fallback in use."
         )
 
     async def probe_health(self) -> dict[str, Any]:
         providers = self._iter_provider_clients()
         if not providers:
             raise ProviderConfigurationError(
-                "?? ??? LLM provider? ?? health probe? ?????."
+                "No configured LLM provider is available for health checks."
             )
 
         last_error: Exception | None = None
@@ -111,7 +111,7 @@ class ResearchSummaryClient:
         if isinstance(last_error, Exception):
             raise last_error
         raise ProviderConfigurationError(
-            "?? ??? LLM provider? ?? health probe? ?????."
+            "No configured LLM provider is available for health checks."
         )
 
     def _iter_provider_clients(self) -> list[tuple[str, Any]]:

@@ -1,11 +1,12 @@
-        #!/usr/bin/env bash
+#!/usr/bin/env bash
         set -euo pipefail
 
-        # ??? main ???? ???
+        # TBD? main TBDTBD TBD?
         RELEASE_TO_MAIN_POLICY="auto-merge-if-green"
         INTEGRATION_BRANCH="develop"
         PRODUCTION_BRANCH="main"
         GH_BIN="${GH_BIN:-C:/Program Files/GitHub CLI/gh.exe}"
+        DISCORD_ENV_FILE="${DISCORD_ENV_FILE:-.env.discord}"
 
         export GH_PROMPT_DISABLED=1
         export GIT_TERMINAL_PROMPT=0
@@ -43,6 +44,11 @@
           exit 0
         fi
 
-        printf 'github-flow ready: local gates passed (lint/build/test + Codex review)
+        if [[ -f "$DISCORD_ENV_FILE" ]]; then
+          printf 'github-flow note: discord env file present, bridge can be checked separately
 ' > .omx/runtime/github-flow-status.txt
+        else
+          printf 'github-flow ready: local gates passed, discord env missing, remote actions allowed
+' > .omx/runtime/github-flow-status.txt
+        fi
         exit 0

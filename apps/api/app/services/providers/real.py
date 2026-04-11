@@ -1355,7 +1355,7 @@ class RealResearchProvider(ResearchProvider):
         missing_data: list[dict[str, str]],
     ) -> dict[str, Any]:
         if not source_refs:
-            raise ExternalServiceError(f"{page_key} ??? ??? ???? sourceRefs? ????.")
+            raise ExternalServiceError(f"{page_key} summary cannot proceed without sourceRefs.")
         deduped_source_refs = dedupe_source_refs(source_refs)
         try:
             return await self.llm.generate_page_response(

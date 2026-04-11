@@ -46,21 +46,21 @@ def _check_prompt_contracts(prompt_loader: PromptLoader) -> dict[str, Any]:
         return {
             "name": "prompt-contracts",
             "ok": True,
-            "detail": f"{len(page_keys)}? ??? ????/??? ?? ?????.",
+            "detail": f"Loaded {len(page_keys)} prompt/contract bundles.",
             "required": True,
         }
     except FileNotFoundError as exc:
         return {
             "name": "prompt-contracts",
             "ok": False,
-            "detail": f"?? ????/?? ??? ????: {exc}",
+            "detail": f"Missing required prompt or contract file: {exc}",
             "required": True,
         }
     except Exception as exc:  # pragma: no cover
         return {
             "name": "prompt-contracts",
             "ok": False,
-            "detail": f"????/?? ?? ? ??? ??????: {exc}",
+            "detail": f"Prompt/contract loading failed: {exc}",
             "required": True,
         }
 
@@ -71,14 +71,14 @@ def _check_provider_factory(settings: Settings) -> dict[str, Any]:
         return {
             "name": "provider-factory",
             "ok": True,
-            "detail": f"{provider.__class__.__name__} ????? ??????.",
+            "detail": f"Created provider instance: {provider.__class__.__name__}.",
             "required": True,
         }
     except Exception as exc:  # pragma: no cover
         return {
             "name": "provider-factory",
             "ok": False,
-            "detail": f"provider ??? ??????: {exc}",
+            "detail": f"Provider creation failed: {exc}",
             "required": True,
         }
 
@@ -89,9 +89,9 @@ def _build_real_provider_checks(settings: Settings) -> list[dict[str, Any]]:
             "name": "env::ALPHA_VANTAGE_API_KEY",
             "ok": bool(settings.alpha_vantage_api_key),
             "detail": (
-                "ALPHA_VANTAGE_API_KEY? ???? ????."
+                "ALPHA_VANTAGE_API_KEY is configured."
                 if settings.alpha_vantage_api_key
-                else "ALPHA_VANTAGE_API_KEY? ?? ????."
+                else "ALPHA_VANTAGE_API_KEY is missing."
             ),
             "required": True,
         },
@@ -99,9 +99,9 @@ def _build_real_provider_checks(settings: Settings) -> list[dict[str, Any]]:
             "name": "env::OPENDART_API_KEY",
             "ok": bool(settings.opendart_api_key),
             "detail": (
-                "OPENDART_API_KEY? ???? ????."
+                "OPENDART_API_KEY is configured."
                 if settings.opendart_api_key
-                else "OPENDART_API_KEY? ?? ?? ?? ??/???? ??? ? ????."
+                else "OPENDART_API_KEY is missing, so domestic disclosure coverage may be reduced."
             ),
             "required": False,
         },
@@ -116,7 +116,7 @@ def _build_llm_checks(settings: Settings) -> list[dict[str, Any]]:
             {
                 "name": "llm-provider",
                 "ok": True,
-                "detail": "RESEARCH_LLM_PROVIDER=none ??? deterministic summary? ?????.",
+                "detail": "RESEARCH_LLM_PROVIDER=none, deterministic summaries only.",
                 "required": False,
             }
         ]
@@ -127,9 +127,9 @@ def _build_llm_checks(settings: Settings) -> list[dict[str, Any]]:
                 "name": "env::OPENAI_API_KEY",
                 "ok": bool(settings.openai_api_key),
                 "detail": (
-                    "OPENAI_API_KEY? ???? ????."
+                    "OPENAI_API_KEY is configured."
                     if settings.openai_api_key
-                    else "OPENAI_API_KEY? ?? ????."
+                    else "OPENAI_API_KEY is missing."
                 ),
                 "required": True,
             }
@@ -141,9 +141,9 @@ def _build_llm_checks(settings: Settings) -> list[dict[str, Any]]:
                 "name": "env::GEMINI_API_KEY",
                 "ok": bool(settings.gemini_api_key),
                 "detail": (
-                    "GEMINI_API_KEY? ???? ????."
+                    "GEMINI_API_KEY is configured."
                     if settings.gemini_api_key
-                    else "GEMINI_API_KEY? ?? ????."
+                    else "GEMINI_API_KEY is missing."
                 ),
                 "required": True,
             }
@@ -155,9 +155,9 @@ def _build_llm_checks(settings: Settings) -> list[dict[str, Any]]:
     if settings.gemini_api_key:
         configured.append("gemini")
     if configured:
-        detail = f"auto ???? {', '.join(configured)} provider? ??? ? ????."
+        detail = f"auto mode can use: {', '.join(configured)}."
     else:
-        detail = "auto ????? AI provider key? ?? deterministic fallback?? ?????."
+        detail = "auto mode has no AI provider key, deterministic fallback only."
     return [
         {
             "name": "llm-provider",
@@ -180,7 +180,7 @@ async def _run_remote_provider_probes(settings: Settings) -> list[dict[str, Any]
     checks.append(
         await _run_probe(
             name="provider::alpha-vantage",
-            detail="TIME_SERIES_DAILY MSFT 2? ??? ?????.",
+            detail="Probe TIME_SERIES_DAILY MSFT with 2 candles.",
             probe=lambda: alpha_client.get_daily_series("MSFT", limit=2),
             required=True,
         )
@@ -195,7 +195,7 @@ async def _run_remote_provider_probes(settings: Settings) -> list[dict[str, Any]
         checks.append(
             await _run_probe(
                 name="provider::opendart",
-                detail="?? ?? 1? ??? ?????.",
+                detail="Probe one recent disclosure.",
                 probe=lambda: open_dart_client.get_recent_disclosures(days=1, page_count=1),
                 required=False,
             )
@@ -205,7 +205,7 @@ async def _run_remote_provider_probes(settings: Settings) -> list[dict[str, Any]
             {
                 "name": "provider::opendart",
                 "ok": True,
-                "detail": "OPENDART_API_KEY? ?? remote probe? ??????.",
+                "detail": "Skipped remote OpenDART probe because OPENDART_API_KEY is missing.",
                 "required": False,
             }
         )
@@ -223,7 +223,7 @@ async def _run_remote_provider_probes(settings: Settings) -> list[dict[str, Any]
         checks.append(
             await _run_probe(
                 name="provider::llm",
-                detail="??? LLM provider health probe? ?????.",
+                detail="Probe configured LLM provider.",
                 probe=llm_client.probe_health,
                 required=False,
             )
@@ -233,7 +233,7 @@ async def _run_remote_provider_probes(settings: Settings) -> list[dict[str, Any]
             {
                 "name": "provider::llm",
                 "ok": True,
-                "detail": "??? LLM provider? ?? deterministic fallback ???? remote probe? ??????.",
+                "detail": "Skipped remote LLM probe because only deterministic fallback is available.",
                 "required": False,
             }
         )
@@ -268,7 +268,7 @@ async def _run_probe(
         return {
             "name": name,
             "ok": False,
-            "detail": f"{detail} ? ??? ??????: {exc}",
+            "detail": f"{detail} failed with exception: {exc}",
             "required": required,
         }
 
