@@ -32,3 +32,11 @@ class ResearchProvider(ABC):
         prompt_bundle: PromptBundle,
     ) -> dict[str, Any]:
         raise NotImplementedError
+
+    @abstractmethod
+    async def get_news(self, *, prompt_bundle: PromptBundle) -> dict[str, Any]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_calendar(self, *, prompt_bundle: PromptBundle) -> dict[str, Any]:
+        raise NotImplementedError

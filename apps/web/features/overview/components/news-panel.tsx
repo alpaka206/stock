@@ -17,17 +17,17 @@ export function NewsPanel({ items }: NewsPanelProps) {
       description="시장 해석을 바꿀 headline만 먼저 읽는다"
       action={
         <Link
-          href="/history"
+          href="/news"
           className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
         >
-          히스토리 보기
+          뉴스 피드
         </Link>
       }
     >
       <div className="space-y-3">
         {items.length === 0 ? (
           <div className="rounded-[calc(var(--radius)*1.05)] border border-dashed border-border/70 bg-background/20 p-4 text-sm leading-6 text-muted-foreground">
-            현재 연결된 뉴스 요약이 없습니다. 히스토리 화면에서 출처와 누락 데이터를 먼저 확인해 주세요.
+            현재 연결된 뉴스 요약이 없습니다. 뉴스 피드와 히스토리 화면에서 출처와 누락 데이터를 함께 확인해 주세요.
           </div>
         ) : null}
         {items.map((item) => (
@@ -63,7 +63,7 @@ export function NewsPanel({ items }: NewsPanelProps) {
             ) : null}
 
             <p className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary">
-              연결 화면 보기
+              전체 피드에서 계속 보기
               <ArrowUpRight className="size-3.5" />
             </p>
           </Link>

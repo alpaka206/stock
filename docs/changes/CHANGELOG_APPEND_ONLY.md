@@ -319,3 +319,144 @@
 - `apps/api/app/services/page_runtime.py`
 - `apps/api/AGENTS.md`
 - `docs/architecture/workspace-blueprint.md`
+
+## 2026-04-08 01:45 KST
+### 무엇을
+- Added root scripts for `pnpm smoke:api`, `pnpm verify:web`, `pnpm verify:api`, `pnpm verify:standard`, and `pnpm verify:standard:json`.
+- Added `scripts/api_smoke.py` and `scripts/verify_workspace.py` as reusable validation entrypoints.
+- Updated AGENTS, README, app READMEs, Codex operating docs, and prompts so unattended work closes with one standard verification loop.
+- Recorded the verification-gate decision in `docs/adr/ADR-0007-autonomous-verification-gate.md`.
+
+### 왜
+- The repo already had the checks, but they were scattered and easy for an autonomous agent to skip or partially run.
+- The API smoke test was hard to reuse because it only existed as an inline command.
+- Unattended work needed an explicit end-to-end close-out contract.
+
+### 어떻게
+- Replaced the root verification path with a single standard gate and added smaller web/api slices for failure isolation.
+- Moved the FastAPI smoke test into `scripts/api_smoke.py` and grouped all checks in `scripts/verify_workspace.py`.
+- Added unattended-mode guidance in AGENTS, README, Codex docs, and a new prompt file.
+
+### 영향 범위
+- `package.json`
+- `scripts/api_smoke.py`
+- `scripts/verify_workspace.py`
+- `README.md`
+- `AGENTS.md`
+- `apps/web/README.md`
+- `apps/web/AGENTS.md`
+- `apps/api/README.md`
+- `apps/api/AGENTS.md`
+- `docs/codex/prompt-order.md`
+- `docs/prompts/08-tests-docs-changelog.md`
+- `docs/prompts/09-autonomous-delivery.md`
+- `docs/adr/ADR-0007-autonomous-verification-gate.md`
+## 2026-04-08 03:40 KST
+### ???
+- ?? 4?? IA? ??? ? `/news`, `/calendar` ?? route? ?? API/??? ????.
+- Alpha Vantage `EARNINGS_CALENDAR` / `IPO_CALENDAR` CSV ??? ????? client? ????.
+- OpenDART ?? ?? ??/?? ??? `news`, `calendar`? ????.
+- provider env ??, env example, README, manifest, ADR, ??/???/?? ??? ?? ????.
+
+### ?
+- ???? ?? ???? ??? ??? ???? ??? ??? ? ??? ??.
+- ??? ??? ?? sidebar 4??? ???? ?? ??? ?? route ??? ????.
+- real `/calendar` ??? CSV helper ?? ??? ???, unattended ??? ?? ?? ??? ??? ? ?? ??? ???? ??.
+
+### ???
+- backend? `extended_real` / `extended_mock` provider? `news`, `calendar` router / schema / contract / prompt? ????.
+- web? `/news`, `/calendar` route? loader, fixture, topbar route context, overview CTA? ????.
+- `scripts/api_smoke.py`? schema validation?? ????? ???? `pnpm verify:standard`? ?? ??? ?? ?????.
+- page manifest, component manifest, design memory, ADR-0008, env/deployment/test docs, OMX plan/log, issue/PR draft? ?? ???.
+
+### ?? ??
+- `apps/api/app/services/clients/alpha_vantage.py`
+- `apps/api/app/services/clients/open_dart.py`
+- `apps/api/app/services/providers/extended_real.py`
+- `apps/api/app/services/providers/extended_mock.py`
+- `apps/api/app/routers/news.py`
+- `apps/api/app/routers/calendar.py`
+- `apps/web/app/news/page.tsx`
+- `apps/web/app/calendar/page.tsx`
+- `apps/web/features/news/*`
+- `apps/web/features/calendar/*`
+- `apps/web/lib/navigation.ts`
+- `docs/architecture/page-manifest.yaml`
+- `docs/architecture/component-manifest.yaml`
+- `docs/design/design-memory.md`
+- `docs/adr/ADR-0008-auxiliary-research-routes.md`
+
+## 2026-04-09 01:20 KST
+### 무엇을
+- `pnpm verify:release`, `pnpm verify:release:json`, `scripts/verify_release_readiness.py`를 추가해 real-provider 전용 릴리스 게이트를 만들었다.
+- API에 `/readyz?probe=config|remote` readiness 엔드포인트를 추가하고 `/health`와 역할을 분리했다.
+- web loader가 production 후보에서 API URL 미설정을 fixture로 숨기지 않도록 hardening했다.
+- `apps/web/.env.example`, `apps/api/Dockerfile`, root `.dockerignore`를 추가했다.
+- `/`, `/overview`, `/radar`를 dynamic route로 고정하고 `apps/web/next.config.ts`에 `experimental.cpus=1`을 적용해 Codex/Windows 환경의 build worker pressure를 낮췄다.
+- README, app README, deployment/api/env/test docs, ADR-0009를 갱신했다.
+
+### 왜
+- 기존 `pnpm verify:standard`는 개발 회귀 검증에는 충분했지만, 실 provider 3종 정상 여부를 배포 승인 기준으로 증명하지 못했다.
+- web fixture fallback이 production 후보에서도 조용히 동작하면 실제 배포 리스크를 숨길 수 있었다.
+- 실제 배포 실행은 범위 밖이지만, deploy-ready 상태를 코드/문서/명령으로 고정할 필요가 있었다.
+
+### 어떻게
+- FastAPI readiness 서비스를 새로 만들고 Alpha Vantage / OpenDART / OpenAI probe를 분리했다.
+- release 검증 스크립트가 env 존재, fallback 금지, readiness remote probe, 6개 route smoke를 한 번에 점검하도록 구성했다.
+- web 각 route loader에 `assertResearchApiConfigured()`를 추가해 production 후보에서 API URL 미설정을 즉시 에러로 승격했다.
+- build 시점의 worker spawn 민감도를 낮추기 위해 live research 성격의 정적 route를 dynamic으로 전환하고 Next experimental cpu 수를 1로 제한했다.
+- deploy template와 env example을 최소 변경으로 추가하고 관련 문서를 동기화했다.
+
+### 영향 범위
+- `package.json`
+- `scripts/api_smoke.py`
+- `scripts/verify_workspace.py`
+- `scripts/verify_release_readiness.py`
+- `apps/api/app/main.py`
+- `apps/api/app/services/readiness.py`
+- `apps/api/app/services/clients/openai_responses.py`
+- `apps/api/Dockerfile`
+- `apps/api/README.md`
+- `apps/web/lib/server/research-api.ts`
+- `apps/web/app/page.tsx`
+- `apps/web/app/overview/page.tsx`
+- `apps/web/app/radar/page.tsx`
+- `apps/web/next.config.ts`
+- `apps/web/features/overview/lib/get-overview-snapshot.ts`
+- `apps/web/features/radar/lib/get-radar-workspace.ts`
+- `apps/web/features/stocks/lib/get-stock-workstation.ts`
+- `apps/web/features/history/lib/get-history-replay.ts`
+- `apps/web/features/news/lib/get-news-feed.ts`
+- `apps/web/features/calendar/lib/get-calendar-board.ts`
+- `apps/web/.env.example`
+- `apps/web/README.md`
+- `.dockerignore`
+- `README.md`
+- `docs/deployment.md`
+- `docs/api-integration.md`
+- `docs/env-checklist.md`
+- `docs/test-strategy.md`
+- `docs/adr/ADR-0009-deploy-ready-release-gate.md`
+## 2026-04-11 10:20 KST
+### ???
+- ?? 4?? ?? ??? Gemini ?? provider? deterministic fallback? ????.
+- `RESEARCH_LLM_PROVIDER`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_BASE_URL` env? ????.
+- readiness? OpenAI ?? ??? ??? OpenAI/Gemini/none ??? ????? ????.
+
+### ?
+- `OPENAI_API_KEY`? ?? ? ?? 4?? real path? ?? ??? ??? ??? ??.
+- ?? ?? ??? ?? LLM ??? ??? ???/?? ?? ??? ????.
+
+### ???
+- `ResearchSummaryClient`? OpenAI -> Gemini -> deterministic fallback ??? ?? provider? ???? ??.
+- Gemini REST structured output client? ????, ?? ? source-based deterministic summary? ???? ????.
+- env example? README/docs? ?? ????.
+
+### ?? ??
+- `apps/api/app/config.py`
+- `apps/api/app/services/clients/gemini_responses.py`
+- `apps/api/app/services/clients/summary_router.py`
+- `apps/api/app/services/deterministic_summary.py`
+- `apps/api/app/services/providers/real.py`
+- `apps/api/app/services/readiness.py`
+- `apps/api/.env.example`

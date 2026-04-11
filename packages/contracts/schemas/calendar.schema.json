@@ -1,0 +1,412 @@
+{
+  "$comment": "Canonical source: packages/contracts/schemas/calendar.schema.json. apps/api/prompts/calendar/output.schema.json is a compatibility copy checked by scripts/check_contract_parity.py.",
+  "type": "object",
+  "properties": {
+    "asOf": {
+      "type": "string"
+    },
+    "sourceRefs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "market_data",
+              "news",
+              "fundamentals",
+              "economic",
+              "internal_config",
+              "mock",
+              "disclosure"
+            ]
+          },
+          "publisher": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "sourceKey": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "publisher",
+          "publishedAt",
+          "url",
+          "sourceKey",
+          "symbol"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "missingData": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "expectedSource": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "reason",
+          "expectedSource"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "confidence": {
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "label": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "rationale": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "score",
+        "label",
+        "rationale"
+      ],
+      "additionalProperties": false
+    },
+    "calendarSummary": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "sourceRefIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "text",
+        "sourceRefIds"
+      ],
+      "additionalProperties": false
+    },
+    "highlights": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "tone": {
+            "type": "string",
+            "enum": [
+              "positive",
+              "negative",
+              "neutral"
+            ]
+          },
+          "sourceRefIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "label",
+          "value",
+          "detail",
+          "tone",
+          "sourceRefIds"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "watchlistEvents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "earnings",
+              "ipo",
+              "macro",
+              "disclosure",
+              "news"
+            ]
+          },
+          "market": {
+            "type": "string",
+            "enum": [
+              "watchlist",
+              "global",
+              "domestic"
+            ]
+          },
+          "date": {
+            "type": "string"
+          },
+          "time": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "tone": {
+            "type": "string",
+            "enum": [
+              "positive",
+              "negative",
+              "neutral"
+            ]
+          },
+          "sourceRefIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "category",
+          "market",
+          "date",
+          "time",
+          "summary",
+          "source",
+          "tone",
+          "sourceRefIds"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "marketEvents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "earnings",
+              "ipo",
+              "macro",
+              "disclosure",
+              "news"
+            ]
+          },
+          "market": {
+            "type": "string",
+            "enum": [
+              "watchlist",
+              "global",
+              "domestic"
+            ]
+          },
+          "date": {
+            "type": "string"
+          },
+          "time": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "tone": {
+            "type": "string",
+            "enum": [
+              "positive",
+              "negative",
+              "neutral"
+            ]
+          },
+          "sourceRefIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "category",
+          "market",
+          "date",
+          "time",
+          "summary",
+          "source",
+          "tone",
+          "sourceRefIds"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "domesticEvents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "earnings",
+              "ipo",
+              "macro",
+              "disclosure",
+              "news"
+            ]
+          },
+          "market": {
+            "type": "string",
+            "enum": [
+              "watchlist",
+              "global",
+              "domestic"
+            ]
+          },
+          "date": {
+            "type": "string"
+          },
+          "time": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "tone": {
+            "type": "string",
+            "enum": [
+              "positive",
+              "negative",
+              "neutral"
+            ]
+          },
+          "sourceRefIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "category",
+          "market",
+          "date",
+          "time",
+          "summary",
+          "source",
+          "tone",
+          "sourceRefIds"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "asOf",
+    "sourceRefs",
+    "missingData",
+    "confidence",
+    "calendarSummary",
+    "highlights",
+    "watchlistEvents",
+    "marketEvents",
+    "domesticEvents"
+  ],
+  "additionalProperties": false
+}
