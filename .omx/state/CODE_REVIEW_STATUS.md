@@ -1,4 +1,4 @@
-# Code Review Status
+﻿# Code Review Status
 
 status: APPROVE
 blocking_findings: 0
@@ -12,6 +12,6 @@ low_findings: 1
 
 ## Summary
 - issue #17 range reviewed
-- blocking issue ??
-- `pnpm verify:standard` ??
-- push / PR ?? ??
+- blocking issue 없음
+- `pnpm verify:standard` 통과
+- push / PR 진행 가능
