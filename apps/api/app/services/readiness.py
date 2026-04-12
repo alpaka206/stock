@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from typing import Any, Literal
@@ -254,7 +254,7 @@ async def _run_probe(
         return {
             "name": name,
             "ok": True,
-            "detail": f"{detail} ?? ??={result_size}",
+            "detail": f"{detail} result_count={result_size}",
             "required": required,
         }
     except (ProviderConfigurationError, ExternalServiceError) as exc:
@@ -287,3 +287,4 @@ def _build_report(
         "probe": probe,
         "checks": checks,
     }
+

@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -12,9 +12,18 @@ if [[ ! -f "$DISCORD_ENV_FILE" ]]; then
   exit 1
 fi
 
+if [[ -x ".venv/Scripts/python.exe" ]]; then
+  PYTHON_BIN=".venv/Scripts/python.exe"
+elif command -v python >/dev/null 2>&1; then
+  PYTHON_BIN="python"
+else
+  echo "[discord-bridge-test] python executable not found"
+  exit 1
+fi
+
 export DISCORD_ENV_FILE
 export DISCORD_BRIDGE_PORT
-python omx_discord_bridge/discord_omx_bridge.py > .omx/runtime/discord-bridge.log 2>&1 &
+"$PYTHON_BIN" omx_discord_bridge/discord_omx_bridge.py > .omx/runtime/discord-bridge.log 2>&1 &
 BRIDGE_PID=$!
 trap 'kill $BRIDGE_PID 2>/dev/null || true' EXIT
 
@@ -22,21 +31,31 @@ sleep 2
 curl -s "http://127.0.0.1:${DISCORD_BRIDGE_PORT}/health"
 echo
 
-python - <<'PY'
+"$PYTHON_BIN" - <<'PY'
+import json
 import os
-import time
-import httpx
+from urllib import request
 
 port = int(os.getenv('DISCORD_BRIDGE_PORT', '8787'))
-roles = ['planner', 'critic', 'architect', 'executor']
+roles = ['planner', 'critic', 'researcher', 'architect', 'executor', 'verifier']
 for role in roles:
-    payload = {
-        'username': role,
-        'content': f'[{role}] 1회 테스트 메시지',
-    }
-    response = httpx.post(f'http://127.0.0.1:{port}/event', json=payload, timeout=15.0)
-    print(response.text)
-    time.sleep(1)
+    payload = json.dumps(
+        {
+            'username': role,
+            'content': f'[{role}] bridge smoke message',
+            'meeting_id': 'bridge-smoke',
+            'phase': role,
+            'trigger_id': 'bridge-smoke',
+        }
+    ).encode('utf-8')
+    req = request.Request(
+        f'http://127.0.0.1:{port}/event',
+        data=payload,
+        headers={'Content-Type': 'application/json'},
+        method='POST',
+    )
+    with request.urlopen(req, timeout=15) as response:
+        print(response.read().decode('utf-8'))
 PY
 
 curl -s -X POST "http://127.0.0.1:${DISCORD_BRIDGE_PORT}/sync-replies"

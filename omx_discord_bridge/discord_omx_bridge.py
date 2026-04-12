@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import os
@@ -25,10 +25,30 @@ CONVERSATION_LOG = ROOT / '.omx' / 'state' / 'TEAM_CONVERSATION.jsonl'
 DISCORD_INBOX_LOG = ROOT / '.omx' / 'state' / 'DISCORD_INBOX.jsonl'
 DISCORD_INBOX_SUMMARY = ROOT / '.omx' / 'state' / 'DISCORD_INBOX.md'
 DISCORD_REPLY_STATE = ROOT / '.omx' / 'state' / 'DISCORD_REPLY_STATE.json'
+BRIDGE_RUNTIME_STATUS = ROOT / '.omx' / 'runtime' / 'discord-bridge-status.json'
 
 
 def ensure_state_dirs() -> None:
     (ROOT / '.omx' / 'state').mkdir(parents=True, exist_ok=True)
+    (ROOT / '.omx' / 'runtime').mkdir(parents=True, exist_ok=True)
+
+
+def write_runtime_status(*, status: str, detail: str = '', imported: int = 0, responded: int = 0) -> None:
+    BRIDGE_RUNTIME_STATUS.write_text(
+        json.dumps(
+            {
+                'status': status,
+                'detail': detail,
+                'imported': imported,
+                'responded': responded,
+                'updated_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + '\n',
+        encoding='utf-8',
+    )
 
 
 def load_env_values(env_path: Path) -> dict[str, str]:
@@ -71,11 +91,11 @@ def append_jsonl(path: Path, payload: dict[str, Any]) -> None:
 def write_inbox_summary(imported: list[dict[str, Any]]) -> None:
     lines = ['# Discord Inbox', '']
     if not imported:
-        lines.append('- no new imported Discord reply')
+        lines.append('- 새로 들어온 Discord 메시지 없음')
     else:
         for item in imported[-20:]:
             author = item.get('author', 'unknown')
-            content = item.get('content', '').strip() or '[empty content]'
+            content = item.get('content', '').strip() or '[빈 메시지]'
             lines.append(f'- {author}: {content}')
     DISCORD_INBOX_SUMMARY.write_text('\n'.join(lines) + '\n', encoding='utf-8')
 
@@ -96,7 +116,17 @@ def save_reply_state(last_message_id: str) -> None:
     )
 
 
-def send_discord_message(*, webhook_url: str, content: str, username: str, thread_id: str | None = None) -> dict[str, Any]:
+def send_discord_message(
+    *,
+    webhook_url: str,
+    content: str,
+    username: str,
+    thread_id: str | None = None,
+    source: str = 'agent',
+    meeting_id: str = '',
+    phase: str = '',
+    trigger_id: str = '',
+) -> dict[str, Any]:
     target_url = build_webhook_url(webhook_url, thread_id)
     payload = {
         'content': content,
@@ -105,12 +135,20 @@ def send_discord_message(*, webhook_url: str, content: str, username: str, threa
     }
     response = httpx.post(target_url, json=payload, timeout=15.0)
     response.raise_for_status()
-    append_jsonl(CONVERSATION_LOG, {
-        'source': 'agent',
-        'role': username,
-        'content': content,
-        'thread_id': thread_id or '',
-    })
+    append_jsonl(
+        CONVERSATION_LOG,
+        {
+            'source': source,
+            'role': username,
+            'content': content,
+            'thread_id': thread_id or '',
+            'meeting_id': meeting_id,
+            'phase': phase,
+            'trigger_id': trigger_id,
+            'created_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+        },
+    )
+    write_runtime_status(status='event_sent', detail=f'{username} -> discord', responded=1)
     return {'ok': True, 'status_code': response.status_code}
 
 
@@ -125,10 +163,10 @@ def fetch_channel_messages(*, channel_id: str, bot_token: str, after: str | None
         timeout=15.0,
     )
     response.raise_for_status()
-    messages = response.json()
-    if not isinstance(messages, list):
+    payload = response.json()
+    if not isinstance(payload, list):
         return []
-    return list(reversed(messages))
+    return list(reversed(payload))
 
 
 def import_discord_replies(*, env_values: dict[str, str]) -> dict[str, Any]:
@@ -136,10 +174,14 @@ def import_discord_replies(*, env_values: dict[str, str]) -> dict[str, Any]:
     bot_token = env_values.get('DISCORD_BOT_TOKEN', '').strip()
     allowed_user_ids = parse_allowed_user_ids(env_values.get('ALLOWED_DISCORD_USER_IDS', ''))
     if not channel_id or not bot_token:
-        return {'ok': False, 'imported': 0, 'detail': 'DISCORD_PARENT_CHANNEL_ID or DISCORD_BOT_TOKEN missing'}
+        return {'ok': False, 'imported': 0, 'detail': 'DISCORD_PARENT_CHANNEL_ID 또는 DISCORD_BOT_TOKEN 누락'}
 
     state = load_reply_state()
-    messages = fetch_channel_messages(channel_id=channel_id, bot_token=bot_token, after=state.get('last_message_id') or None)
+    messages = fetch_channel_messages(
+        channel_id=channel_id,
+        bot_token=bot_token,
+        after=state.get('last_message_id') or None,
+    )
     imported: list[dict[str, Any]] = []
     last_seen = state.get('last_message_id', '')
     for message in messages:
@@ -151,12 +193,16 @@ def import_discord_replies(*, env_values: dict[str, str]) -> dict[str, Any]:
             continue
         payload = {
             'source': 'discord_user',
-            'message_id': str(message.get('id', '')),
+            'message_id': str(message.get('id', '')).strip(),
             'author_id': author_id,
             'author': str(author.get('username', 'unknown')),
-            'content': str(message.get('content', '')),
+            'content': str(message.get('content', '')).strip(),
             'channel_id': channel_id,
+            'thread_id': '',
+            'created_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
         }
+        if not payload['message_id'] or not payload['content']:
+            continue
         append_jsonl(DISCORD_INBOX_LOG, payload)
         append_jsonl(CONVERSATION_LOG, payload)
         imported.append(payload)
@@ -165,6 +211,7 @@ def import_discord_replies(*, env_values: dict[str, str]) -> dict[str, Any]:
     if last_seen:
         save_reply_state(last_seen)
     write_inbox_summary(imported)
+    write_runtime_status(status='reply_sync_ok', detail='reply sync complete', imported=len(imported))
     return {'ok': True, 'imported': len(imported), 'detail': 'reply sync complete'}
 
 
@@ -177,8 +224,8 @@ def start_reply_poller(env_path: Path) -> threading.Thread:
                 env_values = load_env_values(env_path)
                 if env_values:
                     import_discord_replies(env_values=env_values)
-            except Exception:
-                pass
+            except Exception as exc:
+                write_runtime_status(status='poll_error', detail=str(exc))
             time.sleep(max(interval, 5))
 
     thread = threading.Thread(target=loop, daemon=True, name='discord-reply-poller')
@@ -192,7 +239,11 @@ class BridgeHandler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
             return
-        payload = {'ok': True, 'bridge': 'discord-omx-bridge'}
+        payload = {
+            'ok': True,
+            'bridge': 'discord-omx-bridge',
+            'runtime': json.loads(BRIDGE_RUNTIME_STATUS.read_text(encoding='utf-8')) if BRIDGE_RUNTIME_STATUS.exists() else {},
+        }
         self.send_response(200)
         self.send_header('Content-Type', 'application/json')
         self.end_headers()
@@ -207,8 +258,13 @@ class BridgeHandler(BaseHTTPRequestHandler):
         bridge_env_file = Path(os.getenv('DISCORD_ENV_FILE', str(DEFAULT_ENV_FILE)))
         env_values = load_env_values(bridge_env_file)
         if self.path == '/sync-replies':
-            result = import_discord_replies(env_values=env_values)
-            self.send_response(200 if result.get('ok') else 503)
+            try:
+                result = import_discord_replies(env_values=env_values)
+                self.send_response(200 if result.get('ok') else 503)
+            except Exception as exc:
+                result = {'ok': False, 'detail': str(exc)}
+                write_runtime_status(status='sync_error', detail=str(exc))
+                self.send_response(502)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps(result).encode('utf-8'))
@@ -228,6 +284,10 @@ class BridgeHandler(BaseHTTPRequestHandler):
         content = str(payload.get('content', '')).strip()
         username = str(payload.get('username', 'executor')).strip() or 'executor'
         thread_id = str(payload.get('thread_id', '')).strip() or None
+        meeting_id = str(payload.get('meeting_id', '')).strip()
+        phase = str(payload.get('phase', '')).strip()
+        trigger_id = str(payload.get('trigger_id', '')).strip()
+        source = str(payload.get('source', 'agent')).strip() or 'agent'
         if not content:
             self.send_response(400)
             self.send_header('Content-Type', 'application/json')
@@ -241,8 +301,13 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 content=content,
                 username=username,
                 thread_id=thread_id,
+                source=source,
+                meeting_id=meeting_id,
+                phase=phase,
+                trigger_id=trigger_id,
             )
         except Exception as exc:
+            write_runtime_status(status='event_error', detail=str(exc))
             self.send_response(502)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
@@ -264,10 +329,12 @@ def main() -> int:
     key_status = load_env_keys(env_path)
     host = os.getenv('DISCORD_BRIDGE_HOST', '127.0.0.1')
     port = int(os.getenv('DISCORD_BRIDGE_PORT', '8787'))
+    write_runtime_status(status='starting', detail='bridge boot')
     print(json.dumps({'env_file_exists': env_path.exists(), 'keys': key_status}, ensure_ascii=False))
     if env_path.exists():
         start_reply_poller(env_path)
     server = HTTPServer((host, port), BridgeHandler)
+    write_runtime_status(status='listening', detail=f'{host}:{port}')
     server.serve_forever()
     return 0
 
