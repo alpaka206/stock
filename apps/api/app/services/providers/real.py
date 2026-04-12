@@ -1776,7 +1776,6 @@ class RealResearchProvider(ResearchProvider):
 
     def _summary_timeout_seconds(self) -> float:
         return max(1.0, min(self.settings.request_timeout_seconds, SUMMARY_TIMEOUT_SECONDS))
-
     def _group_news_by_symbol(self, news_items: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
         grouped: dict[str, list[dict[str, Any]]] = {}
         for item in news_items:

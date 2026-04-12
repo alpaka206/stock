@@ -51,7 +51,7 @@ class AgentsContract:
     auto_continue_policy: str
     release_to_main_policy: str
     required_docs: tuple[str, ...]
-    consensus_order: str
+    consensus_order: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -60,6 +60,16 @@ class RoleSpec:
     goal: str
     sandbox: str
     writable: bool = False
+
+
+@dataclass(frozen=True)
+class MeetingContext:
+    started_at: str
+    focus_note: str
+    trigger_context: str
+    state_excerpt: str
+    docs_excerpt: str
+    related_summary: str
 
 
 ROLE_SPECS = {
@@ -296,9 +306,11 @@ def load_loop_state() -> dict[str, Any]:
     merged = default | payload if isinstance(payload, dict) else default
     if not isinstance(merged.get("handled_discord_message_ids"), list):
         merged["handled_discord_message_ids"] = []
+    merged["handled_discord_message_ids"] = [str(item) for item in merged["handled_discord_message_ids"] if str(item).strip()]
     if not isinstance(merged.get("pending_followup"), dict):
         merged["pending_followup"] = {}
     return merged
+
 
 
 def save_loop_state(payload: dict[str, Any]) -> None:
@@ -449,6 +461,7 @@ def select_trigger(loop_state: dict[str, Any], contract: AgentsContract) -> dict
             "label": "최상위 계약: PRIMARY_TASK",
         }
     return None
+
 
 
 def bridge_url(path: str) -> str:
@@ -707,6 +720,9 @@ def normalize_role_output(role: RoleSpec, payload: dict[str, Any]) -> dict[str, 
     payload["needs_human"] = bool(payload.get("needs_human", False))
     return payload
 
+def run_role(*, role: RoleSpec, trigger: dict[str, Any], meeting_id: str, prior_outputs: list[dict[str, Any]], contract: AgentsContract, context: MeetingContext) -> dict[str, Any]:
+    emit_console(role.name, f"run start trigger={trim(trigger['label'], 100)}")
+    write_runtime_status(status="role_running", detail=trim(trigger['label'], 160), meeting_id=meeting_id, role=role.name, trigger=trigger['kind'])
 
 def run_role(
     role: RoleSpec,
@@ -733,7 +749,7 @@ def run_role(
         "-",
     ]
     if role.writable:
-        args.insert(2, "--full-auto")
+        args[2:2] = ["--sandbox", "danger-full-access"]
     else:
         args[2:2] = ["--sandbox", role.sandbox]
 
@@ -757,6 +773,7 @@ def run_role(
     normalized = normalize_role_output(role, payload)
     emit_console(role.name, f"done status={normalized['status']} next={trim(normalized['proposed_action'], 100)}")
     return normalized
+
 
 
 def format_role_message(payload: dict[str, Any], meeting_id: str, trigger: dict[str, Any]) -> str:
@@ -787,16 +804,17 @@ def format_role_message(payload: dict[str, Any], meeting_id: str, trigger: dict[
 def run_bash_script(script_path: Path, log_name: str, timeout: int) -> tuple[int, str]:
     bash_exe = find_bash()
     log_file = RUNTIME_DIR / log_name
-    with log_file.open("w", encoding="utf-8") as handle:
-        completed = subprocess.run(
-            [bash_exe, str(script_path)],
-            cwd=ROOT,
-            stdout=handle,
-            stderr=subprocess.STDOUT,
-            timeout=timeout,
-            check=False,
-        )
-    return completed.returncode, trim(read_text(log_file), 2000)
+    completed = subprocess.run(
+        [bash_exe, str(script_path)],
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        timeout=timeout,
+        check=False,
+    )
+    log_text = decode_text_bytes(completed.stdout or b"")
+    write_text(log_file, log_text)
+    return completed.returncode, trim(log_text, 2000)
 
 
 def write_verify_failure(status: str, failing_command: str, symptom: str, likely_cause: str, next_fix: str) -> None:
@@ -944,37 +962,40 @@ def write_iteration_journal(iteration: int, meeting_id: str, trigger: dict[str, 
         f"""\
         # Loop Iteration {iteration}
 
-        - started_at: {iso_now()}
+        - started_at: {started_at}
         - meeting_id: {meeting_id}
-        - trigger: {trigger['label'] if trigger else '대기'}
+        - trigger: {trigger['label'] if trigger else 'idle'}
         - note: {note}
 
-        ## 역할 회의 요약
-        {chr(10).join(f"- {item['role']}: {item['summary']}" for item in role_outputs) or '- 역할 실행 없음'}
+        ## Role Summary
+        {chr(10).join(f"- {item['role']}: {item['summary']}" for item in role_outputs) or '- no role output'}
 
-        ## 변경 대상
-        {chr(10).join(f"- {item}" for item in changed_files) or '- 없음'}
+        ## Next Action
+        {chr(10).join(f"- {item}" for item in changed_files) or '- none'}
 
-        ## 검증 결과
-        {chr(10).join(f"- {item}" for item in verification_lines) or '- 없음'}
+        ## Next Action
+        {chr(10).join(f"- {item}" for item in verification_lines) or '- none'}
 
-        ## verify 로그 발췌
+        ## Verify Log
         ```text
-        {verify_log.strip() or '없음'}
+        {verify_log.strip() or 'none'}
         ```
 
-        ## 다음 액션
+        ## Next Action
         - {next_action}
         """
     ).strip() + "\n"
     write_text(JOURNAL_DIR / f"loop-{iteration:04d}.md", journal)
 
 
-def update_failure_streak(loop_state: dict[str, Any], verify_ok: bool, trigger: dict[str, Any] | None) -> None:
-    if verify_ok:
-        loop_state["last_failure_signature"] = ""
-        loop_state["failure_streak"] = 0
-        return
+
+def clear_failure_streak(loop_state: dict[str, Any]) -> None:
+    loop_state["last_failure_signature"] = ""
+    loop_state["failure_streak"] = 0
+
+
+
+def update_failure_streak(loop_state: dict[str, Any], trigger: dict[str, Any] | None) -> None:
     signature = f"{trigger['kind']}::{trigger['id']}" if trigger else "idle"
     if loop_state.get("last_failure_signature") == signature:
         loop_state["failure_streak"] = int(loop_state.get("failure_streak", 0)) + 1
@@ -1058,11 +1079,16 @@ def write_idle_journal(iteration: int, loop_state: dict[str, Any], contract: Age
     write_iteration_journal(iteration, loop_state.get("last_meeting_id", f"idle-{iteration:04d}"), None, [], None, "", contract.primary_task or "Discord 최신 지시를 기다린다.", "새 트리거가 없어 대기한다.")
 
 
+
 def main() -> int:
     ensure_dirs()
     repair_state_logs()
     contract = parse_agents_contract()
+    emit_console("contract", f"primary={trim(contract.primary_task, 140)}")
+    emit_console("contract", f"exit={trim(contract.min_exit_condition, 140)}")
+    emit_console("contract", f"auto_continue={trim(contract.auto_continue_policy, 140)}")
     sync_discord_replies()
+
     loop_state = load_loop_state()
     iteration = int(os.getenv("OMX_LOOP_ITERATION", "0") or "0") or int(loop_state.get("iteration", 0)) + 1
     loop_state["iteration"] = iteration
@@ -1072,7 +1098,7 @@ def main() -> int:
     trigger = select_trigger(loop_state, contract)
     if not trigger:
         emit_console("idle", "no trigger")
-        write_idle_journal(iteration, loop_state, contract)
+        write_idle_journal(iteration, loop_state, contract, started_at)
         write_runtime_status(status="idle", detail="no trigger", trigger="idle")
         save_loop_state(loop_state)
         return 0
@@ -1080,12 +1106,14 @@ def main() -> int:
     note = "Discord 최신 사용자 지시 처리" if trigger["kind"] == "discord_user" else "자율 또는 복구 작업 처리"
     emit_console("trigger", f"kind={trigger['kind']} label={trim(trigger['label'], 140)}")
     try:
-        role_outputs, verify_ok, verify_log, meeting_id = run_meeting(loop_state, trigger, contract)
+        context = build_meeting_context(trigger, contract)
+        role_outputs, verify_ok, verify_log, meeting_id = run_meeting(loop_state, trigger, contract, context)
         next_action = compute_next_action(role_outputs, contract)
-        if verify_ok is not None:
-            update_failure_streak(loop_state, verify_ok, trigger)
-            if not verify_ok:
-                maybe_report_repeated_failure(loop_state, trigger)
+        if verify_ok is False:
+            update_failure_streak(loop_state, trigger)
+            maybe_report_repeated_failure(loop_state, trigger)
+        else:
+            clear_failure_streak(loop_state)
         mark_trigger_done(loop_state, trigger)
         schedule_followup(loop_state, role_outputs, next_action, meeting_id)
         write_iteration_journal(iteration, meeting_id, trigger, role_outputs, verify_ok, verify_log, next_action, note)
@@ -1100,7 +1128,7 @@ def main() -> int:
         write_verify_failure("active", "scripts/omx_autonomous_loop.py", "meeting execution failed", failure_note, "최신 role log를 확인하고 가장 작은 실패 단계부터 다시 실행한다.")
         write_iteration_journal(iteration, loop_state.get("last_meeting_id", f"failed-{iteration:04d}"), trigger, [], False, failure_note, "OMX role 실행 오류를 먼저 복구한다.", "회의 실행 중 예외가 발생했다.")
         loop_state["last_result"] = "failed"
-        update_failure_streak(loop_state, False, trigger)
+        update_failure_streak(loop_state, trigger)
         maybe_report_repeated_failure(loop_state, trigger)
         if trigger["kind"] in {"discord_user", "followup"} and int(loop_state.get("failure_streak", 0)) >= 3:
             mark_trigger_done(loop_state, trigger)
