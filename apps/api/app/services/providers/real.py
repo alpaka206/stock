@@ -6,6 +6,7 @@ from typing import Any, Awaitable, Callable, TypeVar
 
 from app.config import Settings
 from app.services.clients.alpha_vantage import AlphaVantageClient
+from app.services.clients.google_news import GoogleNewsClient
 from app.services.clients.yahoo_market import YahooMarketClient
 from app.services.clients.summary_router import ResearchSummaryClient
 from app.services.deterministic_summary import build_deterministic_page_summary
@@ -43,6 +44,9 @@ class RealResearchProvider(ResearchProvider):
             cache_ttl_seconds=settings.provider_cache_ttl_seconds,
         )
         self.yahoo_market = YahooMarketClient(
+            timeout_seconds=settings.request_timeout_seconds,
+        )
+        self.google_news = GoogleNewsClient(
             timeout_seconds=settings.request_timeout_seconds,
         )
         self.llm = ResearchSummaryClient(
@@ -1641,6 +1645,7 @@ class RealResearchProvider(ResearchProvider):
         tickers: list[str] | None = None,
         timeout_seconds: float | None = None,
     ) -> list[dict[str, Any]]:
+        primary_missing_count = len(missing_data)
         articles = await self._safe_fetch(
             field=field,
             expected_source=expected_source,
@@ -1650,6 +1655,24 @@ class RealResearchProvider(ResearchProvider):
             limit=8,
             timeout_seconds=timeout_seconds,
         )
+
+        source_key = "alpha_vantage::NEWS_SENTIMENT"
+
+        if not articles:
+            fallback_articles = await self._safe_fetch(
+                field=f"{field}.fallback",
+                expected_source="Google News RSS search",
+                missing_data=missing_data,
+                fetcher=self._get_google_news_fallback,
+                tickers=tickers,
+                limit=8,
+                timeout_seconds=timeout_seconds,
+            )
+            if fallback_articles:
+                del missing_data[primary_missing_count:]
+                articles = fallback_articles
+                source_key = "google_news::rss_search"
+
         if not articles:
             return []
 
@@ -1658,15 +1681,25 @@ class RealResearchProvider(ResearchProvider):
             ref = build_source_ref(
                 title=article["title"],
                 kind="news",
-                publisher=article["source"] or "Alpha Vantage",
+                publisher=article["source"] or "Google News RSS",
                 published_at=article["publishedAt"],
-                source_key="alpha_vantage::NEWS_SENTIMENT",
+                source_key=article.get("sourceKey", source_key),
                 url=article["url"],
                 symbol=",".join(article["tickers"]),
             )
             source_refs.append(ref)
             hydrated.append({**article, "sourceRefIds": [ref["id"]]})
         return hydrated
+
+    async def _get_google_news_fallback(
+        self, *, tickers: list[str] | None = None, limit: int = 8
+    ) -> list[dict[str, Any]]:
+        if tickers:
+            return await self.google_news.get_watchlist_headlines(
+                tickers=tickers,
+                limit=limit,
+            )
+        return await self.google_news.get_market_headlines(limit=limit)
 
     async def _safe_fetch(
         self,

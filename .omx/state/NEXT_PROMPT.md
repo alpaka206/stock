@@ -1,11 +1,13 @@
 # 다음 작업 지침
 
-다음 iteration은 아래 순서를 유지한다.
+현재 최소 종료 조건은 충족했다. 다음 세션에서는 아래 순서로 이어가면 된다.
 
-1. `.omx/state/DISCORD_IMPORTANT.md`, `TASK.md`, `STATE.md`, `BACKLOG.md`, `DISCORD_STATUS.md`, `VERIFY_LAST_FAILURE.md`를 먼저 읽는다.
-2. 최신 Discord 사용자 지시 1건만 처리하고, 이전 미처리 지시는 superseded로 정리한다.
-3. `planner -> critic -> researcher -> architect -> executor -> verifier` 순서로 회의를 기록한다.
-4. executor 이후 `scripts/no_secrets_guard.sh`와 `scripts/verify_minimal.sh`를 먼저 통과시킨다.
-5. 실패 원인은 `VERIFY_LAST_FAILURE.md`와 `.omx/journal/loop-*.md`에 한국어로 남긴다.
-6. 같은 실패가 3회 연속 반복되면 같은 방식 반복을 멈추고 우회책을 고른다.
-7. 로컬 gate가 모두 통과한 상태이므로 다음 실제 P0는 `main 반영 -> 원격 API 재배포 확인 -> 프런트엔드 배포 URL 확인 -> 배포 사이트 브라우저 검증` 순서다.
+1. `stock-mu-seven.vercel.app` 와 `stock-9i67.onrender.com` 의 핵심 경로를 다시 한 번 빠르게 점검한다.
+2. `calendar` 첫 요청 지연 원인을 백엔드 기준으로 더 줄일 수 있는지 본다.
+3. 깨진 한글이나 잘못 인코딩된 문자열이 남아 있는 코드와 문서를 저장소 전반에서 추가 정리한다.
+4. Discord 회의형 루프, 주식 데이터 흐름, 배포 검증 결과를 기준으로 후속 가치가 높은 기능을 고른다.
+
+## 재확인할 기준 경로
+
+- 프런트: `/overview`, `/radar`, `/stocks/NVDA`, `/history`, `/news`, `/calendar`
+- 백엔드: `/overview`, `/radar`, `/stocks/NVDA`, `/history?symbol=NVDA`, `/news`, `/calendar`
