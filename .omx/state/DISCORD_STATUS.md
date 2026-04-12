@@ -1,22 +1,9 @@
-# Discord ??
+# Discord Status
 
-- ENABLE_DISCORD_BRIDGE: true
-- DISCORD_ENV_FILE: `omx_discord_bridge/.env.discord`
-- ?? ??: Discord ingest/relay + OMX ?? ?? ??
-- meeting roles: `planner -> critic -> researcher -> architect -> executor -> verifier`
-- bridge runner: `scripts/run-discord-bridge.sh`
-- loop runner: `scripts/omx-loop.sh` -> `scripts/omx_autonomous_loop.py`
-- quick smoke: `scripts/test-discord-bridge.sh`
+## Goal
+- Keep the bridge focused on ingest and relay, and keep the OMX loop focused on role-by-role meetings.
 
-## ??? ??
-- `.omx/state/TEAM_CONVERSATION.jsonl`
-- `.omx/state/DISCORD_INBOX.jsonl`
-- `.omx/state/DISCORD_INBOX.md`
-- `.omx/state/DISCORD_REPLY_STATE.json`
-- `.omx/state/OMX_LOOP_STATE.json`
-
-## ?? ??
-- bridge? loop? ???? ?? ?? ?? ?? ??
-- Discord ??? ???? multi-role ?? end-to-end ??
-- executor ? guard/verify ??? ?? ?? ??
-- ?? 3? ?? ? watchdog ?? ??
+## Current Expectations
+- A new Discord user message should become the highest-priority trigger.
+- Older unhandled Discord messages should be superseded by the latest user message.
+- Meeting progress should be visible in the loop console and recorded in TEAM_CONVERSATION and loop journals.

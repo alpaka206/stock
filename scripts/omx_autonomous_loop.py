@@ -100,7 +100,7 @@ def parse_agents_contract() -> AgentsContract:
     in_required_docs = False
     for line in text.splitlines():
         stripped = line.strip()
-        if stripped == "?? ?? ??":
+        if stripped == "먼저 읽을 문서":
             in_required_docs = True
             continue
         if in_required_docs and stripped.startswith("## "):
@@ -108,14 +108,34 @@ def parse_agents_contract() -> AgentsContract:
         if in_required_docs and stripped.startswith("- "):
             required_docs.append(stripped[2:].strip().strip("`").strip())
 
-    consensus_match = re.search(r"`([^`]+)` ??", text)
+    consensus_order = ["planner", "critic", "architect", "executor"]
+    in_consensus = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped == "## 다중 agent 합의":
+            in_consensus = True
+            continue
+        if in_consensus and stripped.startswith("## "):
+            break
+        if in_consensus and "->" in stripped and "`" in stripped:
+            match = re.search(r"`([^`]+)`", stripped)
+            if match:
+                parsed: list[str] = []
+                for part in match.group(1).split("->"):
+                    role_name = part.strip().strip("`").lower()
+                    if role_name in ROLE_SPECS and role_name not in parsed:
+                        parsed.append(role_name)
+                if parsed:
+                    consensus_order = parsed
+                    break
+
     return AgentsContract(
         primary_task=find_value("PRIMARY_TASK"),
         min_exit_condition=find_value("MIN_EXIT_CONDITION"),
         auto_continue_policy=find_value("AUTO_CONTINUE_POLICY"),
         release_to_main_policy=find_value("RELEASE_TO_MAIN_POLICY"),
         required_docs=tuple(required_docs),
-        consensus_order=consensus_match.group(1).strip() if consensus_match else "planner -> critic -> architect -> executor",
+        consensus_order=tuple(consensus_order),
     )
 
 
@@ -125,7 +145,7 @@ def build_agents_excerpt(contract: AgentsContract) -> str:
         f"- MIN_EXIT_CONDITION: {contract.min_exit_condition}",
         f"- AUTO_CONTINUE_POLICY: {contract.auto_continue_policy}",
         f"- RELEASE_TO_MAIN_POLICY: {contract.release_to_main_policy}",
-        f"- CONSENSUS_ORDER: {contract.consensus_order}",
+        f"- CONSENSUS_ORDER: {' -> '.join(contract.consensus_order) if contract.consensus_order else 'none'}",
     ]
     if contract.required_docs:
         lines.append("- REQUIRED_DOCS:")
@@ -140,7 +160,7 @@ class AgentsContract:
     auto_continue_policy: str
     release_to_main_policy: str
     required_docs: tuple[str, ...]
-    consensus_order: str
+    consensus_order: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -149,6 +169,16 @@ class RoleSpec:
     goal: str
     sandbox: str
     writable: bool = False
+
+
+@dataclass(frozen=True)
+class MeetingContext:
+    started_at: str
+    focus_note: str
+    trigger_context: str
+    state_excerpt: str
+    docs_excerpt: str
+    related_summary: str
 
 
 ROLE_SPECS = {
@@ -178,7 +208,22 @@ def ensure_dirs() -> None:
 def read_text(path: Path, default: str = "") -> str:
     if not path.exists():
         return default
-    return path.read_text(encoding="utf-8")
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        try:
+            return path.read_text(encoding="cp949")
+        except UnicodeDecodeError:
+            return path.read_bytes().decode("utf-8", errors="replace")
+
+
+def decode_text_bytes(data: bytes) -> str:
+    for encoding in ("utf-8", "cp949"):
+        try:
+            return data.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return data.decode("utf-8", errors="replace")
 
 
 def write_text(path: Path, content: str) -> None:
@@ -190,7 +235,7 @@ def load_json(path: Path, default: Any) -> Any:
     if not path.exists():
         return default
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return json.loads(read_text(path))
     except json.JSONDecodeError:
         return default
 
@@ -222,7 +267,7 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
     items: list[dict[str, Any]] = []
-    for raw in path.read_text(encoding="utf-8").splitlines():
+    for raw in read_text(path).splitlines():
         raw = raw.strip()
         if not raw:
             continue
@@ -265,23 +310,85 @@ def parse_verify_failure(text: str) -> dict[str, str]:
     return result
 
 
-def recent_conversation(limit: int = RECENT_CONVERSATION_LIMIT) -> list[dict[str, Any]]:
-    return load_jsonl(TEAM_CONVERSATION_LOG)[-limit:]
+def build_required_docs_excerpt(contract: AgentsContract) -> str:
+    if not contract.required_docs:
+        return "- no related prior meeting summary"
+    sections: list[str] = []
+    for relative_path in contract.required_docs:
+        path = ROOT / relative_path
+        sections.append(f"### {relative_path}\n{trim(read_text(path, '[document missing]'), 1200)}")
+    return "\n\n".join(sections)
 
 
-def render_recent_conversation(items: list[dict[str, Any]]) -> str:
-    if not items:
-        return "- 최근 대화 없음"
-    lines: list[str] = []
-    for item in items:
-        speaker = str(item.get("role") or item.get("author") or item.get("source") or "unknown")
-        content = trim(str(item.get("content", "")), 240)
-        meeting_id = str(item.get("meeting_id", "")).strip()
-        if meeting_id:
-            lines.append(f"- {speaker} [{meeting_id}]: {content}")
-        else:
-            lines.append(f"- {speaker}: {content}")
+def latest_scribe_summary(meeting_id: str = "") -> str:
+    for item in reversed(load_jsonl(TEAM_CONVERSATION_LOG)):
+        if str(item.get("role", "")).strip() != "scribe":
+            continue
+        if meeting_id and str(item.get("meeting_id", "")).strip() != meeting_id:
+            continue
+        return trim(str(item.get("content", "")), 1200)
+    return ""
+
+
+def build_trigger_context(trigger: dict[str, Any]) -> str:
+    if trigger["kind"] == "discord_user":
+        lines = [
+            f"- current_user_message: {trigger['content']}",
+            f"- author: {trigger.get('author', 'unknown')}",
+        ]
+        superseded = trigger.get("superseded_message_ids", [])
+        if superseded:
+            lines.append(f"- superseded_older_messages: {len(superseded)}")
+        return "\n".join(lines)
+    if trigger["kind"] == "followup":
+        lines = [f"- followup_action: {trigger['content']}"]
+        source_meeting_id = str(trigger.get("source_meeting_id", "")).strip()
+        if source_meeting_id:
+            summary = latest_scribe_summary(source_meeting_id)
+            if summary:
+                lines.append(f"- prior_meeting_summary[{source_meeting_id}]: {summary}")
+        return "\n".join(lines)
+    lines = [f"- trigger_label: {trigger['label']}", f"- trigger_content: {trigger['content']}"]
+    summary = latest_scribe_summary()
+    if summary:
+        lines.append(f"- latest_meeting_summary: {summary}")
     return "\n".join(lines)
+
+
+
+def build_focus_note(trigger: dict[str, Any]) -> str:
+    if trigger["kind"] == "discord_user":
+        return "Focus on the latest user message only. Ignore stale Discord backlog and unrelated prior meetings."
+    if trigger["kind"] == "followup":
+        return "Continue only the agreed follow-up action from the most recent relevant meeting."
+    return "Use the current trigger and AGENTS.md as the only source of truth for this meeting."
+
+
+
+def build_related_summary(trigger: dict[str, Any]) -> str:
+    if trigger["kind"] == "followup":
+        source_meeting_id = str(trigger.get("source_meeting_id", "")).strip()
+        if source_meeting_id:
+            summary = latest_scribe_summary(source_meeting_id)
+            if summary:
+                return summary
+    if trigger["kind"] in {"verify_failure", "autonomous_backlog", "next_prompt", "agents_primary_task"}:
+        summary = latest_scribe_summary()
+        if summary:
+            return summary
+    return "- no related prior meeting summary"
+
+
+
+def build_meeting_context(trigger: dict[str, Any], contract: AgentsContract) -> MeetingContext:
+    return MeetingContext(
+        started_at=iso_now(),
+        focus_note=build_focus_note(trigger),
+        trigger_context=build_trigger_context(trigger),
+        state_excerpt=build_state_excerpt(),
+        docs_excerpt=build_required_docs_excerpt(contract),
+        related_summary=build_related_summary(trigger),
+    )
 
 
 def load_loop_state() -> dict[str, Any]:
@@ -303,36 +410,87 @@ def load_loop_state() -> dict[str, Any]:
     merged = default | payload
     if not isinstance(merged.get("handled_discord_message_ids"), list):
         merged["handled_discord_message_ids"] = []
+    merged["handled_discord_message_ids"] = [str(item) for item in merged["handled_discord_message_ids"] if str(item).strip()]
     if not isinstance(merged.get("pending_followup"), dict):
         merged["pending_followup"] = {}
     return merged
 
 
+
 def save_loop_state(payload: dict[str, Any]) -> None:
     handled = payload.get("handled_discord_message_ids", [])
     if isinstance(handled, list):
-        payload["handled_discord_message_ids"] = handled[-MAX_TRACKED_IDS:]
+        unique: list[str] = []
+        seen: set[str] = set()
+        for item in handled:
+            value = str(item).strip()
+            if not value or value in seen:
+                continue
+            unique.append(value)
+            seen.add(value)
+        payload["handled_discord_message_ids"] = unique[-MAX_TRACKED_IDS:]
     if not isinstance(payload.get("pending_followup"), dict):
         payload["pending_followup"] = {}
     write_json(LOOP_STATE_FILE, payload)
 
 
-def select_trigger(loop_state: dict[str, Any], contract: AgentsContract) -> dict[str, Any] | None:
+
+def normalize_discord_message(item: dict[str, Any]) -> dict[str, Any] | None:
+    message_id = str(item.get("message_id", "")).strip()
+    content = str(item.get("content", "")).strip()
+    if not message_id or not content:
+        return None
+    return {
+        "message_id": message_id,
+        "author": str(item.get("author", "unknown")).strip() or "unknown",
+        "content": content,
+        "channel_id": str(item.get("channel_id", "")).strip(),
+        "thread_id": str(item.get("thread_id", "")).strip() or None,
+        "created_at": str(item.get("created_at", "")).strip(),
+    }
+
+
+
+def discord_message_sort_key(item: dict[str, Any]) -> tuple[int, str]:
+    message_id = str(item.get("message_id", "")).strip()
+    if message_id.isdigit():
+        return (int(message_id), message_id)
+    return (0, str(item.get("created_at", "")).strip())
+
+
+
+def collect_unhandled_discord_messages(loop_state: dict[str, Any]) -> list[dict[str, Any]]:
     handled_ids = set(str(item) for item in loop_state.get("handled_discord_message_ids", []))
-    for item in reversed(load_jsonl(DISCORD_INBOX_LOG)):
-        message_id = str(item.get("message_id", "")).strip()
-        content = str(item.get("content", "")).strip()
-        if not message_id or not content or message_id in handled_ids:
+    seen_ids: set[str] = set()
+    items: list[dict[str, Any]] = []
+    for raw_item in load_jsonl(DISCORD_INBOX_LOG):
+        item = normalize_discord_message(raw_item)
+        if not item:
             continue
+        if item["message_id"] in handled_ids or item["message_id"] in seen_ids:
+            continue
+        seen_ids.add(item["message_id"])
+        items.append(item)
+    items.sort(key=discord_message_sort_key)
+    return items
+
+
+
+def select_trigger(loop_state: dict[str, Any], contract: AgentsContract) -> dict[str, Any] | None:
+    unhandled_messages = collect_unhandled_discord_messages(loop_state)
+    if unhandled_messages:
+        latest = unhandled_messages[-1]
+        superseded_message_ids = [item["message_id"] for item in unhandled_messages[:-1]]
         return {
-            "id": f"discord-{message_id}",
+            "id": f"discord-{latest['message_id']}",
             "kind": "discord_user",
-            "message_id": message_id,
-            "author": str(item.get("author", "unknown")),
-            "content": content,
-            "channel_id": str(item.get("channel_id", "")),
-            "thread_id": str(item.get("thread_id", "")).strip() or None,
-            "label": f"Discord ??? ??: {content}",
+            "message_id": latest["message_id"],
+            "author": latest["author"],
+            "content": latest["content"],
+            "channel_id": latest["channel_id"],
+            "thread_id": latest["thread_id"],
+            "superseded_message_ids": superseded_message_ids,
+            "label": f"Discord user message: {latest['content']}",
         }
 
     verify_failure = parse_verify_failure(read_text(VERIFY_FAILURE_FILE))
@@ -342,8 +500,9 @@ def select_trigger(loop_state: dict[str, Any], contract: AgentsContract) -> dict
         return {
             "id": f"verify-{slugify(failing_command + '-' + symptom)}",
             "kind": "verify_failure",
-            "content": f"?? ?? ??? ????. failing_command={failing_command}, symptom={symptom}",
-            "label": f"?? ?? ??: {failing_command}",
+            "content": f"Verification recovery needed. failing_command={failing_command}, symptom={symptom}",
+            "label": f"Verify failure: {failing_command}",
+            "thread_id": None,
         }
 
     pending_followup = loop_state.get("pending_followup") or {}
@@ -353,8 +512,9 @@ def select_trigger(loop_state: dict[str, Any], contract: AgentsContract) -> dict
             "id": str(pending_followup.get("id", f"followup-{slugify(followup_content)}")),
             "kind": "followup",
             "content": followup_content,
-            "label": f"?? ??: {followup_content}",
-            "thread_id": None,
+            "label": f"Follow-up: {followup_content}",
+            "thread_id": str(pending_followup.get("thread_id", "")).strip() or None,
+            "source_meeting_id": str(pending_followup.get("source_meeting_id", "")).strip(),
         }
 
     last_cycle_raw = str(loop_state.get("last_autonomous_cycle_at", "")).strip()
@@ -375,7 +535,8 @@ def select_trigger(loop_state: dict[str, Any], contract: AgentsContract) -> dict
             "id": f"autonomous-{slugify(backlog_action)}",
             "kind": "autonomous_backlog",
             "content": backlog_action,
-            "label": f"?? ??: {backlog_action}",
+            "label": f"Autonomous backlog: {backlog_action}",
+            "thread_id": None,
         }
 
     prompt_action = parse_next_prompt_action(read_text(NEXT_PROMPT_FILE))
@@ -384,7 +545,8 @@ def select_trigger(loop_state: dict[str, Any], contract: AgentsContract) -> dict
             "id": f"next-prompt-{slugify(prompt_action)}",
             "kind": "next_prompt",
             "content": prompt_action,
-            "label": f"?? ?? ??: {prompt_action}",
+            "label": f"Next prompt: {prompt_action}",
+            "thread_id": None,
         }
 
     if contract.primary_task:
@@ -392,9 +554,11 @@ def select_trigger(loop_state: dict[str, Any], contract: AgentsContract) -> dict
             "id": "agents-primary-task",
             "kind": "agents_primary_task",
             "content": contract.primary_task,
-            "label": "AGENTS ?? ?? ??",
+            "label": "AGENTS primary task",
+            "thread_id": None,
         }
     return None
+
 
 
 def bridge_url(path: str) -> str:
@@ -406,7 +570,7 @@ def load_discord_env_values() -> dict[str, str]:
     values: dict[str, str] = {}
     if not env_path.exists():
         return values
-    for line in env_path.read_text(encoding="utf-8").splitlines():
+    for line in read_text(env_path).splitlines():
         stripped = line.strip()
         if not stripped or stripped.startswith("#") or "=" not in stripped:
             continue
@@ -552,7 +716,20 @@ def build_state_excerpt() -> str:
     )
 
 
-def build_role_prompt(*, role: RoleSpec, trigger: dict[str, Any], meeting_id: str, prior_outputs: list[dict[str, Any]], contract: AgentsContract) -> str:
+def build_role_instruction(role: RoleSpec) -> str:
+    instructions = {
+        "planner": "- Propose exactly one smallest P0 task for this trigger.",
+        "critic": "- Call out policy gaps, repeated failure risk, and missing verification first.",
+        "researcher": "- Add only the missing file/log/test facts that are strictly necessary.",
+        "architect": "- Break the agreed task into the smallest implementation and verification steps.",
+        "executor": "- Implement only the agreed minimal change and connect it to guard/verify.",
+        "verifier": "- Judge result quality, verification outcome, and MIN_EXIT_CONDITION progress.",
+    }
+    return instructions.get(role.name, "- Stay within the exact scope of this role.")
+
+
+
+def build_role_prompt(*, role: RoleSpec, trigger: dict[str, Any], meeting_id: str, prior_outputs: list[dict[str, Any]], contract: AgentsContract, context: MeetingContext) -> str:
     prior_sections: list[str] = []
     for item in prior_outputs:
         prior_sections.append(
@@ -563,71 +740,90 @@ def build_role_prompt(*, role: RoleSpec, trigger: dict[str, Any], meeting_id: st
                 - summary: {item['summary']}
                 - rationale: {item['rationale']}
                 - proposed_action: {item['proposed_action']}
-                - risks: {', '.join(item['risks']) if item['risks'] else '??'}
-                - verification: {', '.join(item['verification']) if item['verification'] else '??'}
-                - changed_files: {', '.join(item['changed_files']) if item['changed_files'] else '??'}
-                - followups: {', '.join(item['followups']) if item['followups'] else '??'}
+                - risks: {', '.join(item['risks']) if item['risks'] else 'none'}
+                - verification: {', '.join(item['verification']) if item['verification'] else 'none'}
+                - changed_files: {', '.join(item['changed_files']) if item['changed_files'] else 'none'}
+                - followups: {', '.join(item['followups']) if item['followups'] else 'none'}
                 """
             ).strip()
         )
 
     permission_text = (
-        "?? ??? ?? ?? ??? ?? ??? ????. ?? ???? ???? ?? ????."
+        "- This role is writable. Make the smallest change necessary and keep verification tight."
         if role.writable
-        else "?? ??? read-only?. shell, browser, MCP, ?? ??? ???? ?? ??? ????? ????."
+        else "- This role is read-only. Do not use shell, browser, MCP, or external tools. Reason only from the excerpts below."
     )
 
     return textwrap.dedent(
         f"""
-        ?? OMX ?? ??? `{role.name}` ????.
-        ??: {role.goal}
+        You are the OMX autonomous meeting role `{role.name}`.
+        Role goal: {role.goal}
 
-        AGENTS.md ??:
+        AGENTS.md contract:
         {build_agents_excerpt(contract)}
 
-        ?? ??:
-        - AGENTS.md? PRIMARY_TASK, MIN_EXIT_CONDITION, AUTO_CONTINUE_POLICY? source of truth? ???.
-        - ?? ?? ??? ??? ???? ???? ???? ?? ??? ??? ???.
-        - ??? ???? ???? ?? ? ???? ???, ?? ??? PRIMARY_TASK? MIN_EXIT_CONDITION? ???.
-        - ??? ???? ??.
-        - ??, ??, ?? ??, ?? ??? ???? ???.
-        - ?? ??? JSON Schema? ??? ???? ??.
-        - needs_human? ?? ?? ??? ??? ???? true? ??.
-        - changed_files? ?? ?? ???? ??? ??? ???.
-        - read-only ??? changed_files? ??? ??.
-        - {permission_text}
-        - read-only ??? ?? ??? ???? tool ?? ?? risks, verification, followups? ???.
+        Global rules:
+        - PRIMARY_TASK, MIN_EXIT_CONDITION, and AUTO_CONTINUE_POLICY from AGENTS.md are the source of truth.
+        - Ignore stale Discord backlog and unrelated old meetings.
+        - Focus only on the current trigger and the most relevant prior meeting summary below.
+        - Keep the answer within the JSON schema.
+        - Set needs_human to true only when external input or an external decision is truly required.
+        - If this role is read-only, changed_files must stay empty.
+        - If evidence is missing, do not call tools. Record the gap under risks, verification, or followups.
+        - Respond in Korean.
+        {permission_text}
+        {build_role_instruction(role)}
 
-        ?? ??:
+        Current meeting:
         - meeting_id: {meeting_id}
         - trigger_kind: {trigger['kind']}
         - trigger_label: {trigger['label']}
-        - trigger_content: {trigger['content']}
+        - started_at: {context.started_at}
 
-        ?? ?? ??:
-        {chr(10).join(f'- {item}' for item in contract.required_docs) if contract.required_docs else '- ??'}
+        Focus:
+        {context.focus_note}
 
-        ?? ??:
-        {render_recent_conversation(recent_conversation())}
+        Trigger context:
+        {context.trigger_context}
 
-        ?? ?? ??:
-        {build_state_excerpt()}
+        Related prior meeting summary:
+        {context.related_summary}
 
-        ?? ?? ??:
-        {chr(10).join(prior_sections) if prior_sections else '- ?? ??'}
+        Required docs excerpts:
+        {context.docs_excerpt}
 
-        ??? ??:
-        - planner: ?? ?? ?? ?? ??? ?? ??? ???.
-        - critic: ?? ??, ?? ??, ?? ??? ?? ????.
-        - researcher: ??? ????? ?? ??? ?? ??/?? ??? ????.
-        - architect: ?? ??? ?? ??? ?? ?? ??? ???.
-        - executor: ??? ?? ??? ???? ?? ????.
-        - verifier: ?? ??? MIN_EXIT_CONDITION? ??? ?????? ???? ?? follow-up meeting ??? ???.
+        State excerpts:
+        {context.state_excerpt}
+
+        Prior role outputs:
+        {chr(10).join(prior_sections) if prior_sections else '- no prior role outputs'}
         """
     ).strip()
 
 
-def run_role(*, role: RoleSpec, trigger: dict[str, Any], meeting_id: str, prior_outputs: list[dict[str, Any]], contract: AgentsContract) -> dict[str, Any]:
+
+def normalize_role_output(payload: dict[str, Any], role: RoleSpec) -> dict[str, Any]:
+    payload["role"] = role.name
+    for key in ("risks", "verification", "changed_files", "followups"):
+        if not isinstance(payload.get(key), list):
+            payload[key] = []
+        payload[key] = [str(item).strip() for item in payload[key] if str(item).strip()]
+    payload["summary"] = str(payload.get("summary", "")).strip()
+    payload["rationale"] = str(payload.get("rationale", "")).strip()
+    payload["proposed_action"] = str(payload.get("proposed_action", "")).strip()
+    payload["status"] = str(payload.get("status", "")).strip() or "continue"
+    try:
+        payload["confidence"] = float(payload.get("confidence", 0))
+    except (TypeError, ValueError):
+        payload["confidence"] = 0.0
+    payload["needs_human"] = bool(payload.get("needs_human", False))
+    if not role.writable:
+        payload["changed_files"] = []
+    return payload
+
+
+
+def run_role(*, role: RoleSpec, trigger: dict[str, Any], meeting_id: str, prior_outputs: list[dict[str, Any]], contract: AgentsContract, context: MeetingContext) -> dict[str, Any]:
     emit_console(role.name, f"run start trigger={trim(trigger['label'], 100)}")
     write_runtime_status(status="role_running", detail=trim(trigger['label'], 160), meeting_id=meeting_id, role=role.name, trigger=trigger['kind'])
 
@@ -649,24 +845,30 @@ def run_role(*, role: RoleSpec, trigger: dict[str, Any], meeting_id: str, prior_
         "-",
     ]
     if role.writable:
-        args.insert(2, "--full-auto")
+        args[2:2] = ["--sandbox", "danger-full-access"]
     else:
         args[2:2] = ["--sandbox", role.sandbox]
 
-    prompt = build_role_prompt(role=role, trigger=trigger, meeting_id=meeting_id, prior_outputs=prior_outputs, contract=contract)
+    prompt = build_role_prompt(role=role, trigger=trigger, meeting_id=meeting_id, prior_outputs=prior_outputs, contract=contract, context=context)
+    env = os.environ.copy()
+    env["PYTHONUTF8"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
+
     with log_file.open("w", encoding="utf-8") as log_handle:
         completed = subprocess.run(
             args,
             input=prompt.encode("utf-8"),
             cwd=ROOT,
+            env=env,
             stdout=log_handle,
             stderr=subprocess.STDOUT,
             timeout=ROLE_TIMEOUT_SECONDS,
             check=False,
         )
 
+    log_text = read_text(log_file)
     if completed.returncode != 0:
-        raise RuntimeError(f"{role.name} failed with exit={completed.returncode}: {trim(read_text(log_file), 1200)}")
+        raise RuntimeError(f"{role.name} failed with exit={completed.returncode}: {trim(log_text, 1200)}")
 
     try:
         payload = json.loads(read_text(output_file))
@@ -675,88 +877,14 @@ def run_role(*, role: RoleSpec, trigger: dict[str, Any], meeting_id: str, prior_
     if not isinstance(payload, dict):
         raise RuntimeError(f"{role.name} returned non-object payload")
 
-    payload["role"] = role.name
-    for key in ("risks", "verification", "changed_files", "followups"):
-        if not isinstance(payload.get(key), list):
-            payload[key] = []
-    payload["summary"] = str(payload.get("summary", "")).strip()
-    payload["rationale"] = str(payload.get("rationale", "")).strip()
-    payload["proposed_action"] = str(payload.get("proposed_action", "")).strip()
-    payload["status"] = str(payload.get("status", "")).strip() or "continue"
-    try:
-        payload["confidence"] = float(payload.get("confidence", 0))
-    except (TypeError, ValueError):
-        payload["confidence"] = 0.0
-    payload["needs_human"] = bool(payload.get("needs_human", False))
-
-    log_text = read_text(log_file)
+    payload = normalize_role_output(payload, role)
     if "CreateProcessWithLogonW failed" in log_text:
-        emit_console(role.name, "internal tool attempt failed; continuing from prompt context")
+        emit_console(role.name, "internal tool attempt failed; continuing from provided context")
 
     emit_console(role.name, f"done status={payload['status']} needs_human={payload['needs_human']} next={trim(payload['proposed_action'], 100)}")
     write_runtime_status(status="role_done", detail=trim(payload['summary'], 160), meeting_id=meeting_id, role=role.name, trigger=trigger['kind'])
     return payload
 
-
-def format_role_message(*, role: RoleSpec, trigger: dict[str, Any], meeting_id: str, prior_outputs: list[dict[str, Any]]) -> dict[str, Any]:
-    omx_exec = find_omx_exec()
-    output_file = RUNTIME_DIR / f"{meeting_id}-{role.name}-output.json"
-    log_file = RUNTIME_DIR / f"{meeting_id}-{role.name}.log"
-    args = [
-        omx_exec,
-        "exec",
-        "--cd",
-        OMX_WORKSPACE_ROOT,
-        "--ephemeral",
-        "--color",
-        "never",
-        "--output-schema",
-        str(ROLE_SCHEMA_FILE),
-        "-o",
-        str(output_file),
-        "-",
-    ]
-    if role.writable:
-        args.insert(2, "--full-auto")
-    else:
-        args[2:2] = ["--sandbox", role.sandbox]
-
-    prompt = build_role_prompt(role=role, trigger=trigger, meeting_id=meeting_id, prior_outputs=prior_outputs)
-    with log_file.open("w", encoding="utf-8") as log_handle:
-        completed = subprocess.run(
-            args,
-            input=prompt.encode("utf-8"),
-            cwd=ROOT,
-            stdout=log_handle,
-            stderr=subprocess.STDOUT,
-            timeout=ROLE_TIMEOUT_SECONDS,
-            check=False,
-        )
-
-    if completed.returncode != 0:
-        raise RuntimeError(f"{role.name} failed with exit={completed.returncode}: {trim(read_text(log_file), 1200)}")
-
-    try:
-        payload = json.loads(read_text(output_file))
-    except json.JSONDecodeError as exc:
-        raise RuntimeError(f"{role.name} returned invalid JSON: {exc}") from exc
-    if not isinstance(payload, dict):
-        raise RuntimeError(f"{role.name} returned non-object payload")
-
-    payload["role"] = role.name
-    for key in ("risks", "verification", "changed_files", "followups"):
-        if not isinstance(payload.get(key), list):
-            payload[key] = []
-    payload["summary"] = str(payload.get("summary", "")).strip()
-    payload["rationale"] = str(payload.get("rationale", "")).strip()
-    payload["proposed_action"] = str(payload.get("proposed_action", "")).strip()
-    payload["status"] = str(payload.get("status", "")).strip() or "continue"
-    try:
-        payload["confidence"] = float(payload.get("confidence", 0))
-    except (TypeError, ValueError):
-        payload["confidence"] = 0.0
-    payload["needs_human"] = bool(payload.get("needs_human", False))
-    return payload
 
 
 def format_role_message(payload: dict[str, Any], meeting_id: str, trigger: dict[str, Any]) -> str:
@@ -788,16 +916,17 @@ def format_role_message(payload: dict[str, Any], meeting_id: str, trigger: dict[
 def run_bash_script(script_path: Path, *, log_name: str, timeout: int) -> tuple[int, str]:
     bash_exe = find_bash()
     log_file = RUNTIME_DIR / log_name
-    with log_file.open("w", encoding="utf-8") as handle:
-        completed = subprocess.run(
-            [bash_exe, str(script_path)],
-            cwd=ROOT,
-            stdout=handle,
-            stderr=subprocess.STDOUT,
-            timeout=timeout,
-            check=False,
-        )
-    return completed.returncode, trim(read_text(log_file), 2000)
+    completed = subprocess.run(
+        [bash_exe, str(script_path)],
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        timeout=timeout,
+        check=False,
+    )
+    log_text = decode_text_bytes(completed.stdout or b"")
+    write_text(log_file, log_text)
+    return completed.returncode, trim(log_text, 2000)
 
 
 def write_verify_failure(*, status: str, failing_command: str, symptom: str, likely_cause: str, next_fix: str) -> None:
@@ -841,17 +970,61 @@ def run_verify_gate() -> tuple[bool, str]:
     return True, "\n\n".join(logs)
 
 
+def should_invoke_research(trigger: dict[str, Any], prior_outputs: list[dict[str, Any]]) -> bool:
+    if trigger["kind"] in {"verify_failure", "autonomous_backlog", "next_prompt", "agents_primary_task"}:
+        return True
+    if trigger["kind"] == "discord_user":
+        return False
+    combined = " ".join(
+        " ".join(
+            [
+                str(item.get("summary", "")),
+                str(item.get("rationale", "")),
+                str(item.get("proposed_action", "")),
+                " ".join(str(value) for value in item.get("verification", [])),
+            ]
+        )
+        for item in prior_outputs
+    ).lower()
+    keywords = ["evidence", "log", "file", "verify", "authrequired", "utf-8", "missing", "check"]
+    return any(keyword in combined for keyword in keywords)
+
+
+
+def build_role_sequence(contract: AgentsContract, trigger: dict[str, Any], prior_outputs: list[dict[str, Any]]) -> list[str]:
+    base = [role_name for role_name in contract.consensus_order if role_name in ROLE_SPECS]
+    if not base:
+        base = ["planner", "critic", "architect", "executor"]
+    sequence: list[str] = []
+    for role_name in base:
+        if role_name not in sequence:
+            sequence.append(role_name)
+    if "planner" not in sequence:
+        sequence.insert(0, "planner")
+    if "critic" not in sequence:
+        sequence.insert(1 if sequence else 0, "critic")
+    if "researcher" not in sequence and should_invoke_research(trigger, prior_outputs):
+        insert_at = sequence.index("critic") + 1 if "critic" in sequence else len(sequence)
+        sequence.insert(insert_at, "researcher")
+    if "executor" not in sequence:
+        sequence.append("executor")
+    if "verifier" not in sequence:
+        sequence.append("verifier")
+    return sequence
+
+
+
 def compute_next_action(role_outputs: list[dict[str, Any]], contract: AgentsContract) -> str:
-    if role_outputs:
-        last_output = role_outputs[-1]
-        for candidate in list(last_output.get("followups", [])) + [last_output.get("proposed_action", "")]:
+    for output in reversed(role_outputs):
+        for candidate in list(output.get("followups", [])) + [output.get("proposed_action", "")]:
             candidate_text = str(candidate).strip()
             if candidate_text:
                 return candidate_text
-    return contract.primary_task or "?? P0 ?? ??"
+    return contract.primary_task or "Choose the next smallest validated task."
 
 
-def schedule_followup(loop_state: dict[str, Any], role_outputs: list[dict[str, Any]], next_action: str, meeting_id: str) -> None:
+
+def schedule_followup(loop_state: dict[str, Any], role_outputs: list[dict[str, Any]], next_action: str, meeting_id: str, trigger: dict[str, Any]) -> None:
     if not role_outputs:
         loop_state["pending_followup"] = {}
         return
@@ -864,16 +1037,19 @@ def schedule_followup(loop_state: dict[str, Any], role_outputs: list[dict[str, A
     loop_state["pending_followup"] = {
         "id": f"followup-{slugify(normalized)}",
         "content": normalized,
-        "label": f"?? ??: {normalized}",
+        "label": f"Follow-up: {normalized}",
         "source_meeting_id": meeting_id,
+        "thread_id": str(trigger.get("thread_id", "")).strip(),
         "created_at": iso_now(),
     }
     loop_state["last_next_action"] = normalized
 
 
+
 def write_iteration_journal(
     *,
     iteration: int,
+    started_at: str,
     meeting_id: str,
     trigger: dict[str, Any] | None,
     role_outputs: list[dict[str, Any]],
@@ -902,37 +1078,40 @@ def write_iteration_journal(
         f"""
         # Loop Iteration {iteration}
 
-        - started_at: {iso_now()}
+        - started_at: {started_at}
         - meeting_id: {meeting_id}
-        - trigger: {trigger['label'] if trigger else '대기'}
+        - trigger: {trigger['label'] if trigger else 'idle'}
         - note: {note}
 
-        ## 역할 회의 요약
-        {chr(10).join(f"- {item['role']}: {item['summary']}" for item in role_outputs) or '- 역할 실행 없음'}
+        ## Role Summary
+        {chr(10).join(f"- {item['role']}: {item['summary']}" for item in role_outputs) or '- no role output'}
 
-        ## 변경 대상
-        {chr(10).join(f"- {item}" for item in changed_files) or '- 없음'}
+        ## Next Action
+        {chr(10).join(f"- {item}" for item in changed_files) or '- none'}
 
-        ## 검증 결과
-        {chr(10).join(f"- {item}" for item in verification_lines) or '- 없음'}
+        ## Next Action
+        {chr(10).join(f"- {item}" for item in verification_lines) or '- none'}
 
-        ## verify 로그 발췌
+        ## Verify Log
         ```text
-        {verify_log.strip() or '없음'}
+        {verify_log.strip() or 'none'}
         ```
 
-        ## 다음 액션
+        ## Next Action
         - {next_action}
         """
     ).strip() + "\n"
     write_text(JOURNAL_DIR / f"loop-{iteration:04d}.md", journal)
 
 
-def update_failure_streak(loop_state: dict[str, Any], verify_ok: bool, trigger: dict[str, Any] | None) -> None:
-    if verify_ok:
-        loop_state["last_failure_signature"] = ""
-        loop_state["failure_streak"] = 0
-        return
+
+def clear_failure_streak(loop_state: dict[str, Any]) -> None:
+    loop_state["last_failure_signature"] = ""
+    loop_state["failure_streak"] = 0
+
+
+
+def update_failure_streak(loop_state: dict[str, Any], trigger: dict[str, Any] | None) -> None:
     signature = f"{trigger['kind']}::{trigger['id']}" if trigger else "idle"
     if loop_state.get("last_failure_signature") == signature:
         loop_state["failure_streak"] = int(loop_state.get("failure_streak", 0)) + 1
@@ -941,7 +1120,8 @@ def update_failure_streak(loop_state: dict[str, Any], verify_ok: bool, trigger: 
         loop_state["failure_streak"] = 1
 
 
-def run_meeting(loop_state: dict[str, Any], trigger: dict[str, Any], contract: AgentsContract) -> tuple[list[dict[str, Any]], bool | None, str, str]:
+
+def run_meeting(loop_state: dict[str, Any], trigger: dict[str, Any], contract: AgentsContract, context: MeetingContext) -> tuple[list[dict[str, Any]], bool | None, str, str]:
     loop_state["meeting_counter"] = int(loop_state.get("meeting_counter", 0)) + 1
     meeting_id = f"{utc_now().strftime('%Y%m%d-%H%M%S')}-{loop_state['meeting_counter']:04d}"
     loop_state["last_meeting_id"] = meeting_id
@@ -950,7 +1130,7 @@ def run_meeting(loop_state: dict[str, Any], trigger: dict[str, Any], contract: A
     write_runtime_status(status="meeting_start", detail=trim(trigger["label"], 160), meeting_id=meeting_id, role="coordinator", trigger=trigger["kind"])
     post_message(
         username="coordinator",
-        content=f"[meeting:{meeting_id}] ??. trigger={trigger['label']}",
+        content=f"[meeting:{meeting_id}] meeting start. trigger={trigger['label']}",
         meeting_id=meeting_id,
         phase="meeting_start",
         trigger_id=trigger["id"],
@@ -960,10 +1140,12 @@ def run_meeting(loop_state: dict[str, Any], trigger: dict[str, Any], contract: A
     role_outputs: list[dict[str, Any]] = []
     verify_ok: bool | None = None
     verify_log = ""
+    role_sequence = build_role_sequence(contract, trigger, role_outputs)
+    emit_console("meeting", f"role_sequence={' -> '.join(role_sequence)}")
 
-    for role_name in ROLE_ORDER:
+    for role_name in role_sequence:
         spec = ROLE_SPECS[role_name]
-        output = run_role(role=spec, trigger=trigger, meeting_id=meeting_id, prior_outputs=role_outputs, contract=contract)
+        output = run_role(role=spec, trigger=trigger, meeting_id=meeting_id, prior_outputs=role_outputs, contract=contract, context=context)
         role_outputs.append(output)
         post_message(
             username=role_name,
@@ -982,17 +1164,19 @@ def run_meeting(loop_state: dict[str, Any], trigger: dict[str, Any], contract: A
                 verify_log = "executor reported blocked/needs_human; verify gate skipped"
                 emit_console("verify", "skipped because executor reported blocked/needs_human")
             else:
+                emit_console("verify", "run start")
                 verify_ok, verify_log = run_verify_gate()
+                emit_console("verify", f"done result={'pass' if verify_ok else 'fail'}")
 
     next_action = compute_next_action(role_outputs, contract)
     post_message(
         username="scribe",
         content=textwrap.dedent(
             f"""
-            [meeting:{meeting_id}] ??
-            ?? ??:
-            {chr(10).join(f"- {item['role']}: {item['summary']}" for item in role_outputs) or '- ?? ?? ??'}
-            ?? ??: {next_action}
+            [meeting:{meeting_id}] summary
+            Role summary:
+            {chr(10).join(f"- {item['role']}: {item['summary']}" for item in role_outputs) or '- no role output'}
+            Role summary: {next_action}
             """
         ).strip(),
         meeting_id=meeting_id,
@@ -1004,21 +1188,28 @@ def run_meeting(loop_state: dict[str, Any], trigger: dict[str, Any], contract: A
     return role_outputs, verify_ok, verify_log, meeting_id
 
 
+
 def mark_trigger_done(loop_state: dict[str, Any], trigger: dict[str, Any]) -> None:
     if trigger["kind"] == "discord_user":
-        loop_state.setdefault("handled_discord_message_ids", []).append(trigger["message_id"])
-    if trigger["kind"] == "followup":
+        handled = loop_state.setdefault("handled_discord_message_ids", [])
+        handled.append(trigger["message_id"])
+        for message_id in trigger.get("superseded_message_ids", []):
+            handled.append(message_id)
+        loop_state["pending_followup"] = {}
+    elif trigger["kind"] == "followup":
         loop_state["pending_followup"] = {}
     loop_state["last_autonomous_cycle_at"] = iso_now()
+
 
 
 def maybe_report_repeated_failure(loop_state: dict[str, Any], trigger: dict[str, Any]) -> None:
     streak = int(loop_state.get("failure_streak", 0))
     if streak < 3:
         return
+    emit_console("watchdog", f"same failure repeated streak={streak}")
     post_message(
         username="watchdog",
-        content=f"[meeting:{loop_state.get('last_meeting_id', '')}] 같은 실패가 {streak}회 반복됐다. 같은 방법 반복을 중지하고 우회책을 먼저 고른다.",
+        content=f"[meeting:{loop_state.get('last_meeting_id', '')}] repeated failure streak={streak}. Stop repeating the same method and choose a workaround first.",
         meeting_id=loop_state.get("last_meeting_id", "watchdog"),
         phase="failure_streak",
         trigger_id=trigger["id"],
@@ -1026,51 +1217,67 @@ def maybe_report_repeated_failure(loop_state: dict[str, Any], trigger: dict[str,
     )
 
 
-def write_idle_journal(iteration: int, loop_state: dict[str, Any], contract: AgentsContract) -> None:
+
+def write_idle_journal(iteration: int, loop_state: dict[str, Any], contract: AgentsContract, started_at: str) -> None:
     write_iteration_journal(
         iteration=iteration,
+        started_at=started_at,
         meeting_id=loop_state.get("last_meeting_id", f"idle-{iteration:04d}"),
         trigger=None,
         role_outputs=[],
         verify_ok=None,
         verify_log="",
-        next_action=contract.primary_task or "Discord ?? ?? ?? P0 ?? ??",
-        note="??? ? Discord ??? ?? ?? ?? ??? ?? ??? ??",
+        next_action=contract.primary_task or "Wait for Discord or backlog trigger.",
+        note="No new trigger; waiting.",
     )
+
 
 
 def main() -> int:
     ensure_dirs()
     contract = parse_agents_contract()
+    emit_console("contract", f"primary={trim(contract.primary_task, 140)}")
+    emit_console("contract", f"exit={trim(contract.min_exit_condition, 140)}")
+    emit_console("contract", f"auto_continue={trim(contract.auto_continue_policy, 140)}")
     sync_discord_replies()
+
     loop_state = load_loop_state()
     iteration = int(os.getenv("OMX_LOOP_ITERATION", "0") or "0")
     if iteration <= 0:
         iteration = int(loop_state.get("iteration", 0)) + 1
     loop_state["iteration"] = iteration
+    started_at = iso_now()
     emit_console("loop", f"iteration={iteration} workspace={OMX_WORKSPACE_ROOT}")
 
     trigger = select_trigger(loop_state, contract)
     if not trigger:
         emit_console("idle", "no trigger")
-        write_idle_journal(iteration, loop_state, contract)
+        write_idle_journal(iteration, loop_state, contract, started_at)
         write_runtime_status(status="idle", detail="no trigger", trigger="idle")
         save_loop_state(loop_state)
         return 0
 
-    note = "Discord ?? ?? ??" if trigger["kind"] == "discord_user" else "?? ?? ??"
+    if trigger["kind"] == "discord_user" and trigger.get("superseded_message_ids"):
+        emit_console("trigger", f"latest user message selected; superseded={len(trigger['superseded_message_ids'])}")
+    if trigger["kind"] == "discord_user":
+        clear_failure_streak(loop_state)
+
+    note = "Handle the latest Discord user message." if trigger["kind"] == "discord_user" else "Handle the autonomous follow-up trigger."
     emit_console("trigger", f"kind={trigger['kind']} label={trim(trigger['label'], 140)}")
     try:
-        role_outputs, verify_ok, verify_log, meeting_id = run_meeting(loop_state, trigger, contract)
+        context = build_meeting_context(trigger, contract)
+        role_outputs, verify_ok, verify_log, meeting_id = run_meeting(loop_state, trigger, contract, context)
         next_action = compute_next_action(role_outputs, contract)
-        if verify_ok is not None:
-            update_failure_streak(loop_state, verify_ok, trigger)
-            if not verify_ok:
-                maybe_report_repeated_failure(loop_state, trigger)
+        if verify_ok is False:
+            update_failure_streak(loop_state, trigger)
+            maybe_report_repeated_failure(loop_state, trigger)
+        else:
+            clear_failure_streak(loop_state)
         mark_trigger_done(loop_state, trigger)
-        schedule_followup(loop_state, role_outputs, next_action, meeting_id)
+        schedule_followup(loop_state, role_outputs, next_action, meeting_id, trigger)
         write_iteration_journal(
             iteration=iteration,
+            started_at=started_at,
             meeting_id=meeting_id,
             trigger=trigger,
             role_outputs=role_outputs,
@@ -1096,16 +1303,17 @@ def main() -> int:
         )
         write_iteration_journal(
             iteration=iteration,
+            started_at=started_at,
             meeting_id=loop_state.get("last_meeting_id", f"failed-{iteration:04d}"),
             trigger=trigger,
             role_outputs=[],
             verify_ok=False,
             verify_log=failure_note,
-            next_action="???/omx exec ??? ?? ?? ?? ??",
-            note="?? ?? ? ?? ??",
+            next_action="Inspect the latest role log and bridge state first.",
+            note="Meeting execution failed.",
         )
         loop_state["last_result"] = "failed"
-        update_failure_streak(loop_state, False, trigger)
+        update_failure_streak(loop_state, trigger)
         maybe_report_repeated_failure(loop_state, trigger)
         if trigger["kind"] in {"discord_user", "followup"} and int(loop_state.get("failure_streak", 0)) >= 3:
             mark_trigger_done(loop_state, trigger)
@@ -1113,7 +1321,7 @@ def main() -> int:
         write_runtime_status(status="failed", detail=failure_note, meeting_id=loop_state.get("last_meeting_id", ""), role="watchdog", trigger=trigger["kind"])
         post_message(
             username="watchdog",
-            content=f"[meeting:{loop_state.get('last_meeting_id', '')}] ?? ??: {failure_note}",
+            content=f"[meeting:{loop_state.get('last_meeting_id', '')}] error: {failure_note}",
             meeting_id=loop_state.get("last_meeting_id", f"failed-{iteration:04d}"),
             phase="loop_error",
             trigger_id=trigger["id"],

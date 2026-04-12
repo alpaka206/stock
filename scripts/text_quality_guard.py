@@ -24,9 +24,9 @@ RAW_UNICODE_EXTS = {'.md', '.txt', '.toml', '.yaml', '.yml', '.json'}
 MAX_SCAN_BYTES = 1_000_000
 PLACEHOLDER_RE = re.compile(r'\?{3,}')
 DOC_DOUBLE_QUESTION_RE = re.compile(r'(?<!\?)\?\?(?!\?)')
-UNICODE_ESCAPE_RE = re.compile(r'\u[0-9a-fA-F]{4}')
-MOJIBAKE_RE = re.compile(r'(?:[??????][-¿]){2,}')
-REPLACEMENT_CHAR = '�'
+UNICODE_ESCAPE_RE = re.compile(r'\\u[0-9a-fA-F]{4}')
+MOJIBAKE_RE = re.compile(r'(?:[\xC2\xC3\xE2][\x80-\xBF]){2,}')
+REPLACEMENT_CHAR = chr(0xFFFD)
 CORE_OMX_STATE_FILES = {
     'TASK.md',
     'STATE.md',
