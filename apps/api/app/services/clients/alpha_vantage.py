@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from csv import DictReader
 from datetime import datetime, timezone
 from hashlib import sha1
@@ -31,6 +32,10 @@ class AlphaVantageClient:
         self.timeout_seconds = timeout_seconds
         self.cache_ttl_seconds = cache_ttl_seconds
         self._cache: dict[str, tuple[float, Any]] = {}
+        self._request_lock = asyncio.Lock()
+        self._last_request_completed_at = 0.0
+        self._min_request_interval_seconds = 1.1
+        self._max_rate_limit_retries = 2
 
     async def get_daily_series(self, symbol: str, limit: int = 100) -> list[dict[str, Any]]:
         payload = await self._request(
@@ -219,48 +224,68 @@ class AlphaVantageClient:
                 return cached_payload
 
         request_target = self._describe_request(params)
-        try:
-            async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
-                response = await client.get(self.base_url, params=merged)
-                response.raise_for_status()
-                if datatype == "csv":
-                    payload = response.text
-                else:
-                    payload = response.json()
-        except httpx.HTTPStatusError as exc:
-            status_code = exc.response.status_code
-            if status_code == 429:
-                raise ExternalRateLimitError(
-                    f"Alpha Vantage {request_target} hit a rate limit."
-                ) from exc
-            raise ExternalServiceError(
-                f"Alpha Vantage {request_target} failed with HTTP {status_code}."
-            ) from exc
-        except httpx.TimeoutException as exc:
-            raise ExternalServiceError(
-                f"Alpha Vantage {request_target} timed out."
-            ) from exc
-        except httpx.RequestError as exc:
-            raise ExternalServiceError(
-                f"Alpha Vantage {request_target} failed with a network error."
-            ) from exc
-        except ValueError as exc:
-            raise ExternalServiceError(
-                f"Alpha Vantage {request_target} returned invalid {datatype.upper()} data."
-            ) from exc
+        for attempt in range(self._max_rate_limit_retries + 1):
+            try:
+                async with self._request_lock:
+                    elapsed = time.monotonic() - self._last_request_completed_at
+                    wait_seconds = self._min_request_interval_seconds - elapsed
+                    if wait_seconds > 0:
+                        await asyncio.sleep(wait_seconds)
 
-        if datatype == "json":
-            self._raise_for_provider_errors(payload)
-        self._cache[cache_key] = (now + self.cache_ttl_seconds, payload)
-        return payload
+                    async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+                        response = await client.get(self.base_url, params=merged)
+                        response.raise_for_status()
+                        if datatype == "csv":
+                            payload = response.text
+                        else:
+                            payload = response.json()
+                    self._last_request_completed_at = time.monotonic()
+            except httpx.HTTPStatusError as exc:
+                status_code = exc.response.status_code
+                if status_code == 429:
+                    if attempt < self._max_rate_limit_retries:
+                        await asyncio.sleep(self._min_request_interval_seconds * (attempt + 1))
+                        continue
+                    raise ExternalRateLimitError(
+                        f"Alpha Vantage {request_target} hit a rate limit."
+                    ) from exc
+                raise ExternalServiceError(
+                    f"Alpha Vantage {request_target} failed with HTTP {status_code}."
+                ) from exc
+            except httpx.TimeoutException as exc:
+                raise ExternalServiceError(
+                    f"Alpha Vantage {request_target} timed out."
+                ) from exc
+            except httpx.RequestError as exc:
+                raise ExternalServiceError(
+                    f"Alpha Vantage {request_target} failed with a network error."
+                ) from exc
+            except ValueError as exc:
+                raise ExternalServiceError(
+                    f"Alpha Vantage {request_target} returned invalid {datatype.upper()} data."
+                ) from exc
+
+            try:
+                if datatype == "json":
+                    self._raise_for_provider_errors(payload)
+            except ExternalRateLimitError:
+                if attempt < self._max_rate_limit_retries:
+                    await asyncio.sleep(self._min_request_interval_seconds * (attempt + 1))
+                    continue
+                raise
+
+            self._cache[cache_key] = (now + self.cache_ttl_seconds, payload)
+            return payload
+
+        raise ExternalRateLimitError(f"Alpha Vantage {request_target} hit a rate limit.")
 
     def _raise_for_provider_errors(self, payload: dict[str, Any]) -> None:
         note = payload.get("Note") or payload.get("Information")
         if note:
-            raise ExternalRateLimitError(str(note))
+            raise ExternalRateLimitError(self._sanitize_provider_message(str(note)))
 
         if "Error Message" in payload:
-            raise ExternalServiceError(str(payload["Error Message"]))
+            raise ExternalServiceError(self._sanitize_provider_message(str(payload["Error Message"])))
 
     def _raise_for_csv_errors(self, payload: str, request_target: str) -> None:
         normalized = payload.strip()
@@ -295,7 +320,10 @@ class AlphaVantageClient:
     def _to_float(self, value: Any) -> float:
         if value in (None, "", "None"):
             return 0.0
-        return float(value)
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0
 
     def _parse_percent(self, value: Any) -> float:
         text = str(value or "").replace("%", "")
@@ -309,3 +337,8 @@ class AlphaVantageClient:
             return parsed.replace(tzinfo=timezone.utc).isoformat()
         except ValueError:
             return datetime.now(timezone.utc).isoformat()
+
+    def _sanitize_provider_message(self, message: str) -> str:
+        if self.api_key:
+            return message.replace(self.api_key, "[redacted]")
+        return message

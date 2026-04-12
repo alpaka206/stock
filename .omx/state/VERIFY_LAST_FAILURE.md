@@ -1,4 +1,4 @@
-# Verify Last Failure
+# 최근 검증 실패
 
 status: active
 failing_command: scripts/verify_minimal.sh

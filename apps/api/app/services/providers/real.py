@@ -5,6 +5,7 @@ from typing import Any, Awaitable, Callable, TypeVar
 
 from app.config import Settings
 from app.services.clients.alpha_vantage import AlphaVantageClient
+from app.services.clients.yahoo_market import YahooMarketClient
 from app.services.clients.summary_router import ResearchSummaryClient
 from app.services.deterministic_summary import build_deterministic_page_summary
 from app.services.errors import ExternalServiceError, ProviderConfigurationError
@@ -37,6 +38,9 @@ class RealResearchProvider(ResearchProvider):
             base_url=settings.alpha_vantage_base_url,
             timeout_seconds=settings.request_timeout_seconds,
             cache_ttl_seconds=settings.provider_cache_ttl_seconds,
+        )
+        self.yahoo_market = YahooMarketClient(
+            timeout_seconds=settings.request_timeout_seconds,
         )
         self.llm = ResearchSummaryClient(
             llm_provider=settings.llm_provider,
@@ -152,13 +156,11 @@ class RealResearchProvider(ResearchProvider):
 
         watchlist_rows: list[dict[str, Any]] = []
         for symbol in self.settings.radar_symbols:
-            series = await self._safe_fetch(
+            series, series_publisher, series_source_key = await self._get_daily_series_with_backup(
                 field=f"radar.series.{symbol}",
-                expected_source="Alpha Vantage TIME_SERIES_DAILY",
-                missing_data=missing_data,
-                fetcher=self.market_data.get_daily_series,
                 symbol=symbol,
                 limit=60,
+                missing_data=missing_data,
             )
             if not series or len(series) < 2:
                 continue
@@ -166,9 +168,9 @@ class RealResearchProvider(ResearchProvider):
             series_ref = build_source_ref(
                 title=f"{symbol} 일별 시계열",
                 kind="market_data",
-                publisher="Alpha Vantage",
+                publisher=series_publisher,
                 published_at=series[0]["date"],
-                source_key="alpha_vantage::TIME_SERIES_DAILY",
+                source_key=series_source_key,
                 symbol=symbol,
             )
             source_refs.append(series_ref)
@@ -227,20 +229,16 @@ class RealResearchProvider(ResearchProvider):
             ),
         ]
 
-        series = await self._safe_fetch(
+        series, series_publisher, series_source_key = await self._get_daily_series_with_backup(
             field=f"stocks.series.{symbol}",
-            expected_source="Alpha Vantage TIME_SERIES_DAILY",
-            missing_data=missing_data,
-            fetcher=self.market_data.get_daily_series,
             symbol=symbol,
             limit=90,
-        )
-        overview = await self._safe_fetch(
-            field=f"stocks.overview.{symbol}",
-            expected_source="Alpha Vantage OVERVIEW",
             missing_data=missing_data,
-            fetcher=self.market_data.get_company_overview,
+        )
+        overview, overview_publisher, overview_source_key = await self._get_company_overview_with_backup(
+            field=f"stocks.overview.{symbol}",
             symbol=symbol,
+            missing_data=missing_data,
         )
         news_items = await self._build_news_items(
             source_refs=source_refs,
@@ -255,17 +253,17 @@ class RealResearchProvider(ResearchProvider):
         series_ref = build_source_ref(
             title=f"{symbol} 일별 시계열",
             kind="market_data",
-            publisher="Alpha Vantage",
+            publisher=series_publisher,
             published_at=series[0]["date"],
-            source_key="alpha_vantage::TIME_SERIES_DAILY",
+            source_key=series_source_key,
             symbol=symbol,
         )
         overview_ref = build_source_ref(
             title=f"{symbol} 기업 개요",
             kind="fundamentals",
-            publisher="Alpha Vantage",
+            publisher=overview_publisher,
             published_at=datetime.now(timezone.utc),
-            source_key="alpha_vantage::OVERVIEW",
+            source_key=overview_source_key,
             symbol=symbol,
         )
         source_refs.extend([series_ref, overview_ref])
@@ -320,13 +318,11 @@ class RealResearchProvider(ResearchProvider):
             )
         ]
 
-        series = await self._safe_fetch(
+        series, series_publisher, series_source_key = await self._get_daily_series_with_backup(
             field=f"history.series.{target_symbol}",
-            expected_source="Alpha Vantage TIME_SERIES_DAILY",
-            missing_data=missing_data,
-            fetcher=self.market_data.get_daily_series,
             symbol=target_symbol,
             limit=100,
+            missing_data=missing_data,
         )
         news_items = await self._build_news_items(
             source_refs=source_refs,
@@ -341,9 +337,9 @@ class RealResearchProvider(ResearchProvider):
         series_ref = build_source_ref(
             title=f"{target_symbol} 히스토리 일별 시계열",
             kind="market_data",
-            publisher="Alpha Vantage",
+            publisher=series_publisher,
             published_at=series[0]["date"],
-            source_key="alpha_vantage::TIME_SERIES_DAILY",
+            source_key=series_source_key,
             symbol=target_symbol,
         )
         source_refs.append(series_ref)
@@ -392,13 +388,11 @@ class RealResearchProvider(ResearchProvider):
 
         raw_rows: list[dict[str, Any]] = []
         for symbol in self.settings.radar_symbols:
-            series = await self._safe_fetch(
+            series, series_publisher, series_source_key = await self._get_daily_series_with_backup(
                 field=f"radar.series.{symbol}",
-                expected_source="Alpha Vantage TIME_SERIES_DAILY",
-                missing_data=missing_data,
-                fetcher=self.market_data.get_daily_series,
                 symbol=symbol,
                 limit=60,
+                missing_data=missing_data,
             )
             if not series or len(series) < 2:
                 continue
@@ -406,9 +400,9 @@ class RealResearchProvider(ResearchProvider):
             series_ref = build_source_ref(
                 title=f"{symbol} 일별 시계열",
                 kind="market_data",
-                publisher="Alpha Vantage",
+                publisher=series_publisher,
                 published_at=series[0]["date"],
-                source_key="alpha_vantage::TIME_SERIES_DAILY",
+                source_key=series_source_key,
                 symbol=symbol,
             )
             source_refs.append(series_ref)
@@ -473,20 +467,16 @@ class RealResearchProvider(ResearchProvider):
         source_refs: list[dict[str, Any]] = []
         missing_data: list[dict[str, str]] = []
 
-        series = await self._safe_fetch(
+        series, series_publisher, series_source_key = await self._get_daily_series_with_backup(
             field=f"stocks.series.{symbol}",
-            expected_source="Alpha Vantage TIME_SERIES_DAILY",
-            missing_data=missing_data,
-            fetcher=self.market_data.get_daily_series,
             symbol=symbol,
             limit=90,
-        )
-        overview = await self._safe_fetch(
-            field=f"stocks.overview.{symbol}",
-            expected_source="Alpha Vantage OVERVIEW",
             missing_data=missing_data,
-            fetcher=self.market_data.get_company_overview,
+        )
+        overview, overview_publisher, overview_source_key = await self._get_company_overview_with_backup(
+            field=f"stocks.overview.{symbol}",
             symbol=symbol,
+            missing_data=missing_data,
         )
         news_items = await self._build_news_items(
             source_refs=source_refs,
@@ -501,17 +491,17 @@ class RealResearchProvider(ResearchProvider):
         series_ref = build_source_ref(
             title=f"{symbol} 일별 시계열",
             kind="market_data",
-            publisher="Alpha Vantage",
+            publisher=series_publisher,
             published_at=series[0]["date"],
-            source_key="alpha_vantage::TIME_SERIES_DAILY",
+            source_key=series_source_key,
             symbol=symbol,
         )
         overview_ref = build_source_ref(
             title=f"{symbol} 기업 개요",
             kind="fundamentals",
-            publisher="Alpha Vantage",
+            publisher=overview_publisher,
             published_at=datetime.now(timezone.utc),
-            source_key="alpha_vantage::OVERVIEW",
+            source_key=overview_source_key,
             symbol=symbol,
         )
         source_refs.extend([series_ref, overview_ref])
@@ -589,13 +579,11 @@ class RealResearchProvider(ResearchProvider):
             )
         ]
 
-        series = await self._safe_fetch(
+        series, series_publisher, series_source_key = await self._get_daily_series_with_backup(
             field=f"history.series.{target_symbol}",
-            expected_source="Alpha Vantage TIME_SERIES_DAILY",
-            missing_data=missing_data,
-            fetcher=self.market_data.get_daily_series,
             symbol=target_symbol,
             limit=100,
+            missing_data=missing_data,
         )
         news_items = await self._build_news_items(
             source_refs=source_refs,
@@ -610,9 +598,9 @@ class RealResearchProvider(ResearchProvider):
         series_ref = build_source_ref(
             title=f"{target_symbol} 히스토리 일별 시계열",
             kind="market_data",
-            publisher="Alpha Vantage",
+            publisher=series_publisher,
             published_at=series[0]["date"],
-            source_key="alpha_vantage::TIME_SERIES_DAILY",
+            source_key=series_source_key,
             symbol=target_symbol,
         )
         source_refs.append(series_ref)
@@ -817,13 +805,14 @@ class RealResearchProvider(ResearchProvider):
         ]
 
     def _build_stock_instrument(self, symbol: str, overview: dict[str, Any]) -> dict[str, Any]:
+        market_cap = float(overview.get("marketCapitalization", 0.0) or 0.0)
         return {
             "symbol": symbol,
             "name": overview.get("name", symbol),
-            "exchange": "NASDAQ",
+            "exchange": overview.get("exchange", "") or "NASDAQ",
             "securityCode": self._security_code(symbol),
             "sector": overview.get("sector", "") or "미분류",
-            "marketCap": self._format_market_cap(overview.get("marketCapitalization", 0.0)),
+            "marketCap": self._format_market_cap(market_cap) if market_cap > 0 else "미제공",
         }
 
     def _build_price_series(self, series: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
@@ -1378,22 +1367,20 @@ class RealResearchProvider(ResearchProvider):
     ) -> list[dict[str, Any]]:
         cards: list[dict[str, Any]] = []
         for symbol, label in self.settings.overview_benchmarks.items():
-            series = await self._safe_fetch(
+            series, series_publisher, series_source_key = await self._get_daily_series_with_backup(
                 field=f"overview.benchmark.{symbol}",
-                expected_source="Alpha Vantage TIME_SERIES_DAILY",
-                missing_data=missing_data,
-                fetcher=self.market_data.get_daily_series,
                 symbol=symbol,
                 limit=30,
+                missing_data=missing_data,
             )
             if not series or len(series) < 2:
                 continue
             ref = build_source_ref(
                 title=f"{label} 일별 시계열",
                 kind="market_data",
-                publisher="Alpha Vantage",
+                publisher=series_publisher,
                 published_at=series[0]["date"],
-                source_key="alpha_vantage::TIME_SERIES_DAILY",
+                source_key=series_source_key,
                 symbol=symbol,
             )
             source_refs.append(ref)
@@ -1416,22 +1403,20 @@ class RealResearchProvider(ResearchProvider):
     ) -> list[dict[str, Any]]:
         proxies: list[dict[str, Any]] = []
         for symbol, label in self.settings.sector_proxies.items():
-            series = await self._safe_fetch(
+            series, series_publisher, series_source_key = await self._get_daily_series_with_backup(
                 field=f"overview.sectorProxy.{symbol}",
-                expected_source="Alpha Vantage TIME_SERIES_DAILY",
-                missing_data=missing_data,
-                fetcher=self.market_data.get_daily_series,
                 symbol=symbol,
                 limit=30,
+                missing_data=missing_data,
             )
             if not series or len(series) < 2:
                 continue
             ref = build_source_ref(
                 title=f"{label} ETF 일별 시계열",
                 kind="market_data",
-                publisher="Alpha Vantage",
+                publisher=series_publisher,
                 published_at=series[0]["date"],
-                source_key="alpha_vantage::TIME_SERIES_DAILY",
+                source_key=series_source_key,
                 symbol=symbol,
             )
             source_refs.append(ref)
@@ -1640,6 +1625,75 @@ class RealResearchProvider(ResearchProvider):
         except ExternalServiceError as exc:
             missing_data.append(build_missing_data(field, str(exc), expected_source))
             return None
+
+    async def _get_daily_series_with_backup(
+        self,
+        *,
+        field: str,
+        symbol: str,
+        limit: int,
+        missing_data: list[dict[str, str]],
+    ) -> tuple[list[dict[str, Any]] | None, str, str]:
+        series = await self._safe_fetch(
+            field=field,
+            expected_source="Alpha Vantage TIME_SERIES_DAILY",
+            missing_data=missing_data,
+            fetcher=self.market_data.get_daily_series,
+            symbol=symbol,
+            limit=limit,
+        )
+        if series and len(series) >= 2:
+            return series, "Alpha Vantage", "alpha_vantage::TIME_SERIES_DAILY"
+
+        backup_series = await self._safe_fetch(
+            field=f"{field}.backup",
+            expected_source="Yahoo Finance chart",
+            missing_data=missing_data,
+            fetcher=self.yahoo_market.get_daily_series,
+            symbol=symbol,
+            limit=limit,
+        )
+        if backup_series and len(backup_series) >= 2:
+            return backup_series, "Yahoo Finance", "yahoo_finance::chart"
+
+        return None, "Alpha Vantage", "alpha_vantage::TIME_SERIES_DAILY"
+
+    async def _get_company_overview_with_backup(
+        self,
+        *,
+        field: str,
+        symbol: str,
+        missing_data: list[dict[str, str]],
+    ) -> tuple[dict[str, Any] | None, str, str]:
+        overview = await self._safe_fetch(
+            field=field,
+            expected_source="Alpha Vantage OVERVIEW",
+            missing_data=missing_data,
+            fetcher=self.market_data.get_company_overview,
+            symbol=symbol,
+        )
+        if overview:
+            return overview, "Alpha Vantage", "alpha_vantage::OVERVIEW"
+
+        backup_overview = await self._safe_fetch(
+            field=f"{field}.backup",
+            expected_source="Yahoo Finance search",
+            missing_data=missing_data,
+            fetcher=self.yahoo_market.get_company_overview,
+            symbol=symbol,
+        )
+        if backup_overview:
+            if not backup_overview.get("marketCapitalization"):
+                missing_data.append(
+                    build_missing_data(
+                        f"{field}.marketCap",
+                        "Yahoo 공개 검색 백업은 시가총액을 제공하지 않습니다.",
+                        "Yahoo Finance quote summary",
+                    )
+                )
+            return backup_overview, "Yahoo Finance", "yahoo_finance::search"
+
+        return None, "Alpha Vantage", "alpha_vantage::OVERVIEW"
 
     def _group_news_by_symbol(self, news_items: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
         grouped: dict[str, list[dict[str, Any]]] = {}
