@@ -1,15 +1,22 @@
-# Discord Status
+# Discord ??
 
 - ENABLE_DISCORD_BRIDGE: true
-- DISCORD_ENV_FILE: `.env.discord`
-- `.env.discord` exists: no
-- `.env.discord` tracked: no
-- required keys:
-  - DISCORD_GUILD_ID
-  - DISCORD_PARENT_CHANNEL_ID
-  - DISCORD_WEBHOOK_URL
-  - ALLOWED_DISCORD_USER_IDS
-  - DISCORD_BOT_TOKEN
-- bridge scaffold: installed
-- runtime: blocked until `.env.discord` exists
-- reply injection: blocked
+- DISCORD_ENV_FILE: `omx_discord_bridge/.env.discord`
+- ?? ??: Discord ingest/relay + OMX ?? ?? ??
+- meeting roles: `planner -> critic -> researcher -> architect -> executor -> verifier`
+- bridge runner: `scripts/run-discord-bridge.sh`
+- loop runner: `scripts/omx-loop.sh` -> `scripts/omx_autonomous_loop.py`
+- quick smoke: `scripts/test-discord-bridge.sh`
+
+## ??? ??
+- `.omx/state/TEAM_CONVERSATION.jsonl`
+- `.omx/state/DISCORD_INBOX.jsonl`
+- `.omx/state/DISCORD_INBOX.md`
+- `.omx/state/DISCORD_REPLY_STATE.json`
+- `.omx/state/OMX_LOOP_STATE.json`
+
+## ?? ??
+- bridge? loop? ???? ?? ?? ?? ?? ??
+- Discord ??? ???? multi-role ?? end-to-end ??
+- executor ? guard/verify ??? ?? ?? ??
+- ?? 3? ?? ? watchdog ?? ??
