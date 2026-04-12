@@ -54,5 +54,4 @@
 ## 문서 규칙
 - provider 구조, sourceRefs 계약, contract source of truth가 바뀌면 아래를 함께 갱신한다.
   - `apps/api/README.md`
-  - `docs/changes/CHANGELOG_APPEND_ONLY.md`
   - 관련 ADR

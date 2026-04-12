@@ -6,42 +6,36 @@ cd "$ROOT_DIR"
 
 MAX_ITERATIONS="${MAX_ITERATIONS:-30}"
 INFINITE_MODE="${INFINITE_MODE:-false}"
+OMX_LOOP_INTERVAL_SECONDS="${OMX_LOOP_INTERVAL_SECONDS:-30}"
+OMX_LOOP_ERROR_BACKOFF_SECONDS="${OMX_LOOP_ERROR_BACKOFF_SECONDS:-90}"
 mkdir -p .omx/runtime .omx/journal .omx/state
+export PYTHONUTF8=1
+
+echo "[omx-loop] root=$ROOT_DIR infinite=$INFINITE_MODE interval=${OMX_LOOP_INTERVAL_SECONDS}s"
+
+if [[ -x ".venv/Scripts/python.exe" ]]; then
+  PYTHON_BIN=".venv/Scripts/python.exe"
+elif command -v python >/dev/null 2>&1; then
+  PYTHON_BIN="python"
+else
+  echo "[omx-loop] python executable not found"
+  exit 1
+fi
 
 iteration=1
 while true; do
-  printf '%s
-' "$(date -u +%Y-%m-%dT%H:%M:%SZ) iteration=$iteration" > .omx/runtime/heartbeat.txt
-  printf '# Loop Iteration %s
+  printf '%s iteration=%s
+' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$iteration" > .omx/runtime/heartbeat.txt
+  export OMX_LOOP_ITERATION="$iteration"
+  echo "[omx-loop] iteration=$iteration start"
 
-- started_at: %s
-- consensus: planner -> critic -> architect -> executor
-- next: read .omx/state/NEXT_PROMPT.md and execute the top P0 item
-' "$iteration" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > ".omx/journal/loop-$(printf '%04d' "$iteration").md"
-  ./scripts/no_secrets_guard.sh || break
-
-  if ./scripts/verify_minimal.sh > .omx/runtime/verify-last.log 2>&1; then
-    cat > .omx/state/VERIFY_LAST_FAILURE.md <<'EOF'
-# Verify Last Failure
-
-status: clear
-failing_command:
-symptom:
-likely_cause:
-remediation_owner:
-next_fix:
-EOF
+  if "$PYTHON_BIN" scripts/omx_autonomous_loop.py 2>&1 | tee .omx/runtime/omx-loop-last.log; then
+    echo "[omx-loop] iteration=$iteration ok"
   else
-    cat > .omx/state/VERIFY_LAST_FAILURE.md <<'EOF'
-# Verify Last Failure
-
-status: active
-failing_command: scripts/verify_minimal.sh
-symptom: verification command returned non-zero
-likely_cause: inspect .omx/runtime/verify-last.log
-remediation_owner: current iteration
-next_fix: fix the failing verification item and rerun the same command first
-EOF
+    printf '%s iteration=%s exit=1
+' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$iteration" > .omx/runtime/omx-loop-error.txt
+    echo "[omx-loop] iteration=$iteration failed; see .omx/runtime/omx-loop-last.log"
+    sleep "$OMX_LOOP_ERROR_BACKOFF_SECONDS"
   fi
 
   if [[ "$INFINITE_MODE" != "true" && "$MAX_ITERATIONS" != "0" && "$iteration" -ge "$MAX_ITERATIONS" ]]; then
@@ -49,4 +43,5 @@ EOF
   fi
 
   iteration=$((iteration + 1))
+  sleep "$OMX_LOOP_INTERVAL_SECONDS"
 done

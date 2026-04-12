@@ -4,14 +4,10 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-echo '== TASK =='
-cat .omx/state/TASK.md
-echo
-echo '== STATE =='
-cat .omx/state/STATE.md
-echo
-echo '== BACKLOG =='
-cat .omx/state/BACKLOG.md
-echo
-echo '== GIT WORKFLOW =='
-cat .omx/state/GIT_WORKFLOW_STATUS.md
+for name in TASK STATE BACKLOG NEXT_PROMPT DISCORD_STATUS VERIFY_LAST_FAILURE; do
+  path=".omx/state/${name}.md"
+  [[ -f "$path" ]] || continue
+  echo "== ${name} =="
+  cat "$path"
+  echo
+done

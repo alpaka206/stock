@@ -55,4 +55,3 @@
 ## 변경 시 같이 업데이트할 것
 - `docs/architecture/component-manifest.yaml`
 - `docs/design/design-memory.md`
-- `docs/changes/CHANGELOG_APPEND_ONLY.md`
