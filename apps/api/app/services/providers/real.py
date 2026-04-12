@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable, TypeVar
 
@@ -28,6 +29,8 @@ from app.services.source_refs import (
 )
 
 FetchResultT = TypeVar("FetchResultT")
+FAST_FETCH_TIMEOUT_SECONDS = 4.0
+SUMMARY_TIMEOUT_SECONDS = 6.0
 
 
 class RealResearchProvider(ResearchProvider):
@@ -56,13 +59,30 @@ class RealResearchProvider(ResearchProvider):
         source_refs: list[dict[str, Any]] = []
         missing_data: list[dict[str, str]] = []
 
-        benchmarks = await self._build_benchmark_cards(source_refs, missing_data)
-        sector_proxies = await self._build_sector_proxy_cards(source_refs, missing_data)
-        treasury = await self._safe_fetch(
-            field="overview.treasuryYield10Y",
-            expected_source="Alpha Vantage TREASURY_YIELD",
-            missing_data=missing_data,
-            fetcher=self.market_data.get_treasury_yield,
+        benchmarks, sector_proxies, treasury, top_movers, news_items = await asyncio.gather(
+            self._build_benchmark_cards(source_refs, missing_data),
+            self._build_sector_proxy_cards(source_refs, missing_data),
+            self._safe_fetch(
+                field="overview.treasuryYield10Y",
+                expected_source="Alpha Vantage TREASURY_YIELD",
+                missing_data=missing_data,
+                fetcher=self.market_data.get_treasury_yield,
+                timeout_seconds=self._provider_soft_timeout_seconds(),
+            ),
+            self._safe_fetch(
+                field="overview.topMovers",
+                expected_source="Alpha Vantage TOP_GAINERS_LOSERS",
+                missing_data=missing_data,
+                fetcher=self.market_data.get_top_movers,
+                timeout_seconds=self._provider_soft_timeout_seconds(),
+            ),
+            self._build_news_items(
+                source_refs=source_refs,
+                field="overview.news",
+                expected_source="Alpha Vantage NEWS_SENTIMENT",
+                missing_data=missing_data,
+                timeout_seconds=self._provider_soft_timeout_seconds(),
+            ),
         )
         if treasury:
             treasury_ref = build_source_ref(
@@ -75,12 +95,6 @@ class RealResearchProvider(ResearchProvider):
             source_refs.append(treasury_ref)
             treasury["sourceRefIds"] = [treasury_ref["id"]]
 
-        top_movers = await self._safe_fetch(
-            field="overview.topMovers",
-            expected_source="Alpha Vantage TOP_GAINERS_LOSERS",
-            missing_data=missing_data,
-            fetcher=self.market_data.get_top_movers,
-        )
         if top_movers:
             movers_ref = build_source_ref(
                 title="미국 증시 상위 상승·하락 종목",
@@ -93,13 +107,6 @@ class RealResearchProvider(ResearchProvider):
             for group_name in top_movers:
                 for item in top_movers[group_name]:
                     item["sourceRefIds"] = [movers_ref["id"]]
-
-        news_items = await self._build_news_items(
-            source_refs=source_refs,
-            field="overview.news",
-            expected_source="Alpha Vantage NEWS_SENTIMENT",
-            missing_data=missing_data,
-        )
 
         facts = {
             "benchmarks": benchmarks,
@@ -377,23 +384,34 @@ class RealResearchProvider(ResearchProvider):
         )
         source_refs.append(sector_map_ref)
 
-        news_items = await self._build_news_items(
-            source_refs=source_refs,
-            field="radar.news",
-            expected_source="Alpha Vantage NEWS_SENTIMENT",
-            missing_data=missing_data,
-            tickers=self.settings.radar_symbols,
+        news_items, series_results = await asyncio.gather(
+            self._build_news_items(
+                source_refs=source_refs,
+                field="radar.news",
+                expected_source="Alpha Vantage NEWS_SENTIMENT",
+                missing_data=missing_data,
+                tickers=self.settings.radar_symbols,
+                timeout_seconds=self._provider_soft_timeout_seconds(),
+            ),
+            asyncio.gather(
+                *[
+                    self._get_daily_series_with_backup(
+                        field=f"radar.series.{symbol}",
+                        symbol=symbol,
+                        limit=60,
+                        missing_data=missing_data,
+                        soft_timeout_seconds=self._provider_soft_timeout_seconds(),
+                    )
+                    for symbol in self.settings.radar_symbols
+                ]
+            ),
         )
         news_by_symbol = self._group_news_by_symbol(news_items)
 
         raw_rows: list[dict[str, Any]] = []
-        for symbol in self.settings.radar_symbols:
-            series, series_publisher, series_source_key = await self._get_daily_series_with_backup(
-                field=f"radar.series.{symbol}",
-                symbol=symbol,
-                limit=60,
-                missing_data=missing_data,
-            )
+        for symbol, (series, series_publisher, series_source_key) in zip(
+            self.settings.radar_symbols, series_results
+        ):
             if not series or len(series) < 2:
                 continue
 
@@ -467,23 +485,32 @@ class RealResearchProvider(ResearchProvider):
         source_refs: list[dict[str, Any]] = []
         missing_data: list[dict[str, str]] = []
 
-        series, series_publisher, series_source_key = await self._get_daily_series_with_backup(
-            field=f"stocks.series.{symbol}",
-            symbol=symbol,
-            limit=90,
-            missing_data=missing_data,
-        )
-        overview, overview_publisher, overview_source_key = await self._get_company_overview_with_backup(
-            field=f"stocks.overview.{symbol}",
-            symbol=symbol,
-            missing_data=missing_data,
-        )
-        news_items = await self._build_news_items(
-            source_refs=source_refs,
-            field=f"stocks.news.{symbol}",
-            expected_source="Alpha Vantage NEWS_SENTIMENT",
-            missing_data=missing_data,
-            tickers=[symbol],
+        (
+            (series, series_publisher, series_source_key),
+            (overview, overview_publisher, overview_source_key),
+            news_items,
+        ) = await asyncio.gather(
+            self._get_daily_series_with_backup(
+                field=f"stocks.series.{symbol}",
+                symbol=symbol,
+                limit=90,
+                missing_data=missing_data,
+                soft_timeout_seconds=self._provider_soft_timeout_seconds(),
+            ),
+            self._get_company_overview_with_backup(
+                field=f"stocks.overview.{symbol}",
+                symbol=symbol,
+                missing_data=missing_data,
+                soft_timeout_seconds=self._provider_soft_timeout_seconds(),
+            ),
+            self._build_news_items(
+                source_refs=source_refs,
+                field=f"stocks.news.{symbol}",
+                expected_source="Alpha Vantage NEWS_SENTIMENT",
+                missing_data=missing_data,
+                tickers=[symbol],
+                timeout_seconds=self._provider_soft_timeout_seconds(),
+            ),
         )
         if not series or len(series) < 2 or not overview:
             raise ExternalServiceError(f"{symbol} 상세 분석에 필요한 데이터를 가져오지 못했습니다.")
@@ -579,18 +606,22 @@ class RealResearchProvider(ResearchProvider):
             )
         ]
 
-        series, series_publisher, series_source_key = await self._get_daily_series_with_backup(
-            field=f"history.series.{target_symbol}",
-            symbol=target_symbol,
-            limit=100,
-            missing_data=missing_data,
-        )
-        news_items = await self._build_news_items(
-            source_refs=source_refs,
-            field=f"history.news.{target_symbol}",
-            expected_source="Alpha Vantage NEWS_SENTIMENT",
-            missing_data=missing_data,
-            tickers=[target_symbol],
+        (series, series_publisher, series_source_key), news_items = await asyncio.gather(
+            self._get_daily_series_with_backup(
+                field=f"history.series.{target_symbol}",
+                symbol=target_symbol,
+                limit=100,
+                missing_data=missing_data,
+                soft_timeout_seconds=self._provider_soft_timeout_seconds(),
+            ),
+            self._build_news_items(
+                source_refs=source_refs,
+                field=f"history.news.{target_symbol}",
+                expected_source="Alpha Vantage NEWS_SENTIMENT",
+                missing_data=missing_data,
+                tickers=[target_symbol],
+                timeout_seconds=self._provider_soft_timeout_seconds(),
+            ),
         )
         if not series or len(series) < 2:
             raise ExternalServiceError(f"{target_symbol} 히스토리 시계열을 가져오지 못했습니다.")
@@ -1347,12 +1378,22 @@ class RealResearchProvider(ResearchProvider):
             raise ExternalServiceError(f"{page_key} summary cannot proceed without sourceRefs.")
         deduped_source_refs = dedupe_source_refs(source_refs)
         try:
-            return await self.llm.generate_page_response(
-                prompt_bundle=prompt_bundle,
+            return await asyncio.wait_for(
+                self.llm.generate_page_response(
+                    prompt_bundle=prompt_bundle,
+                    page_key=page_key,
+                    facts=facts,
+                    source_refs=deduped_source_refs,
+                    missing_data=missing_data,
+                ),
+                timeout=self._summary_timeout_seconds(),
+            )
+        except asyncio.TimeoutError:
+            return build_deterministic_page_summary(
                 page_key=page_key,
                 facts=facts,
-                source_refs=deduped_source_refs,
                 missing_data=missing_data,
+                fallback_reason="summary generation timed out",
             )
         except (ProviderConfigurationError, ExternalServiceError) as exc:
             return build_deterministic_page_summary(
@@ -1366,13 +1407,20 @@ class RealResearchProvider(ResearchProvider):
         self, source_refs: list[dict[str, Any]], missing_data: list[dict[str, str]]
     ) -> list[dict[str, Any]]:
         cards: list[dict[str, Any]] = []
-        for symbol, label in self.settings.overview_benchmarks.items():
-            series, series_publisher, series_source_key = await self._get_daily_series_with_backup(
-                field=f"overview.benchmark.{symbol}",
-                symbol=symbol,
-                limit=30,
-                missing_data=missing_data,
-            )
+        entries = list(self.settings.overview_benchmarks.items())
+        results = await asyncio.gather(
+            *[
+                self._get_daily_series_with_backup(
+                    field=f"overview.benchmark.{symbol}",
+                    symbol=symbol,
+                    limit=30,
+                    missing_data=missing_data,
+                    soft_timeout_seconds=self._provider_soft_timeout_seconds(),
+                )
+                for symbol, _label in entries
+            ]
+        )
+        for (symbol, label), (series, series_publisher, series_source_key) in zip(entries, results):
             if not series or len(series) < 2:
                 continue
             ref = build_source_ref(
@@ -1402,13 +1450,20 @@ class RealResearchProvider(ResearchProvider):
         self, source_refs: list[dict[str, Any]], missing_data: list[dict[str, str]]
     ) -> list[dict[str, Any]]:
         proxies: list[dict[str, Any]] = []
-        for symbol, label in self.settings.sector_proxies.items():
-            series, series_publisher, series_source_key = await self._get_daily_series_with_backup(
-                field=f"overview.sectorProxy.{symbol}",
-                symbol=symbol,
-                limit=30,
-                missing_data=missing_data,
-            )
+        entries = list(self.settings.sector_proxies.items())
+        results = await asyncio.gather(
+            *[
+                self._get_daily_series_with_backup(
+                    field=f"overview.sectorProxy.{symbol}",
+                    symbol=symbol,
+                    limit=30,
+                    missing_data=missing_data,
+                    soft_timeout_seconds=self._provider_soft_timeout_seconds(),
+                )
+                for symbol, _label in entries
+            ]
+        )
+        for (symbol, label), (series, series_publisher, series_source_key) in zip(entries, results):
             if not series or len(series) < 2:
                 continue
             ref = build_source_ref(
@@ -1584,6 +1639,7 @@ class RealResearchProvider(ResearchProvider):
         expected_source: str,
         missing_data: list[dict[str, str]],
         tickers: list[str] | None = None,
+        timeout_seconds: float | None = None,
     ) -> list[dict[str, Any]]:
         articles = await self._safe_fetch(
             field=field,
@@ -1592,6 +1648,7 @@ class RealResearchProvider(ResearchProvider):
             fetcher=self.market_data.get_news_sentiment,
             tickers=tickers,
             limit=8,
+            timeout_seconds=timeout_seconds,
         )
         if not articles:
             return []
@@ -1618,10 +1675,23 @@ class RealResearchProvider(ResearchProvider):
         expected_source: str,
         missing_data: list[dict[str, str]],
         fetcher: Callable[..., Awaitable[FetchResultT]],
+        timeout_seconds: float | None = None,
         **kwargs: Any,
     ) -> FetchResultT | None:
         try:
-            return await fetcher(**kwargs)
+            operation = fetcher(**kwargs)
+            if timeout_seconds and timeout_seconds > 0:
+                return await asyncio.wait_for(operation, timeout=timeout_seconds)
+            return await operation
+        except asyncio.TimeoutError:
+            missing_data.append(
+                build_missing_data(
+                    field,
+                    f"{expected_source} timed out after {timeout_seconds:.1f}s.",
+                    expected_source,
+                )
+            )
+            return None
         except ExternalServiceError as exc:
             missing_data.append(build_missing_data(field, str(exc), expected_source))
             return None
@@ -1633,28 +1703,31 @@ class RealResearchProvider(ResearchProvider):
         symbol: str,
         limit: int,
         missing_data: list[dict[str, str]],
+        soft_timeout_seconds: float | None = None,
     ) -> tuple[list[dict[str, Any]] | None, str, str]:
-        series = await self._safe_fetch(
-            field=field,
-            expected_source="Alpha Vantage TIME_SERIES_DAILY",
-            missing_data=missing_data,
-            fetcher=self.market_data.get_daily_series,
-            symbol=symbol,
-            limit=limit,
-        )
-        if series and len(series) >= 2:
-            return series, "Alpha Vantage", "alpha_vantage::TIME_SERIES_DAILY"
-
         backup_series = await self._safe_fetch(
-            field=f"{field}.backup",
+            field=field,
             expected_source="Yahoo Finance chart",
             missing_data=missing_data,
             fetcher=self.yahoo_market.get_daily_series,
             symbol=symbol,
             limit=limit,
+            timeout_seconds=soft_timeout_seconds,
         )
         if backup_series and len(backup_series) >= 2:
             return backup_series, "Yahoo Finance", "yahoo_finance::chart"
+
+        series = await self._safe_fetch(
+            field=f"{field}.alpha",
+            expected_source="Alpha Vantage TIME_SERIES_DAILY",
+            missing_data=missing_data,
+            fetcher=self.market_data.get_daily_series,
+            symbol=symbol,
+            limit=limit,
+            timeout_seconds=soft_timeout_seconds,
+        )
+        if series and len(series) >= 2:
+            return series, "Alpha Vantage", "alpha_vantage::TIME_SERIES_DAILY"
 
         return None, "Alpha Vantage", "alpha_vantage::TIME_SERIES_DAILY"
 
@@ -1664,23 +1737,15 @@ class RealResearchProvider(ResearchProvider):
         field: str,
         symbol: str,
         missing_data: list[dict[str, str]],
+        soft_timeout_seconds: float | None = None,
     ) -> tuple[dict[str, Any] | None, str, str]:
-        overview = await self._safe_fetch(
-            field=field,
-            expected_source="Alpha Vantage OVERVIEW",
-            missing_data=missing_data,
-            fetcher=self.market_data.get_company_overview,
-            symbol=symbol,
-        )
-        if overview:
-            return overview, "Alpha Vantage", "alpha_vantage::OVERVIEW"
-
         backup_overview = await self._safe_fetch(
-            field=f"{field}.backup",
+            field=field,
             expected_source="Yahoo Finance search",
             missing_data=missing_data,
             fetcher=self.yahoo_market.get_company_overview,
             symbol=symbol,
+            timeout_seconds=soft_timeout_seconds,
         )
         if backup_overview:
             if not backup_overview.get("marketCapitalization"):
@@ -1693,8 +1758,24 @@ class RealResearchProvider(ResearchProvider):
                 )
             return backup_overview, "Yahoo Finance", "yahoo_finance::search"
 
+        overview = await self._safe_fetch(
+            field=f"{field}.alpha",
+            expected_source="Alpha Vantage OVERVIEW",
+            missing_data=missing_data,
+            fetcher=self.market_data.get_company_overview,
+            symbol=symbol,
+            timeout_seconds=soft_timeout_seconds,
+        )
+        if overview:
+            return overview, "Alpha Vantage", "alpha_vantage::OVERVIEW"
+
         return None, "Alpha Vantage", "alpha_vantage::OVERVIEW"
 
+    def _provider_soft_timeout_seconds(self) -> float:
+        return min(self.settings.request_timeout_seconds, FAST_FETCH_TIMEOUT_SECONDS)
+
+    def _summary_timeout_seconds(self) -> float:
+        return max(1.0, min(self.settings.request_timeout_seconds, SUMMARY_TIMEOUT_SECONDS))
     def _group_news_by_symbol(self, news_items: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
         grouped: dict[str, list[dict[str, Any]]] = {}
         for item in news_items:
