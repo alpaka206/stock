@@ -163,7 +163,7 @@ def _build_stock_summary(*, facts: dict[str, Any], missing_data: list[dict[str, 
         refs = []
     if missing_data:
         text += " Flow and option data remain unavailable."
-    return {"thesis": text, "thesisSourceRefIds": refs}
+    return {"thesis": text}
 
 
 def _build_history_summary(*, facts: dict[str, Any], missing_data: list[dict[str, str]]) -> dict[str, Any]:

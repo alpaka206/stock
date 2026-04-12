@@ -29,6 +29,17 @@ REQUIRED_WEB_API_ENV = (
 )
 
 
+def load_env_file(path: Path) -> None:
+    if not path.exists():
+        return
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip())
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Verify deploy-ready release gate for the stock workspace."
@@ -43,6 +54,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    load_env_file(ROOT / "apps" / "api" / ".env")
+    load_env_file(ROOT / "apps" / "web" / ".env")
     checks: list[dict[str, Any]] = []
 
     checks.extend(check_api_env())
@@ -153,7 +166,7 @@ def run_release_probe() -> list[dict[str, Any]]:
             "name": "route::/readyz?probe=remote",
             "ok": readiness.status_code == 200 and readiness_payload.get("status") == "ready",
             "detail": (
-                "실 provider 3종 readiness가 통과했습니다."
+                "실서비스 readiness가 통과했습니다."
                 if readiness.status_code == 200 and readiness_payload.get("status") == "ready"
                 else f"실 provider readiness 실패: HTTP {readiness.status_code} / {readiness_payload}"
             ),
