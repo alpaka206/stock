@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from hashlib import sha1
+import re
 from typing import Any
 
 
@@ -68,5 +69,13 @@ def _as_iso(value: str | datetime) -> str:
             return value.replace(tzinfo=timezone.utc).isoformat()
         return value.isoformat()
     if value:
-        return value
+        normalized = str(value).strip()
+        if re.fullmatch(r"\d{8}", normalized):
+            normalized = f"{normalized[:4]}-{normalized[4:6]}-{normalized[6:8]}"
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", normalized):
+            return f"{normalized}T00:00:00+00:00"
+        try:
+            return datetime.fromisoformat(normalized.replace("Z", "+00:00")).isoformat()
+        except ValueError:
+            pass
     return datetime.now(timezone.utc).isoformat()

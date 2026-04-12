@@ -7,6 +7,7 @@ from app.config import Settings
 from app.services.clients.alpha_vantage import AlphaVantageClient
 from app.services.clients.open_dart import OpenDartClient
 from app.services.clients.summary_router import ResearchSummaryClient
+from app.services.clients.yahoo_market import YahooMarketClient
 from app.services.errors import ExternalServiceError, ProviderConfigurationError
 from app.services.prompt_loader import PromptLoader
 from app.services.providers.factory import create_provider
@@ -177,14 +178,45 @@ async def _run_remote_provider_probes(settings: Settings) -> list[dict[str, Any]
         timeout_seconds=settings.request_timeout_seconds,
         cache_ttl_seconds=settings.provider_cache_ttl_seconds,
     )
-    checks.append(
-        await _run_probe(
-            name="provider::alpha-vantage",
-            detail="Probe TIME_SERIES_DAILY MSFT with 2 candles.",
-            probe=lambda: alpha_client.get_daily_series("MSFT", limit=2),
-            required=True,
-        )
+    yahoo_client = YahooMarketClient(
+        timeout_seconds=settings.request_timeout_seconds,
     )
+    alpha_check = await _run_probe(
+        name="provider::alpha-vantage",
+        detail="Probe TIME_SERIES_DAILY MSFT with 2 candles.",
+        probe=lambda: alpha_client.get_daily_series("MSFT", limit=2),
+        required=False,
+    )
+    checks.append(alpha_check)
+    if alpha_check["ok"]:
+        checks.append(
+            {
+                "name": "provider::market-data",
+                "ok": True,
+                "detail": "Primary Alpha Vantage market-data probe succeeded.",
+                "required": True,
+            }
+        )
+    else:
+        yahoo_check = await _run_probe(
+            name="provider::yahoo-finance",
+            detail="Probe Yahoo Finance chart MSFT with 2 candles.",
+            probe=lambda: yahoo_client.get_daily_series("MSFT", limit=2),
+            required=False,
+        )
+        checks.append(yahoo_check)
+        checks.append(
+            {
+                "name": "provider::market-data",
+                "ok": yahoo_check["ok"],
+                "detail": (
+                    "Alpha Vantage probe failed, but Yahoo Finance backup probe succeeded."
+                    if yahoo_check["ok"]
+                    else "Alpha Vantage probe failed and Yahoo Finance backup probe also failed."
+                ),
+                "required": True,
+            }
+        )
 
     if settings.opendart_api_key:
         open_dart_client = OpenDartClient(

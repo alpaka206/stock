@@ -1,4 +1,4 @@
-# Verify Last Failure
+# 최근 검증 실패
 
 status: clear
 failing_command:

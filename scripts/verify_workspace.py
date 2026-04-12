@@ -26,6 +26,7 @@ PY_COMPILE_TARGETS = [
     "apps/api/app/services/clients/openai_responses.py",
     "apps/api/app/services/clients/gemini_responses.py",
     "apps/api/app/services/clients/summary_router.py",
+    "apps/api/app/services/clients/yahoo_market.py",
     "apps/api/app/services/deterministic_summary.py",
     "apps/api/app/services/readiness.py",
     "apps/api/app/services/providers/mock.py",

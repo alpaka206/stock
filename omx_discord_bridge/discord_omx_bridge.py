@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -26,11 +27,38 @@ DISCORD_INBOX_LOG = ROOT / '.omx' / 'state' / 'DISCORD_INBOX.jsonl'
 DISCORD_INBOX_SUMMARY = ROOT / '.omx' / 'state' / 'DISCORD_INBOX.md'
 DISCORD_REPLY_STATE = ROOT / '.omx' / 'state' / 'DISCORD_REPLY_STATE.json'
 BRIDGE_RUNTIME_STATUS = ROOT / '.omx' / 'runtime' / 'discord-bridge-status.json'
+CONTROL_CHAR_RE = re.compile(r'[\x00-\x08\x0B\x0C\x0E-\x1F]')
+RAW_UNICODE_ESCAPE_RE = re.compile(r'\\u[0-9a-fA-F]{4}')
+DOUBLE_QUESTION_RE = re.compile(r'\?\?')
+HANGUL_RE = re.compile(r'[가-힣]')
 
 
 def ensure_state_dirs() -> None:
     (ROOT / '.omx' / 'state').mkdir(parents=True, exist_ok=True)
     (ROOT / '.omx' / 'runtime').mkdir(parents=True, exist_ok=True)
+
+
+def sanitize_text(value: str) -> str:
+    text = value.replace('\r\n', '\n').replace('\r', '\n')
+    text = CONTROL_CHAR_RE.sub('', text).strip()
+    question_count = text.count('?')
+    if question_count >= 3 and not HANGUL_RE.search(text):
+        ascii_letters = sum(1 for ch in text if ch.isascii() and ch.isalpha())
+        if ascii_letters < 8:
+            return '[인코딩 손상으로 원문을 보존하지 못함]'
+    text = DOUBLE_QUESTION_RE.sub('물음표 두 개', text)
+    text = RAW_UNICODE_ESCAPE_RE.sub('[유니코드 이스케이프 제거]', text)
+    return text
+
+
+def sanitize_value(value: Any) -> Any:
+    if isinstance(value, str):
+        return sanitize_text(value)
+    if isinstance(value, list):
+        return [sanitize_value(item) for item in value]
+    if isinstance(value, dict):
+        return {str(key): sanitize_value(item) for key, item in value.items()}
+    return value
 
 
 def write_runtime_status(*, status: str, detail: str = '', imported: int = 0, responded: int = 0) -> None:
@@ -85,7 +113,38 @@ def build_webhook_url(webhook_url: str, thread_id: str | None) -> str:
 def append_jsonl(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open('a', encoding='utf-8') as handle:
-        handle.write(json.dumps(payload, ensure_ascii=False) + '\n')
+        handle.write(json.dumps(sanitize_value(payload), ensure_ascii=False) + '\n')
+
+
+def load_jsonl(path: Path) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    if not path.exists():
+        return items
+    for raw in path.read_text(encoding='utf-8').splitlines():
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            items.append(payload)
+    return items
+
+
+def rewrite_jsonl(path: Path, items: list[dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open('w', encoding='utf-8') as handle:
+        for item in items:
+            handle.write(json.dumps(sanitize_value(item), ensure_ascii=False) + '\n')
+
+
+def repair_state_logs() -> None:
+    for path in (DISCORD_INBOX_LOG, CONVERSATION_LOG):
+        if not path.exists():
+            continue
+        rewrite_jsonl(path, [sanitize_value(item) for item in load_jsonl(path)])
 
 
 def write_inbox_summary(imported: list[dict[str, Any]]) -> None:
@@ -127,6 +186,8 @@ def send_discord_message(
     phase: str = '',
     trigger_id: str = '',
 ) -> dict[str, Any]:
+    content = sanitize_text(content)
+    username = sanitize_text(username)
     target_url = build_webhook_url(webhook_url, thread_id)
     payload = {
         'content': content,
@@ -195,8 +256,8 @@ def import_discord_replies(*, env_values: dict[str, str]) -> dict[str, Any]:
             'source': 'discord_user',
             'message_id': str(message.get('id', '')).strip(),
             'author_id': author_id,
-            'author': str(author.get('username', 'unknown')),
-            'content': str(message.get('content', '')).strip(),
+            'author': sanitize_text(str(author.get('username', 'unknown'))),
+            'content': sanitize_text(str(message.get('content', '')).strip()),
             'channel_id': channel_id,
             'thread_id': '',
             'created_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
@@ -325,6 +386,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
 
 def main() -> int:
     ensure_state_dirs()
+    repair_state_logs()
     env_path = Path(os.getenv('DISCORD_ENV_FILE', str(DEFAULT_ENV_FILE)))
     key_status = load_env_keys(env_path)
     host = os.getenv('DISCORD_BRIDGE_HOST', '127.0.0.1')
