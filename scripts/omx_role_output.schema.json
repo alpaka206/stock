@@ -9,6 +9,9 @@
     "summary",
     "rationale",
     "proposed_action",
+    "team_message",
+    "question_for_next",
+    "reply_to",
     "risks",
     "verification",
     "changed_files",
@@ -44,6 +47,20 @@
     "proposed_action": {
       "type": "string",
       "minLength": 1
+    },
+    "team_message": {
+      "type": "string",
+      "minLength": 1
+    },
+    "question_for_next": {
+      "type": "string"
+    },
+    "reply_to": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 6
     },
     "risks": {
       "type": "array",

@@ -17,6 +17,7 @@
 - `scripts/omx_autonomous_loop.py`
 - `scripts/omx_role_output.schema.json`
 - `scripts/check-discord-bridge.sh`
+- `scripts/send-discord-event.py`
 - `scripts/test-discord-bridge.sh`
 - `scripts/sync-discord-replies.sh`
 
@@ -34,8 +35,9 @@
 3. New Discord user messages are imported into `.omx/state/DISCORD_INBOX.jsonl` and `.omx/state/TEAM_CONVERSATION.jsonl`.
 4. The loop selects the next trigger from Discord input, verify failures, or the top P0 backlog item.
 5. `planner -> critic -> researcher -> architect -> executor -> verifier` are run through `omx exec`.
-6. Every role message and the closing summary are posted back to Discord and also logged locally when bridge fallback is used.
-7. After `executor`, the loop runs `scripts/no_secrets_guard.sh` and `scripts/verify_minimal.sh`.
+6. Each role emits a Korean `team_message` that responds to the previous speaker instead of a flat smoke log.
+7. Every role message and the closing summary are posted back to Discord and also logged locally when bridge fallback is used.
+8. After `executor`, the loop runs `scripts/no_secrets_guard.sh` and `scripts/verify_minimal.sh`.
 
 ## Suggested Launch
 ```powershell
@@ -48,17 +50,18 @@ $env:INFINITE_MODE='true'
 ```powershell
 & 'C:\Program Files\Git\bin\bash.exe' scripts/check-discord-bridge.sh
 & 'C:\Program Files\Git\bin\bash.exe' scripts/test-discord-bridge.sh
+python scripts/send-discord-event.py --username coordinator --meeting-id manual-check --phase handoff --trigger-id manual-check "UTF-8 수동 알림 점검"
 ```
 
 Expected result:
 - `/health` returns JSON with runtime bridge status
-- one smoke message per role reaches Discord
+- a short Korean dialogue between roles reaches Discord
 - `/sync-replies` returns JSON
 
 ## Read Path
 - if you type in the configured Discord channel and your user ID is in `ALLOWED_DISCORD_USER_IDS`, the bridge imports the message into `.omx/state/DISCORD_INBOX.jsonl`
 - imported messages are also appended to `.omx/state/TEAM_CONVERSATION.jsonl`
-- the loop reads those files, holds an actual repo-aware meeting, and posts the discussion back to Discord
+- the loop reads those files, holds an actual repo-aware meeting, and posts the discussion back to Discord in Korean
 - autonomous internal meetings are also written to Discord and the local journal
 
 ## Security
