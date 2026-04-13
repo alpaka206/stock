@@ -6,8 +6,7 @@ type DataSourceNoticeProps = {
   className?: string;
 };
 
-const toneClassMap: Record<ResearchDataSource["mode"], string> = {
-  live: "border-[color:color-mix(in_oklch,var(--positive)_35%,transparent)] bg-[color:color-mix(in_oklch,var(--positive)_10%,transparent)] text-foreground",
+const toneClassMap: Record<Exclude<ResearchDataSource["mode"], "live">, string> = {
   mock: "border-[color:color-mix(in_oklch,var(--warning)_35%,transparent)] bg-[color:color-mix(in_oklch,var(--warning)_10%,transparent)] text-foreground",
   fixture: "border-border/70 bg-background/70 text-foreground",
   "fixture-fallback":
@@ -15,20 +14,19 @@ const toneClassMap: Record<ResearchDataSource["mode"], string> = {
 };
 
 export function DataSourceNotice({ source, className }: DataSourceNoticeProps) {
+  if (source.mode === "live") {
+    return null;
+  }
+
   return (
     <div
       className={cn(
-        "rounded-[calc(var(--radius)*1.05)] border px-3 py-2.5",
+        "rounded-[calc(var(--radius)*1.05)] border px-3 py-2",
         toneClassMap[source.mode],
         className
       )}
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          데이터 상태
-        </span>
-        <span className="text-sm font-semibold tracking-tight">{source.label}</span>
-      </div>
+      <p className="text-sm font-semibold tracking-tight">{source.label}</p>
       <p className="mt-1 text-sm leading-6 text-muted-foreground">{source.description}</p>
     </div>
   );

@@ -128,12 +128,12 @@ export function buildFixtureDataSource({
   return fallback
     ? {
         mode: "fixture-fallback",
-        label: "샘플 데이터 대체",
+        label: "대체 데이터",
         description: reason,
       }
     : {
         mode: "fixture",
-        label: "샘플 데이터",
+        label: "기본 데이터",
         description: reason,
       };
 }
@@ -145,15 +145,15 @@ export function buildPayloadDataSource(sourceRefs: SourceRef[]): ResearchDataSou
   if (isMockPayload) {
     return {
       mode: "mock",
-      label: "API mock 응답",
-      description: "API가 mock sourceRefs를 반환했습니다. 실데이터 판단으로 사용하지 마세요.",
+      label: "검증 응답",
+      description: "API가 검증용 sourceRefs를 반환했습니다. 실제 분석용 데이터로 사용하지 마세요.",
     };
   }
 
   return {
     mode: "live",
-    label: "실데이터 연결",
-    description: "실데이터 sourceRefs와 결정론적 계산 결과를 기준으로 화면을 구성했습니다.",
+    label: "실시간 데이터",
+    description: "연결된 sourceRefs와 결정론적 계산 결과를 기준으로 화면을 구성했습니다.",
   };
 }
 
@@ -163,7 +163,7 @@ export function assertResearchApiAvailable(result: ResearchApiFetchResult<unknow
   }
 
   throw new Error(
-    `${pageLabel} API 연결이 실패했습니다. release 모드에서는 샘플 데이터로 자동 대체하지 않습니다. ${result.errorMessage}`
+    `${pageLabel} API 연결이 실패했습니다. release 모드에서는 대체 데이터를 자동 표시하지 않습니다. ${result.errorMessage}`
   );
 }
 

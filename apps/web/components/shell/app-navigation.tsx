@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { Badge } from "@/components/ui/badge";
 import { mainNavigation, isNavigationActive } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
@@ -44,19 +43,9 @@ export function AppNavigation({ onNavigate }: AppNavigationProps) {
                 <Icon className="size-4" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-semibold tracking-tight">
-                    {navigationItem.label}
-                  </p>
-                  {navigationItem.id === "stocks" ? (
-                    <Badge
-                      variant="secondary"
-                      className="rounded-full px-2 py-0.5 text-[0.68rem]"
-                    >
-                      샘플
-                    </Badge>
-                  ) : null}
-                </div>
+                <p className="text-sm font-semibold tracking-tight">
+                  {navigationItem.label}
+                </p>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
                   {navigationItem.description}
                 </p>
