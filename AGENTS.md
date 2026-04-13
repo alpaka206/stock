@@ -19,6 +19,9 @@
 - MIN_EXIT_CONDITION: 1단계에서 Discord를 통해 agent들이 서로 읽고 역할별로 응답하는 회의 흐름이 실제로 확인됨. 2단계에서 차트, 실시간 글로벌 뉴스, 공시, API 연동, FE/BE 연결이 end-to-end로 동작함. 3단계에서 QA 완료, main 반영, 배포 사이트의 FE/BE 직접 확인까지 끝남. 이후 유용한 후속 기능과 추가 점검 결과까지 기록됨.
 - AUTO_CONTINUE_POLICY: 최소 종료 조건을 충족할 때까지 가장 작고 검증 가능한 다음 작업을 스스로 고르고 계속 진행
 - RELEASE_TO_MAIN_POLICY: auto-merge-if-green
+- ENABLE_GITHUB_AUTOMATION: true
+- ISSUE_PR_POLICY: issue-first branch -> develop, develop -> main release pr
+- REVIEW_FEEDBACK_POLICY: same-branch same-pr follow-up
 - ENABLE_DISCORD_BRIDGE: true
 - DISCORD_ENV_FILE: `omx_discord_bridge/.env.discord`
 

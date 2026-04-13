@@ -36,8 +36,9 @@
 4. The loop selects the next trigger from Discord input, verify failures, or the top P0 backlog item.
 5. `planner -> critic -> researcher -> architect -> executor -> verifier` are run through `omx exec`.
 6. Each role emits a Korean `team_message` that responds to the previous speaker instead of a flat smoke log.
-7. Every role message and the closing summary are posted back to Discord and also logged locally when bridge fallback is used.
-8. After `executor`, the loop runs `scripts/no_secrets_guard.sh` and `scripts/verify_minimal.sh`.
+7. Discord shows the role through the webhook username, so the visible body should avoid duplicated `meeting_id` or role prefixes while local logs keep the correlation fields.
+8. Every role message and the closing summary are posted back to Discord and also logged locally when bridge fallback is used.
+9. After `executor`, the loop runs `scripts/no_secrets_guard.sh` and `scripts/verify_minimal.sh`.
 
 ## Suggested Launch
 ```powershell
@@ -55,7 +56,7 @@ python scripts/send-discord-event.py --username coordinator --meeting-id manual-
 
 Expected result:
 - `/health` returns JSON with runtime bridge status
-- a short Korean dialogue between roles reaches Discord
+- a short Korean dialogue between roles reaches Discord without `[meeting:...] role:` prefixes in the visible body
 - `/sync-replies` returns JSON
 
 ## Read Path

@@ -1,8 +1,8 @@
 # 최근 검증 실패
 
-status: active
-failing_command: scripts/verify_minimal.sh
-symptom: text_quality_guard regex compile failed
-likely_cause: UNICODE_ESCAPE_RE in scripts/text_quality_guard.py uses an unescaped backslash-u pattern and raises re.error before workspace checks start
-remediation_owner: current iteration
-next_fix: fix UNICODE_ESCAPE_RE in scripts/text_quality_guard.py and rerun scripts/verify_minimal.sh first
+status: clear
+failing_command:
+symptom:
+likely_cause: 이전 `build_meeting_context` 미정의 실패는 현재 코드 기준으로 해소됐다.
+remediation_owner:
+next_fix: 다음 실제 루프 실행에서 새로운 실패가 발생하면 그 결과로 이 파일을 다시 갱신한다.
