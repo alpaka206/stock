@@ -40,31 +40,31 @@ port = int(os.getenv('DISCORD_BRIDGE_PORT', '8787'))
 messages = [
     (
         'coordinator',
-        '[meeting:bridge-dialogue-smoke] coordinator: Discord 회의형 브리지 스모크 테스트를 시작합니다. 역할들이 서로 이어서 말하는 형식이 보이는지 확인해 주세요.',
+        'Discord 회의형 브리지 스모크 테스트를 시작합니다. 역할들이 서로 이어서 말하는 형식이 보이는지 확인해 주세요.',
     ),
     (
         'planner',
-        '[meeting:bridge-dialogue-smoke] planner: 이번 요청의 핵심은 Discord에서 실제로 읽히는 회의 흐름입니다. 한 줄 상태 보고보다 역할 간 응답 구조를 먼저 만들 필요가 있다고 봅니다.',
+        '이번 요청의 핵심은 Discord에서 실제로 읽히는 회의 흐름입니다. 한 줄 상태 보고보다 역할 간 응답 구조를 먼저 만들 필요가 있다고 봅니다.',
     ),
     (
         'critic',
-        '[meeting:bridge-dialogue-smoke] critic: planner 의견에는 동의하지만, 읽기 쉬운 한국어와 과한 로그 노출 방지도 같이 잡아야 합니다. 그렇지 않으면 실제 사용 단계에서 금방 피로해집니다.',
+        'planner 의견에는 동의하지만, 읽기 쉬운 한국어와 과한 로그 노출 방지도 같이 잡아야 합니다. 그렇지 않으면 실제 사용 단계에서 금방 피로해집니다.',
     ),
     (
         'researcher',
-        '[meeting:bridge-dialogue-smoke] researcher: 현재 브리지는 송수신은 되지만 메시지가 스모크 로그처럼 보입니다. 테스트도 대화형 샘플로 바꾸면 사용감 검증이 쉬워집니다.',
+        '현재 브리지는 송수신은 되지만 메시지가 스모크 로그처럼 보입니다. 테스트도 대화형 샘플로 바꾸면 사용감 검증이 쉬워집니다.',
     ),
     (
         'architect',
-        '[meeting:bridge-dialogue-smoke] architect: 그러면 역할별 JSON에 team_message와 reply_to를 넣고, Discord에는 그 필드만 읽기 좋게 풀어서 보내는 구조가 맞겠습니다.',
+        '그러면 역할별 JSON에 team_message와 reply_to를 넣고, Discord에는 그 필드만 읽기 좋게 풀어서 보내는 구조가 맞겠습니다.',
     ),
     (
         'executor',
-        '[meeting:bridge-dialogue-smoke] executor: 우선 회의형 포맷과 테스트 스크립트를 정리하고, 실제 사용자는 채널에 한 줄 남기면 루프가 한국어로 이어받아 답하는 흐름으로 검증하겠습니다.',
+        '우선 회의형 포맷과 테스트 스크립트를 정리하고, 실제 사용자는 채널에 한 줄 남기면 루프가 한국어로 이어받아 답하는 흐름으로 검증하겠습니다.',
     ),
     (
         'verifier',
-        '[meeting:bridge-dialogue-smoke] verifier: 현재 단계에서는 회의형 메시지 가독성과 실제 송수신 여부를 먼저 확인하면 충분합니다. 사용자가 채널에 메시지를 보내면 import 로그까지 같이 보겠습니다.',
+        '현재 단계에서는 회의형 메시지 가독성과 실제 송수신 여부를 먼저 확인하면 충분합니다. 사용자가 채널에 메시지를 보내면 import 로그까지 같이 보겠습니다.',
     ),
 ]
 for role, content in messages:
