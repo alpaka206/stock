@@ -3,7 +3,7 @@ import type { NewsFeedFixture } from "@/lib/research/types";
 export const newsFeedFixture: NewsFeedFixture = {
   asOf: "04.08 09:10",
   marketSummary:
-    "해외 헤드라인, 관심종목 뉴스, 국내 공시를 한 흐름으로 읽는 샘플 뉴스 피드입니다.",
+    "해외 헤드라인, 관심종목 뉴스, 국내 공시를 한 흐름으로 읽는 뉴스 피드입니다.",
   drivers: [
     {
       label: "해외 헤드라인",
@@ -19,7 +19,7 @@ export const newsFeedFixture: NewsFeedFixture = {
     },
     {
       label: "국내 공시",
-      text: "OpenDART 연동 전까지는 샘플 공시 카드를 표시합니다.",
+      text: "OpenDART 연동 전까지는 기본 공시 카드를 표시합니다.",
       tone: "neutral",
       href: "/calendar",
     },
@@ -55,7 +55,7 @@ export const newsFeedFixture: NewsFeedFixture = {
       id: "fixture-domestic-1",
       headline: "국내 공시 예시",
       source: "fixture",
-      summary: "OpenDART 연동 전 sample disclosure 카드입니다.",
+      summary: "OpenDART 연동 전 기본 공시 카드입니다.",
       impact: "공시",
       publishedAt: "2026-04-08T08:30:00+09:00",
       url: "",
@@ -65,7 +65,7 @@ export const newsFeedFixture: NewsFeedFixture = {
   ],
   dataSource: {
     mode: "fixture",
-    label: "샘플 데이터",
+    label: "기본 데이터",
     description: "API가 연결되지 않은 환경에서 뉴스 피드 구조를 먼저 확인하기 위한 fixture입니다.",
   },
 };

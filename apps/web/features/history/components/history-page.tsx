@@ -223,9 +223,9 @@ export function HistoryPage({ history }: HistoryPageProps) {
       <div className="grid gap-[var(--space-grid)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <ResearchPanel title="급등 / 급락 이유 요약" description="과거 움직임 이유를 카드로 다시 읽는다.">
           <div className="space-y-3">
-            {history.moveReasons.map((reason) => (
+            {history.moveReasons.map((reason, index) => (
               <div
-                key={reason.label}
+                key={`${reason.label}-${reason.relatedDate ?? index}`}
                 className="rounded-[calc(var(--radius)*1.05)] border border-border/55 bg-background/30 p-4"
               >
                 <div className="flex items-center justify-between gap-3">
@@ -246,9 +246,9 @@ export function HistoryPage({ history }: HistoryPageProps) {
 
         <ResearchPanel title="중복 지표 설명 카드" description="변곡점에서 겹친 보조지표 신호를 함께 본다.">
           <div className="space-y-3">
-            {history.overlaps.map((overlap) => (
+            {history.overlaps.map((overlap, index) => (
               <div
-                key={overlap.label}
+                key={`${overlap.label}-${overlap.relatedDate ?? index}`}
                 className="rounded-[calc(var(--radius)*1.05)] border border-border/55 bg-background/30 p-4"
               >
                 <div className="flex items-center justify-between gap-3">

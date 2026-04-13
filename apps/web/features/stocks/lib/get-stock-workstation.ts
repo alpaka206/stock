@@ -25,7 +25,7 @@ export async function getStockWorkstation(symbol: string) {
       ...fallback,
       dataSource: buildFixtureDataSource({
         fallback: false,
-        reason: "API URL이 설정되지 않아 샘플 종목 워크스테이션을 표시합니다.",
+        reason: "API URL이 설정되지 않아 기본 종목 구성을 표시합니다.",
       }),
     };
   }
@@ -36,7 +36,7 @@ export async function getStockWorkstation(symbol: string) {
       ...fallback,
       dataSource: buildFixtureDataSource({
         fallback: allowFixtureFallback(),
-        reason: `stocks API 연결이 실패해 샘플 종목 워크스테이션을 대신 표시합니다. ${result.errorMessage}`,
+        reason: `stocks API 연결이 실패해 대체 종목 구성을 표시합니다. ${result.errorMessage}`,
       }),
     };
   }
@@ -48,7 +48,7 @@ export async function getStockWorkstation(symbol: string) {
       ...fallback,
       dataSource: buildFixtureDataSource({
         fallback: true,
-        reason: "stocks API 응답에 가격 시계열이 없어 샘플 종목 워크스테이션을 대신 표시합니다.",
+        reason: "stocks API 응답에 가격 시계열이 없어 기본 종목 구성을 표시합니다.",
       }),
     };
   }

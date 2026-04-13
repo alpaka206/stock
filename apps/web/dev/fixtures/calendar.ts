@@ -3,7 +3,7 @@ import type { CalendarFixture } from "@/lib/research/types";
 export const calendarFixture: CalendarFixture = {
   asOf: "04.08 09:20",
   summary:
-    "실적, IPO, 국내 공시를 한 흐름으로 보는 샘플 캘린더입니다.",
+    "실적, IPO, 국내 공시를 한 흐름으로 보는 캘린더입니다.",
   highlights: [
     {
       label: "관심종목 실적",
@@ -20,7 +20,7 @@ export const calendarFixture: CalendarFixture = {
     {
       label: "국내 공시",
       value: "1건",
-      detail: "OpenDART 연동 전 샘플",
+      detail: "OpenDART 연동 대기",
       tone: "neutral",
     },
   ],
@@ -42,7 +42,7 @@ export const calendarFixture: CalendarFixture = {
   marketEvents: [
     {
       id: "fixture-market-event-1",
-      title: "Sample IPO",
+      title: "신규 상장 예정",
       category: "ipo",
       market: "global",
       date: "2026-04-22",
@@ -62,7 +62,7 @@ export const calendarFixture: CalendarFixture = {
       market: "domestic",
       date: "2026-04-17",
       time: "공시",
-      summary: "OpenDART 연동 전 샘플 카드입니다.",
+      summary: "OpenDART 연동 전 기본 공시 카드입니다.",
       source: "fixture",
       symbol: "005930",
       url: "",
@@ -71,7 +71,7 @@ export const calendarFixture: CalendarFixture = {
   ],
   dataSource: {
     mode: "fixture",
-    label: "샘플 데이터",
+    label: "기본 데이터",
     description: "API가 연결되지 않은 환경에서 캘린더 구조를 먼저 확인하기 위한 fixture입니다.",
   },
 };

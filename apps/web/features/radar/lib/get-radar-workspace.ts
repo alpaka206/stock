@@ -28,7 +28,7 @@ export async function getRadarWorkspace() {
       ...radarFixture,
       dataSource: buildFixtureDataSource({
         fallback: false,
-        reason: "API URL이 설정되지 않아 샘플 watchlist를 표시합니다.",
+        reason: "API URL이 설정되지 않아 기본 watchlist를 표시합니다.",
       }),
     };
   }
@@ -39,7 +39,7 @@ export async function getRadarWorkspace() {
       ...radarFixture,
       dataSource: buildFixtureDataSource({
         fallback: allowFixtureFallback(),
-        reason: `radar API 연결이 실패해 샘플 watchlist를 대신 표시합니다. ${result.errorMessage}`,
+        reason: `radar API 연결이 실패해 대체 watchlist를 표시합니다. ${result.errorMessage}`,
       }),
     };
   }
@@ -51,7 +51,7 @@ export async function getRadarWorkspace() {
       ...radarFixture,
       dataSource: buildFixtureDataSource({
         fallback: true,
-        reason: "radar API 응답에 watchlistRows가 없어 샘플 watchlist를 대신 표시합니다.",
+        reason: "radar API 응답에 watchlistRows가 없어 기본 watchlist를 표시합니다.",
       }),
     };
   }

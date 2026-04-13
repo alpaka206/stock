@@ -23,7 +23,7 @@ export async function getCalendarBoard() {
       ...calendarFixture,
       dataSource: buildFixtureDataSource({
         fallback: false,
-        reason: "API URL이 설정되지 않아 샘플 캘린더를 표시합니다.",
+        reason: "API URL이 설정되지 않아 기본 일정을 표시합니다.",
       }),
     } satisfies CalendarFixture;
   }
@@ -34,7 +34,7 @@ export async function getCalendarBoard() {
       ...calendarFixture,
       dataSource: buildFixtureDataSource({
         fallback: allowFixtureFallback(),
-        reason: `calendar API 연결이 실패해 샘플 캘린더를 대신 표시합니다. ${result.errorMessage}`,
+        reason: `calendar API 연결이 실패해 대체 일정을 표시합니다. ${result.errorMessage}`,
       }),
     } satisfies CalendarFixture;
   }
@@ -50,7 +50,7 @@ export async function getCalendarBoard() {
       ...calendarFixture,
       dataSource: buildFixtureDataSource({
         fallback: true,
-        reason: "calendar API 응답에 표시할 일정이 없어 fixture를 대신 사용합니다.",
+        reason: "calendar API 응답에 표시할 일정이 없어 기본 일정을 표시합니다.",
       }),
     } satisfies CalendarFixture;
   }

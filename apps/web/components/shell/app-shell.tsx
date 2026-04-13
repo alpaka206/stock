@@ -37,21 +37,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
             <AppNavigation />
 
-            <div
-              className={cn(
-                surfaceStyles.panelInset,
-                "mt-auto space-y-3 p-4 text-sm"
-              )}
-            >
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Scaffold Notes
-              </p>
-              <ul className="space-y-2 text-muted-foreground">
-                <li>AG Grid Community 공통 래퍼</li>
-                <li>Theme + Query provider 분리</li>
-                <li>개발용 fixture 구조와 페이지별 feature 분리</li>
-              </ul>
-            </div>
           </div>
         </aside>
 
