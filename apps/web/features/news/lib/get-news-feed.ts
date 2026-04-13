@@ -23,7 +23,7 @@ export async function getNewsFeed() {
       ...newsFeedFixture,
       dataSource: buildFixtureDataSource({
         fallback: false,
-        reason: "API URL이 설정되지 않아 샘플 뉴스 피드를 표시합니다.",
+        reason: "API URL이 설정되지 않아 기본 뉴스 구성을 표시합니다.",
       }),
     } satisfies NewsFeedFixture;
   }
@@ -34,7 +34,7 @@ export async function getNewsFeed() {
       ...newsFeedFixture,
       dataSource: buildFixtureDataSource({
         fallback: allowFixtureFallback(),
-        reason: `news API 연결이 실패해 샘플 뉴스 피드를 대신 표시합니다. ${result.errorMessage}`,
+        reason: `news API 연결이 실패해 대체 뉴스 구성을 표시합니다. ${result.errorMessage}`,
       }),
     } satisfies NewsFeedFixture;
   }
@@ -50,7 +50,7 @@ export async function getNewsFeed() {
       ...newsFeedFixture,
       dataSource: buildFixtureDataSource({
         fallback: true,
-        reason: "news API 응답에 표시할 뉴스가 없어 fixture를 대신 사용합니다.",
+        reason: "news API 응답에 표시할 뉴스가 없어 기본 뉴스 구성을 표시합니다.",
       }),
     } satisfies NewsFeedFixture;
   }

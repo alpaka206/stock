@@ -58,7 +58,7 @@ export async function getOverviewSnapshot() {
       ...overviewFixture,
       dataSource: buildFixtureDataSource({
         fallback: false,
-        reason: "API URL이 설정되지 않아 샘플 데이터를 표시합니다.",
+        reason: "API URL이 설정되지 않아 기본 데이터를 표시합니다.",
       }),
     };
   }
@@ -69,7 +69,7 @@ export async function getOverviewSnapshot() {
     ...overviewFixture,
     dataSource: buildFixtureDataSource({
       fallback: allowFixtureFallback(),
-      reason: `overview API 연결이 실패해 샘플 데이터를 대신 표시합니다. ${result.errorMessage}`,
+      reason: `overview API 연결이 실패해 대체 데이터를 표시합니다. ${result.errorMessage}`,
     }),
   };
 }
@@ -117,7 +117,7 @@ function buildOverviewSnapshot(payload: OverviewApiResponse): OverviewFixture {
       ? buildFixtureDataSource({
           fallback: true,
           reason:
-            "overview API 응답에 benchmarkSnapshot이 없어 지수 스트립은 샘플 데이터를 사용합니다.",
+            "overview API 응답에 benchmarkSnapshot이 없어 기본 지수 구성을 표시합니다.",
         })
       : buildPayloadDataSource(payload.sourceRefs),
   };

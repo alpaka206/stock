@@ -54,7 +54,7 @@ function createStockFixture(
     relatedSymbols: overrides.relatedSymbols,
     dataSource: {
       mode: "fixture",
-      label: "샘플 데이터",
+      label: "기본 데이터",
       description: "API가 연결되지 않은 개발 환경 기본 종목 fixture입니다.",
     },
   };
@@ -558,7 +558,7 @@ export function buildStockFixture(symbol: string) {
 
   return createStockFixture(normalizedSymbol, {
     instrument: {
-      name: `${normalizedSymbol} 샘플`,
+      name: normalizedSymbol,
       marketCap: "미제공",
       sector: "기타",
     },
