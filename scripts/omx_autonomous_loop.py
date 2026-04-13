@@ -1504,22 +1504,18 @@ def run_role(
 
 
 def format_role_message(payload: dict[str, Any], meeting_id: str, trigger: dict[str, Any]) -> str:
-    reply_to = ", ".join(payload.get("reply_to", [])) or "user"
-    lines = [
-        payload["team_message"],
-        f"상태: {payload['status']} | 응답 대상: {reply_to}",
-        f"다음 액션: {payload['proposed_action']}",
-    ]
-    question_for_next = str(payload.get("question_for_next", "")).strip()
-    if question_for_next:
-        lines.append(f"다음 질문: {question_for_next}")
-    risks = [str(item).strip() for item in payload.get("risks", []) if str(item).strip()]
-    if risks:
-        lines.append(f"우려: {' / '.join(risks[:2])}")
-    verification = [str(item).strip() for item in payload.get("verification", []) if str(item).strip()]
-    if verification:
-        lines.append(f"검증 메모: {' / '.join(verification[:2])}")
-    lines.append(f"트리거: {trigger['label']}")
+    _ = meeting_id, trigger
+    raw_targets = [sanitize_text(str(item)) for item in payload.get("reply_to", []) if str(item).strip()]
+    display_targets = ["사용자" if item == "user" else item for item in raw_targets] or ["사용자"]
+    opener = (
+        "사용자 요청부터 바로 이어갈게요."
+        if display_targets == ["사용자"]
+        else f"{', '.join(display_targets)} 의견 받아서 이어갈게요."
+    )
+    team_message = sanitize_text(str(payload.get("team_message", "")).strip())
+    lines = [opener]
+    if team_message:
+        lines.append(team_message)
     return "\n".join(lines)
 
 
