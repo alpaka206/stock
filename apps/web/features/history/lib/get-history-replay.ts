@@ -37,7 +37,7 @@ export async function getHistoryReplay(params: HistoryReplayParams = {}) {
       ...fallback,
       dataSource: buildFixtureDataSource({
         fallback: false,
-        reason: "API URL이 설정되지 않아 샘플 히스토리 리플레이를 표시합니다.",
+        reason: "API URL이 설정되지 않아 기본 히스토리 구성을 표시합니다.",
       }),
     };
   }
@@ -48,7 +48,7 @@ export async function getHistoryReplay(params: HistoryReplayParams = {}) {
       ...fallback,
       dataSource: buildFixtureDataSource({
         fallback: allowFixtureFallback(),
-        reason: `history API 연결이 실패해 샘플 히스토리 리플레이를 대신 표시합니다. ${result.errorMessage}`,
+        reason: `history API 연결이 실패해 대체 히스토리 구성을 표시합니다. ${result.errorMessage}`,
       }),
     };
   }
@@ -60,7 +60,7 @@ export async function getHistoryReplay(params: HistoryReplayParams = {}) {
       ...fallback,
       dataSource: buildFixtureDataSource({
         fallback: true,
-        reason: "history API 응답에 차트 또는 이벤트 데이터가 부족해 샘플 히스토리 리플레이를 대신 표시합니다.",
+        reason: "history API 응답에 차트 또는 이벤트 데이터가 부족해 기본 히스토리 구성을 표시합니다.",
       }),
     };
   }

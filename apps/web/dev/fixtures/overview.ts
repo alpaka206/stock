@@ -205,7 +205,7 @@ export const overviewFixture: OverviewFixture = {
   },
   dataSource: {
     mode: "fixture",
-    label: "샘플 데이터",
+    label: "기본 데이터",
     description: "API가 연결되지 않은 개발 환경 기본 fixture입니다.",
   },
 };

@@ -13,6 +13,7 @@
 - 숫자와 퍼센트는 어디서 보더라도 바로 비교 가능해야 한다.
 - 색만으로 상승/하락을 구분하지 않고, 레이블과 숫자를 같이 둔다.
 - 카드형 레이아웃과 dense grid가 공존하므로 시선 흐름은 좌에서 우, 상에서 하로 분명해야 한다.
+- live 데이터 연결 배너는 상시 노출하지 않는다. 연결 문제는 unavailable, missingData, 비-live 경고에서만 드러낸다.
 - 실데이터가 없는 영역은 fabricated value 대신 unavailable 상태와 missingData 이유를 보여준다.
 - AG Grid는 실제 작업 영역으로 취급한다. 임시 table 대체를 허용하지 않는다.
 
@@ -63,3 +64,7 @@
 - stock detail을 검색, 대형 차트, 이벤트 마커, 규칙 preset, breakdown 탭 구조로 확장했다.
 - history를 symbol / range 기반 리플레이 화면으로 구현하고 차트와 타임라인을 동기화했다.
 - 세 화면 모두 API 우선 + fixture fallback 구조, localStorage preset, search params 기반 상태 흐름을 사용한다.
+
+### 2026-04-13
+- live 데이터 연결 상태 배너와 샘플 배지는 제거하고, 비-live 상태에서만 얇은 경고를 노출하도록 정리했다.
+- fallback fixture에 남아 있던 `샘플` 중심 문구를 `기본` / `대체` 표현으로 정리해 실데이터 화면의 톤을 맞췄다.
