@@ -7,6 +7,7 @@ import subprocess
 import textwrap
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from fnmatch import fnmatch
 from pathlib import Path
 from shutil import which
 from typing import Any
@@ -30,6 +31,8 @@ TEAM_CONVERSATION_LOG = STATE_DIR / "TEAM_CONVERSATION.jsonl"
 LOOP_STATE_FILE = STATE_DIR / "OMX_LOOP_STATE.json"
 LOOP_RUNTIME_STATUS_FILE = RUNTIME_DIR / "omx-loop-status.json"
 ROLE_SCHEMA_FILE = ROOT / "scripts" / "omx_role_output.schema.json"
+CODE_REVIEW_FILE = STATE_DIR / "CODEX_REVIEW_LAST.md"
+GITHUB_AUTOMATION_STATUS_FILE = STATE_DIR / "GITHUB_AUTOMATION_STATUS.md"
 
 DISCORD_BRIDGE_PORT = int(os.getenv("DISCORD_BRIDGE_PORT", "8787"))
 AUTONOMOUS_IDLE_INTERVAL_SECONDS = max(int(os.getenv("OMX_AUTONOMOUS_IDLE_INTERVAL_SECONDS", "300")), 60)
@@ -42,6 +45,52 @@ CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F]")
 RAW_UNICODE_ESCAPE_RE = re.compile(r"\\u[0-9a-fA-F]{4}")
 DOUBLE_QUESTION_RE = re.compile(r"\?\?")
 HANGUL_RE = re.compile(r"[가-힣]")
+EXECUTOR_WRITABLE = os.getenv("OMX_EXECUTOR_WRITABLE", "true").strip().lower() == "true"
+PROTECTED_BRANCHES = {
+    item.strip()
+    for item in os.getenv("OMX_PROTECTED_BRANCHES", "main,develop").split(",")
+    if item.strip()
+}
+EXECUTOR_ALLOWED_PREFIXES = tuple(
+    item.strip()
+    for item in os.getenv(
+        "OMX_EXECUTOR_ALLOWED_PREFIXES",
+        ".github/,apps/,docs/,omx_discord_bridge/,packages/,scripts/",
+    ).split(",")
+    if item.strip()
+)
+EXECUTOR_ALLOWED_FILES = {
+    item.strip()
+    for item in os.getenv(
+        "OMX_EXECUTOR_ALLOWED_FILES",
+        "AGENTS.md,README.md,package.json,pnpm-lock.yaml,pnpm-workspace.yaml",
+    ).split(",")
+    if item.strip()
+}
+EXECUTOR_IGNORED_PREFIXES = tuple(
+    item.strip()
+    for item in os.getenv("OMX_EXECUTOR_IGNORED_PREFIXES", ".omx/").split(",")
+    if item.strip()
+)
+EXECUTOR_FORBIDDEN_PREFIXES = tuple(
+    item.strip()
+    for item in os.getenv(
+        "OMX_EXECUTOR_FORBIDDEN_PREFIXES",
+        ".git/,.venv/,node_modules/,.pnpm-store/,dist/,coverage/",
+    ).split(",")
+    if item.strip()
+)
+EXECUTOR_FORBIDDEN_GLOBS = tuple(
+    item.strip()
+    for item in os.getenv(
+        "OMX_EXECUTOR_FORBIDDEN_GLOBS",
+        ".env,.env.*,*.pem,*.key,*.p12,*.pfx,*.crt,*.cer,*.der,*.jks,*.kdb,*.secrets.*",
+    ).split(",")
+    if item.strip()
+)
+ISSUE_BRANCH_BASE = os.getenv("OMX_ISSUE_BRANCH_BASE", "develop").strip() or "develop"
+ISSUE_BRANCH_PREFIX = os.getenv("OMX_ISSUE_BRANCH_PREFIX", "auto").strip() or "auto"
+ENABLE_GITHUB_AUTOMATION_DEFAULT = os.getenv("ENABLE_GITHUB_AUTOMATION", "true").strip().lower() == "true"
 
 
 @dataclass(frozen=True)
@@ -52,6 +101,9 @@ class AgentsContract:
     release_to_main_policy: str
     required_docs: tuple[str, ...]
     consensus_order: tuple[str, ...]
+    enable_github_automation: bool
+    issue_pr_policy: str
+    review_feedback_policy: str
 
 
 @dataclass(frozen=True)
@@ -72,6 +124,26 @@ class MeetingContext:
     related_summary: str
 
 
+@dataclass(frozen=True)
+class WriteGateResult:
+    ok: bool
+    reason: str
+    branch: str
+
+
+@dataclass(frozen=True)
+class GitHubFlowResult:
+    ok: bool
+    detail: str
+    issue_number: int | None = None
+    issue_url: str = ""
+    branch: str = ""
+    pr_number: int | None = None
+    pr_url: str = ""
+    release_pr_number: int | None = None
+    release_pr_url: str = ""
+
+
 ROLE_DISPLAY_NAMES = {
     "planner": "planner",
     "critic": "critic",
@@ -90,7 +162,7 @@ ROLE_SPECS = {
     "critic": RoleSpec("critic", "계획의 허점, 정책 위반, 검증 누락, 재발 위험을 먼저 잡는다.", "read-only"),
     "researcher": RoleSpec("researcher", "관련 파일, 상태, 테스트, 데이터 경로를 짚어 실행 전 사실관계를 보강한다.", "read-only"),
     "architect": RoleSpec("architect", "작업을 되돌리기 쉬운 구현 단위와 검증 단위로 정리한다.", "read-only"),
-    "executor": RoleSpec("executor", "합의한 최소 작업을 즉시 실행 가능한 액션으로 정리하고 다음 구현 단계를 확정한다.", "read-only"),
+    "executor": RoleSpec("executor", "합의한 최소 작업을 안전한 범위 안에서 실제로 구현하고, 변경 파일과 검증 결과를 남긴다.", "danger-full-access", writable=EXECUTOR_WRITABLE),
 }
 
 
@@ -259,6 +331,10 @@ def parse_agents_contract() -> AgentsContract:
         match = re.search(rf"^- {re.escape(key)}:\s*(.+)$", text, flags=re.MULTILINE)
         return match.group(1).strip() if match else default
 
+    def find_bool(key: str, default: bool = False) -> bool:
+        raw = find_value(key, "true" if default else "false").lower()
+        return raw in {"1", "true", "yes", "on"}
+
     docs: list[str] = []
     collecting = False
     for line in text.splitlines():
@@ -280,6 +356,9 @@ def parse_agents_contract() -> AgentsContract:
         release_to_main_policy=find_value("RELEASE_TO_MAIN_POLICY"),
         required_docs=tuple(docs),
         consensus_order=find_value("MULTI_AGENT_CONSENSUS", "planner -> critic -> researcher -> architect -> executor -> verifier"),
+        enable_github_automation=find_bool("ENABLE_GITHUB_AUTOMATION", ENABLE_GITHUB_AUTOMATION_DEFAULT),
+        issue_pr_policy=find_value("ISSUE_PR_POLICY", "issue-first branch -> develop, develop -> main release pr"),
+        review_feedback_policy=find_value("REVIEW_FEEDBACK_POLICY", "same-branch same-pr follow-up"),
     )
 
 
@@ -323,6 +402,7 @@ def load_loop_state() -> dict[str, Any]:
         "last_meeting_id": "",
         "last_next_action": "",
         "pending_followup": {},
+        "github_flow": {},
     }
     payload = load_json(LOOP_STATE_FILE, default)
     merged = default | payload if isinstance(payload, dict) else default
@@ -331,6 +411,8 @@ def load_loop_state() -> dict[str, Any]:
     merged["handled_discord_message_ids"] = [str(item) for item in merged["handled_discord_message_ids"] if str(item).strip()]
     if not isinstance(merged.get("pending_followup"), dict):
         merged["pending_followup"] = {}
+    if not isinstance(merged.get("github_flow"), dict):
+        merged["github_flow"] = {}
     return merged
 
 
@@ -635,6 +717,507 @@ def find_bash() -> str:
     raise FileNotFoundError("bash executable not found")
 
 
+def git_command(*args: str) -> str:
+    completed = subprocess.run(
+        ["git", *args],
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True,
+    )
+    return decode_text_bytes(completed.stdout or b"").rstrip("\r\n")
+
+
+def normalize_repo_path(path: str) -> str:
+    return path.replace("\\", "/").strip()
+
+
+def is_ignored_executor_path(path: str) -> bool:
+    normalized = normalize_repo_path(path)
+    return any(normalized.startswith(prefix) for prefix in EXECUTOR_IGNORED_PREFIXES)
+
+
+def is_forbidden_executor_path(path: str) -> bool:
+    normalized = normalize_repo_path(path)
+    if any(normalized.startswith(prefix) for prefix in EXECUTOR_FORBIDDEN_PREFIXES):
+        return True
+    name = normalized.split("/")[-1]
+    return any(fnmatch(name, pattern) or fnmatch(normalized, pattern) for pattern in EXECUTOR_FORBIDDEN_GLOBS)
+
+
+def is_allowed_executor_path(path: str) -> bool:
+    normalized = normalize_repo_path(path)
+    if is_ignored_executor_path(normalized) or is_forbidden_executor_path(normalized):
+        return False
+    if normalized in EXECUTOR_ALLOWED_FILES:
+        return True
+    return any(normalized.startswith(prefix) for prefix in EXECUTOR_ALLOWED_PREFIXES)
+
+
+def git_status_snapshot() -> dict[str, str]:
+    snapshot: dict[str, str] = {}
+    raw = git_command("status", "--porcelain=v1", "--untracked-files=all")
+    for line in raw.splitlines():
+        if not line.strip():
+            continue
+        status = line[:2]
+        entry = line[3:]
+        if " -> " in entry:
+            _, entry = entry.split(" -> ", 1)
+        snapshot[normalize_repo_path(entry)] = status
+    return snapshot
+
+
+def get_current_branch() -> str:
+    return git_command("branch", "--show-current")
+
+
+def collect_non_ignored_dirty_paths(snapshot: dict[str, str] | None = None) -> list[str]:
+    current = snapshot if snapshot is not None else git_status_snapshot()
+    return sorted(path for path in current if not is_ignored_executor_path(path))
+
+
+def check_executor_write_gate() -> WriteGateResult:
+    branch = get_current_branch()
+    if not branch:
+        return WriteGateResult(False, "현재 git 브랜치를 확인할 수 없어 executor 쓰기를 시작하지 않는다.", branch)
+    if branch in PROTECTED_BRANCHES:
+        protected = ", ".join(sorted(PROTECTED_BRANCHES))
+        return WriteGateResult(False, f"현재 브랜치 `{branch}` 는 보호 브랜치다. `{protected}` 에서는 executor가 쓰기 작업을 하지 않는다.", branch)
+    dirty_paths = collect_non_ignored_dirty_paths()
+    if dirty_paths:
+        preview = ", ".join(dirty_paths[:8])
+        more = "" if len(dirty_paths) <= 8 else f" 외 {len(dirty_paths) - 8}건"
+        return WriteGateResult(False, f"작업트리가 깨끗하지 않아 executor 쓰기를 시작하지 않는다. `.omx/` 밖 변경 파일: {preview}{more}", branch)
+    return WriteGateResult(True, "", branch)
+
+
+def build_write_gate_output(role: RoleSpec, reason: str, *, branch: str, status: str = "blocked", changed_files: list[str] | None = None) -> dict[str, Any]:
+    files = changed_files or []
+    return normalize_role_output(
+        role,
+        {
+            "role": role.name,
+            "status": status,
+            "summary": "executor 쓰기 안전 게이트가 작업을 차단했다." if status == "blocked" else "executor 쓰기 안전 게이트가 위반을 감지했다.",
+            "rationale": reason,
+            "proposed_action": "안전 게이트 조건을 만족한 뒤 같은 작업을 다시 실행한다.",
+            "team_message": f"지금은 바로 수정하지 않겠습니다. {reason}",
+            "question_for_next": "보호 브랜치에서 벗어나고 `.omx/` 밖 작업트리를 정리했는가?" if status == "blocked" else "허용되지 않은 변경 파일을 정리했는가?",
+            "reply_to": ["architect", "critic"],
+            "risks": ["안전 게이트 없이 계속 수정하면 보호 브랜치나 예기치 않은 파일이 오염될 수 있다."],
+            "verification": [f"write safety gate: {status}", f"branch: {branch or 'unknown'}"],
+            "changed_files": files,
+            "followups": ["issue branch에서 깨끗한 작업트리로 다시 실행"],
+            "confidence": 0.9 if status == "blocked" else 0.2,
+            "needs_human": False,
+        },
+    )
+
+
+def validate_executor_changes(role: RoleSpec, branch: str) -> tuple[bool, list[str], str]:
+    actual_changed = collect_non_ignored_dirty_paths()
+    forbidden = [path for path in actual_changed if is_forbidden_executor_path(path)]
+    if forbidden:
+        preview = ", ".join(forbidden[:8])
+        return False, actual_changed, f"허용되지 않은 민감 경로가 변경되었다: {preview}"
+    disallowed = [path for path in actual_changed if not is_allowed_executor_path(path)]
+    if disallowed:
+        preview = ", ".join(disallowed[:8])
+        return False, actual_changed, f"executor 허용 범위를 벗어난 파일이 변경되었다: {preview}"
+    return True, actual_changed, branch
+
+
+def run_process(command: list[str], *, timeout: int = 300, input_text: str | None = None) -> str:
+    completed = subprocess.run(
+        command,
+        cwd=ROOT,
+        input=input_text.encode("utf-8") if input_text is not None else None,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=timeout,
+        check=True,
+    )
+    return decode_text_bytes(completed.stdout or b"").rstrip("\r\n")
+
+
+def gh_command(*args: str, timeout: int = 300) -> str:
+    return run_process(["gh", *args], timeout=timeout)
+
+
+def gh_json(*args: str, timeout: int = 300) -> Any:
+    raw = gh_command(*args, timeout=timeout)
+    return json.loads(raw) if raw else None
+
+
+def repo_name_with_owner() -> str:
+    payload = gh_json("repo", "view", "--json", "nameWithOwner")
+    if not isinstance(payload, dict) or not payload.get("nameWithOwner"):
+        raise RuntimeError("GitHub 저장소 이름을 확인하지 못했다.")
+    return str(payload["nameWithOwner"])
+
+
+def extract_trailing_number(url: str) -> int | None:
+    match = re.search(r"/(\d+)$", url.strip())
+    return int(match.group(1)) if match else None
+
+
+def get_github_flow(loop_state: dict[str, Any]) -> dict[str, Any]:
+    flow = loop_state.setdefault("github_flow", {})
+    if not isinstance(flow, dict):
+        flow = {}
+        loop_state["github_flow"] = flow
+    return flow
+
+
+def write_github_automation_status(loop_state: dict[str, Any], detail: str) -> None:
+    flow = get_github_flow(loop_state)
+    lines = [
+        "# GitHub Automation Status",
+        "",
+        f"- updated_at: {iso_now()}",
+        f"- detail: {detail}",
+        f"- issue: {flow.get('issue_number', '')} {flow.get('issue_url', '')}".rstrip(),
+        f"- branch: {flow.get('branch', '')}",
+        f"- pr: {flow.get('pr_number', '')} {flow.get('pr_url', '')}".rstrip(),
+        f"- release_pr: {flow.get('release_pr_number', '')} {flow.get('release_pr_url', '')}".rstrip(),
+        f"- status: {flow.get('status', '')}",
+    ]
+    write_text(GITHUB_AUTOMATION_STATUS_FILE, "\n".join(lines).strip() + "\n")
+
+
+def summarize_trigger_for_title(trigger: dict[str, Any]) -> str:
+    if trigger["kind"] == "discord_user":
+        return trim(str(trigger.get("content", "")).strip(), 72)
+    return trim(str(trigger.get("label", trigger.get("content", "autonomous task"))), 72)
+
+
+def build_issue_title(trigger: dict[str, Any]) -> str:
+    summary = summarize_trigger_for_title(trigger)
+    if trigger["kind"] == "verify_failure":
+        return f"복구: {summary}"
+    if trigger["kind"] == "discord_user":
+        return summary
+    return f"자동 작업: {summary}"
+
+
+def build_issue_body(trigger: dict[str, Any], contract: AgentsContract) -> str:
+    return textwrap.dedent(
+        f"""\
+        ## Trigger
+        - kind: {trigger['kind']}
+        - label: {trigger['label']}
+        - content: {trigger.get('content', '')}
+
+        ## Contract
+        - PRIMARY_TASK: {contract.primary_task}
+        - MIN_EXIT_CONDITION: {contract.min_exit_condition}
+        - ISSUE_PR_POLICY: {contract.issue_pr_policy}
+        - REVIEW_FEEDBACK_POLICY: {contract.review_feedback_policy}
+
+        ## Notes
+        - created by OMX GitHub automation
+        - latest Discord/user trigger is prioritized
+        """
+    ).strip()
+
+
+def build_issue_branch_name(issue_number: int, trigger: dict[str, Any]) -> str:
+    return f"{ISSUE_BRANCH_PREFIX}/{issue_number}-{slugify(summarize_trigger_for_title(trigger))[:48]}"
+
+
+def ensure_issue_branch(loop_state: dict[str, Any], trigger: dict[str, Any], contract: AgentsContract) -> GitHubFlowResult:
+    current_branch = get_current_branch()
+    if not contract.enable_github_automation:
+        return GitHubFlowResult(True, "GitHub 자동화 비활성", branch=current_branch)
+    if current_branch not in PROTECTED_BRANCHES:
+        flow = get_github_flow(loop_state)
+        if not flow.get("branch"):
+            flow["branch"] = current_branch
+            flow["status"] = "work_branch_active"
+            write_github_automation_status(loop_state, "현재 작업 브랜치에서 계속 진행한다.")
+        return GitHubFlowResult(True, "이미 작업 브랜치에 있다.", branch=current_branch)
+    dirty_paths = collect_non_ignored_dirty_paths()
+    if dirty_paths:
+        detail = f"GitHub 자동 issue/branch 전환을 생략했다. `.omx/` 밖 작업트리가 깨끗하지 않다: {', '.join(dirty_paths[:8])}"
+        flow = get_github_flow(loop_state)
+        flow["status"] = "branch_bootstrap_blocked"
+        write_github_automation_status(loop_state, detail)
+        return GitHubFlowResult(False, detail, branch=current_branch)
+
+    issue_title = build_issue_title(trigger)
+    issue_url = gh_command("issue", "create", "--title", issue_title, "--body", build_issue_body(trigger, contract), timeout=600).splitlines()[-1].strip()
+    issue_number = extract_trailing_number(issue_url)
+    if issue_number is None:
+        raise RuntimeError(f"생성된 issue URL에서 번호를 파싱하지 못했다: {issue_url}")
+
+    branch_name = build_issue_branch_name(issue_number, trigger)
+    try:
+        git_command("rev-parse", "--verify", branch_name)
+        run_process(["git", "switch", branch_name], timeout=120)
+    except Exception:
+        git_command("fetch", "origin", ISSUE_BRANCH_BASE)
+        run_process(["git", "switch", "-c", branch_name, "--no-track", f"origin/{ISSUE_BRANCH_BASE}"], timeout=120)
+
+    flow = get_github_flow(loop_state)
+    flow.update(
+        {
+            "issue_number": issue_number,
+            "issue_url": issue_url,
+            "issue_title": issue_title,
+            "branch": branch_name,
+            "base_branch": ISSUE_BRANCH_BASE,
+            "pr_number": 0,
+            "pr_url": "",
+            "release_pr_number": 0,
+            "release_pr_url": "",
+            "status": "issue_branch_ready",
+            "source_trigger_id": trigger["id"],
+        }
+    )
+    write_github_automation_status(loop_state, f"Issue #{issue_number}와 작업 브랜치 `{branch_name}` 를 준비했다.")
+    return GitHubFlowResult(True, f"Issue #{issue_number}와 브랜치 `{branch_name}` 를 준비했다.", issue_number=issue_number, issue_url=issue_url, branch=branch_name)
+
+
+def build_commit_message(trigger: dict[str, Any], changed_files: list[str]) -> str:
+    scope = "omx" if any(path.startswith("scripts/") or path.startswith("omx_discord_bridge/") for path in changed_files) else "auto"
+    summary = slugify(summarize_trigger_for_title(trigger)).replace("-", " ").strip()
+    summary = summary[:48].strip() or "autonomous update"
+    return f"fix({scope}): {summary}"
+
+
+def build_pr_title(flow: dict[str, Any], trigger: dict[str, Any]) -> str:
+    issue_number = flow.get("issue_number")
+    summary = summarize_trigger_for_title(trigger)
+    prefix = f"#{issue_number} " if issue_number else ""
+    return f"{prefix}{summary}"
+
+
+def build_pr_body(flow: dict[str, Any], trigger: dict[str, Any], role_outputs: list[dict[str, Any]], verify_log: str) -> str:
+    executor_output = next((item for item in role_outputs if item.get("role") == "executor"), {})
+    verifier_output = next((item for item in role_outputs if item.get("role") == "verifier"), {})
+    changed_files = executor_output.get("changed_files", [])
+    issue_line = f"- relates #{flow['issue_number']}" if flow.get("issue_number") else "- autonomous change"
+    return textwrap.dedent(
+        f"""\
+        ## What Changed
+        - {executor_output.get('summary', 'executor summary unavailable')}
+        - changed files: {', '.join(changed_files) if changed_files else 'none'}
+
+        ## Why
+        - trigger: {trigger['label']}
+        - {issue_line}
+
+        ## Review
+        - critic: {next((item.get('summary') for item in role_outputs if item.get('role') == 'critic'), 'n/a')}
+        - verifier: {verifier_output.get('summary', 'n/a')}
+
+        ## Validation
+        ```text
+        {verify_log.strip() or 'none'}
+        ```
+        """
+    ).strip()
+
+
+def run_codex_review_gate(role_outputs: list[dict[str, Any]], verify_ok: bool | None, verify_log: str, trigger: dict[str, Any]) -> tuple[bool, str]:
+    critic_output = next((item for item in role_outputs if item.get("role") == "critic"), {})
+    verifier_output = next((item for item in role_outputs if item.get("role") == "verifier"), {})
+    executor_output = next((item for item in role_outputs if item.get("role") == "executor"), {})
+    blocking = verify_ok is False or critic_output.get("status") in {"blocked", "fail"} or verifier_output.get("status") in {"blocked", "fail"}
+    review_note = "blocking issues 있음" if blocking else "blocking issues 없음"
+    review_md = textwrap.dedent(
+        f"""\
+        # Codex Code Review
+
+        - trigger: {trigger['label']}
+        - result: {review_note}
+
+        ## Critic
+        - status: {critic_output.get('status', 'n/a')}
+        - summary: {critic_output.get('summary', 'n/a')}
+        - risks: {' / '.join(critic_output.get('risks', [])) or 'none'}
+
+        ## Executor
+        - status: {executor_output.get('status', 'n/a')}
+        - changed_files: {', '.join(executor_output.get('changed_files', [])) or 'none'}
+
+        ## Verifier
+        - status: {verifier_output.get('status', 'n/a')}
+        - summary: {verifier_output.get('summary', 'n/a')}
+
+        ## Verify Log
+        ```text
+        {verify_log.strip() or 'none'}
+        ```
+        """
+    ).strip() + "\n"
+    write_text(CODE_REVIEW_FILE, review_md)
+    return (not blocking), review_note
+
+
+def find_open_pr(head: str, base: str) -> dict[str, Any] | None:
+    payload = gh_json("pr", "list", "--head", head, "--base", base, "--state", "open", "--json", "number,url,title,headRefName,baseRefName")
+    if isinstance(payload, list) and payload:
+        return payload[0]
+    return None
+
+
+def publish_issue_branch(
+    loop_state: dict[str, Any],
+    trigger: dict[str, Any],
+    contract: AgentsContract,
+    role_outputs: list[dict[str, Any]],
+    verify_ok: bool | None,
+    verify_log: str,
+) -> GitHubFlowResult:
+    if not contract.enable_github_automation:
+        return GitHubFlowResult(True, "GitHub 자동화 비활성", branch=get_current_branch())
+    current_branch = get_current_branch()
+    if current_branch in PROTECTED_BRANCHES:
+        return GitHubFlowResult(False, f"현재 브랜치 `{current_branch}` 는 보호 브랜치라 PR 출고를 생략한다.", branch=current_branch)
+
+    executor_output = next((item for item in role_outputs if item.get("role") == "executor"), {})
+    changed_files = [normalize_repo_path(path) for path in executor_output.get("changed_files", []) if normalize_repo_path(path)]
+    if not changed_files:
+        return GitHubFlowResult(False, "executor가 보고한 실제 변경 파일이 없어 PR 출고를 생략한다.", branch=current_branch)
+    if verify_ok is not True:
+        return GitHubFlowResult(False, "검증 게이트가 통과하지 않아 PR 출고를 생략한다.", branch=current_branch)
+
+    review_ok, review_note = run_codex_review_gate(role_outputs, verify_ok, verify_log, trigger)
+    if not review_ok:
+        flow = get_github_flow(loop_state)
+        flow["status"] = "review_blocked"
+        write_github_automation_status(loop_state, f"Codex review gate 차단: {review_note}")
+        return GitHubFlowResult(False, f"Codex review gate 차단: {review_note}", branch=current_branch)
+
+    run_process(["git", "add", "--", *changed_files], timeout=120)
+    staged = [line for line in git_command("diff", "--cached", "--name-only").splitlines() if line.strip()]
+    if not staged:
+        return GitHubFlowResult(False, "staged diff가 없어 PR 출고를 생략한다.", branch=current_branch)
+
+    commit_message = build_commit_message(trigger, changed_files)
+    run_process(["git", "commit", "-m", commit_message], timeout=300)
+    run_process(["git", "push", "-u", "origin", current_branch], timeout=1200)
+
+    flow = get_github_flow(loop_state)
+    pr = find_open_pr(current_branch, ISSUE_BRANCH_BASE)
+    if pr is None:
+        pr_body = build_pr_body(flow, trigger, role_outputs, verify_log)
+        pr_url = gh_command(
+            "pr",
+            "create",
+            "--base",
+            ISSUE_BRANCH_BASE,
+            "--head",
+            current_branch,
+            "--title",
+            build_pr_title(flow, trigger),
+            "--body",
+            pr_body,
+            timeout=600,
+        ).splitlines()[-1].strip()
+        pr_number = extract_trailing_number(pr_url)
+    else:
+        pr_number = int(pr["number"])
+        pr_url = str(pr["url"])
+
+    if pr_number is None:
+        raise RuntimeError("생성된 PR 번호를 파싱하지 못했다.")
+
+    if CODE_REVIEW_FILE.exists():
+        gh_command("pr", "comment", str(pr_number), "--body-file", str(CODE_REVIEW_FILE), timeout=300)
+    gh_command("pr", "merge", str(pr_number), "--auto", "--squash", "--delete-branch", timeout=300)
+    flow.update(
+        {
+            "branch": current_branch,
+            "pr_number": pr_number,
+            "pr_url": pr_url,
+            "status": "issue_pr_open",
+            "last_commit_message": commit_message,
+        }
+    )
+    write_github_automation_status(loop_state, f"PR #{pr_number} 를 만들고 develop 자동 병합을 걸었다.")
+    return GitHubFlowResult(True, f"PR #{pr_number} 를 만들고 자동 병합을 설정했다.", issue_number=flow.get("issue_number"), issue_url=str(flow.get("issue_url", "")), branch=current_branch, pr_number=pr_number, pr_url=pr_url)
+
+
+def sync_release_pr(loop_state: dict[str, Any], contract: AgentsContract) -> GitHubFlowResult:
+    flow = get_github_flow(loop_state)
+    if not contract.enable_github_automation or contract.release_to_main_policy != "auto-merge-if-green":
+        return GitHubFlowResult(True, "release 자동화 비활성")
+    existing_release_pr_number = int(flow.get("release_pr_number") or 0)
+    if existing_release_pr_number > 0:
+        release_view = gh_json("pr", "view", str(existing_release_pr_number), "--json", "state,mergedAt,url")
+        if isinstance(release_view, dict) and release_view.get("state") == "MERGED":
+            flow["status"] = "release_merged"
+            write_github_automation_status(loop_state, f"Release PR #{existing_release_pr_number} 가 main에 병합되었다.")
+            return GitHubFlowResult(
+                True,
+                f"Release PR #{existing_release_pr_number} 가 main에 병합되었다.",
+                release_pr_number=existing_release_pr_number,
+                release_pr_url=str(release_view.get("url", flow.get("release_pr_url", ""))),
+            )
+    pr_number = int(flow.get("pr_number") or 0)
+    if pr_number <= 0:
+        return GitHubFlowResult(False, "issue branch PR이 없어 release PR을 만들지 않는다.")
+
+    pr_view = gh_json("pr", "view", str(pr_number), "--json", "state,mergedAt,url")
+    if not isinstance(pr_view, dict) or pr_view.get("state") != "MERGED":
+        flow["status"] = "issue_pr_pending"
+        write_github_automation_status(loop_state, "issue branch PR 병합을 기다리는 중이다.")
+        return GitHubFlowResult(False, "issue branch PR 병합 대기 중")
+
+    git_command("fetch", "origin", "main", "develop")
+    ahead_count = int(git_command("rev-list", "--count", "origin/main..origin/develop") or "0")
+    if ahead_count <= 0:
+        flow["status"] = "develop_synced_to_main"
+        write_github_automation_status(loop_state, "develop와 main 사이에 release할 차이가 없다.")
+        return GitHubFlowResult(False, "release할 차이가 없다.")
+
+    release_pr = find_open_pr("develop", "main")
+    if release_pr is None:
+        body_lines = [
+            "## Release Scope",
+            "Sync `develop` into `main`.",
+            "",
+            "## Why",
+            "- develop에 반영된 자동 작업을 main까지 승격한다.",
+        ]
+        if flow.get("issue_number"):
+            body_lines.extend(["", "## Issue", f"- closes #{flow['issue_number']}"])
+        release_pr_url = gh_command(
+            "pr",
+            "create",
+            "--base",
+            "main",
+            "--head",
+            "develop",
+            "--title",
+            "release: sync develop into main",
+            "--body",
+            "\n".join(body_lines),
+            timeout=600,
+        ).splitlines()[-1].strip()
+        release_pr_number = extract_trailing_number(release_pr_url)
+    else:
+        release_pr_number = int(release_pr["number"])
+        release_pr_url = str(release_pr["url"])
+
+    if release_pr_number is None:
+        raise RuntimeError("release PR 번호를 파싱하지 못했다.")
+
+    gh_command("pr", "merge", str(release_pr_number), "--auto", "--merge", timeout=300)
+    flow.update(
+        {
+            "release_pr_number": release_pr_number,
+            "release_pr_url": release_pr_url,
+            "status": "release_pr_open",
+        }
+    )
+    write_github_automation_status(loop_state, f"Release PR #{release_pr_number} 를 만들고 main 자동 병합을 설정했다.")
+    return GitHubFlowResult(True, f"Release PR #{release_pr_number} 를 만들고 main 자동 병합을 설정했다.", release_pr_number=release_pr_number, release_pr_url=release_pr_url)
+
+
 def build_context_excerpt() -> str:
     items = [
         ("DISCORD_IMPORTANT.md", DISCORD_IMPORTANT_FILE, 1000),
@@ -735,6 +1318,23 @@ def build_role_prompt(
         for item in prior_outputs
     ) or "- 아직 다른 역할 발언이 없다."
     docs = "\n".join(f"- {item}" for item in contract.required_docs) or "- 없음"
+    write_gate = ""
+    if role.writable:
+        write_gate = textwrap.dedent(
+            f"""\
+
+            쓰기 안전 게이트
+            - 현재 role은 실제 파일 수정이 가능하다.
+            - 보호 브랜치 `{', '.join(sorted(PROTECTED_BRANCHES))}` 에서는 수정하지 말고 blocked로 응답한다.
+            - `.omx/` 밖 작업트리가 더러우면 수정하지 말고 blocked로 응답한다.
+            - 허용 경로: {', '.join(EXECUTOR_ALLOWED_PREFIXES)}
+            - 허용 단일 파일: {', '.join(sorted(EXECUTOR_ALLOWED_FILES))}
+            - 금지 경로: {', '.join(EXECUTOR_FORBIDDEN_PREFIXES)}
+            - 금지 파일 패턴: {', '.join(EXECUTOR_FORBIDDEN_GLOBS)}
+            - 수정했다면 `changed_files`에는 실제 바꾼 파일만 적는다.
+            - 구현을 했다면 즉시 끝내지 말고, 어떤 검증을 다음 게이트에 넘길지 분명히 적는다.
+            """
+        ).rstrip()
     return textwrap.dedent(
         f"""\
         당신은 OMX 역할 `{role.name}`이다.
@@ -775,6 +1375,7 @@ def build_role_prompt(
         - 응답은 JSON schema를 만족해야 하며 핵심 문장은 한국어로 쓴다.
         - read-only 역할은 changed_files를 비운다.
         - needs_human은 외부 권한이나 비밀 부족 때문에 지금 진행할 수 없을 때만 true다.
+        {write_gate}
 
         필수 참고 문서
         {docs}
@@ -853,6 +1454,13 @@ def run_role(
 
     emit_console(role.name, f"run start trigger={trim(trigger['label'], 100)}")
     write_runtime_status(status="role_running", detail=trim(trigger['label'], 160), meeting_id=meeting_id, role=role.name, trigger=trigger["kind"])
+    gate_result = WriteGateResult(True, "", "")
+    if role.writable:
+        gate_result = check_executor_write_gate()
+        if not gate_result.ok:
+            emit_console(role.name, f"write blocked: {trim(gate_result.reason, 140)}")
+            write_runtime_status(status="role_blocked", detail=trim(gate_result.reason, 200), meeting_id=meeting_id, role=role.name, trigger=trigger["kind"])
+            return build_write_gate_output(role, gate_result.reason, branch=gate_result.branch)
     sync_discord_replies()
     prompt = build_role_prompt(role, trigger, meeting_id, prior_outputs, contract, context)
     with log_file.open("w", encoding="utf-8") as handle:
@@ -871,6 +1479,25 @@ def run_role(
     if not isinstance(payload, dict):
         raise RuntimeError(f"{role.name} returned non-object payload")
     normalized = normalize_role_output(role, payload)
+    if role.writable:
+        reported_files = list(normalized.get("changed_files", []))
+        gate_ok, actual_changed, gate_reason = validate_executor_changes(role, gate_result.branch)
+        normalized["changed_files"] = actual_changed
+        if actual_changed and reported_files != actual_changed:
+            normalized.setdefault("verification", []).append("executor changed_files를 실제 git 변경 파일 기준으로 보정했다.")
+        if not actual_changed and normalized.get("status") not in {"blocked", "fail"}:
+            normalized.setdefault("verification", []).append("executor writable mode였지만 `.omx/` 밖 실제 파일 변경은 없었다.")
+        if not gate_ok:
+            write_verify_failure(
+                "active",
+                "executor write safety gate",
+                "executor changed disallowed files",
+                gate_reason,
+                "허용되지 않은 변경 파일을 정리하고 issue branch의 깨끗한 작업트리에서 다시 실행한다.",
+            )
+            emit_console(role.name, f"write gate failed: {trim(gate_reason, 140)}")
+            write_runtime_status(status="role_failed", detail=trim(gate_reason, 200), meeting_id=meeting_id, role=role.name, trigger=trigger["kind"])
+            return build_write_gate_output(role, gate_reason, branch=gate_result.branch, status="fail", changed_files=actual_changed)
     emit_console(role.name, f"done status={normalized['status']} next={trim(normalized['proposed_action'], 100)}")
     return normalized
 
@@ -879,7 +1506,7 @@ def run_role(
 def format_role_message(payload: dict[str, Any], meeting_id: str, trigger: dict[str, Any]) -> str:
     reply_to = ", ".join(payload.get("reply_to", [])) or "user"
     lines = [
-        f"[meeting:{meeting_id}] {ROLE_DISPLAY_NAMES.get(payload['role'], payload['role'])}: {payload['team_message']}",
+        payload["team_message"],
         f"상태: {payload['status']} | 응답 대상: {reply_to}",
         f"다음 액션: {payload['proposed_action']}",
     ]
@@ -1129,7 +1756,7 @@ def maybe_report_repeated_failure(loop_state: dict[str, Any], trigger: dict[str,
     streak = int(loop_state.get("failure_streak", 0))
     if streak < 3:
         return
-    post_message("watchdog", f"[meeting:{loop_state.get('last_meeting_id', '')}] 같은 실패가 {streak}회 반복되었다. 같은 방법 반복을 중단하고 우회책을 먼저 고른다.", loop_state.get("last_meeting_id", "watchdog"), "failure_streak", trigger["id"], trigger.get("thread_id"))
+    post_message("watchdog", f"같은 실패가 {streak}회 반복되었습니다. 같은 방법 반복을 중단하고 우회책을 먼저 고르겠습니다.", loop_state.get("last_meeting_id", "watchdog"), "failure_streak", trigger["id"], trigger.get("thread_id"))
 
 
 def mark_trigger_done(loop_state: dict[str, Any], trigger: dict[str, Any]) -> None:
@@ -1159,7 +1786,7 @@ def run_meeting(
         "coordinator",
         textwrap.dedent(
             f"""\
-            [meeting:{meeting_id}] coordinator: 이번 회의는 `{trigger['label']}`를 처리합니다.
+            이번 회의는 `{trigger['label']}`를 처리합니다.
             사용자와 팀이 읽기 쉽도록 한국어로 짧고 명확하게 이야기해 주세요.
             첫 쟁점: {context.focus_note}
             """
@@ -1199,7 +1826,7 @@ def run_meeting(
         "scribe",
         textwrap.dedent(
             f"""\
-            [meeting:{meeting_id}] scribe: 회의를 여기서 정리합니다.
+            회의를 여기서 정리합니다.
             역할 요약:
             {chr(10).join(f"- {item['role']}: {item['summary']}" for item in role_outputs) or '- 없음'}
             다음 액션: {next_action}
@@ -1240,6 +1867,15 @@ def main() -> int:
     sync_discord_replies()
 
     loop_state = load_loop_state()
+    if contract.enable_github_automation:
+        try:
+            release_sync = sync_release_pr(loop_state, contract)
+            if release_sync.detail:
+                emit_console("github", trim(release_sync.detail, 140))
+        except Exception as exc:
+            github_note = trim(str(exc), 600)
+            write_github_automation_status(loop_state, f"release sync error: {github_note}")
+            emit_console("github", f"release sync error: {github_note}")
     iteration = int(os.getenv("OMX_LOOP_ITERATION", "0") or "0") or int(loop_state.get("iteration", 0)) + 1
     loop_state["iteration"] = iteration
     write_runtime_status(status="running", detail=f"iteration={iteration}", trigger="loop")
@@ -1255,10 +1891,68 @@ def main() -> int:
 
     note = "Discord 최신 사용자 지시 처리" if trigger["kind"] == "discord_user" else "자율 또는 복구 작업 처리"
     emit_console("trigger", f"kind={trigger['kind']} label={trim(trigger['label'], 140)}")
+    if contract.enable_github_automation:
+        try:
+            bootstrap = ensure_issue_branch(loop_state, trigger, contract)
+            if bootstrap.detail:
+                emit_console("github", trim(bootstrap.detail, 140))
+            if bootstrap.issue_number and bootstrap.branch:
+                post_message(
+                    "coordinator",
+                    f"GitHub 이슈 #{bootstrap.issue_number} 를 만들고 작업 브랜치 `{bootstrap.branch}` 로 전환했습니다.",
+                    loop_state.get("last_meeting_id", f"github-{iteration:04d}"),
+                    "github_issue_branch",
+                    trigger["id"],
+                    trigger.get("thread_id"),
+                )
+        except Exception as exc:
+            github_note = trim(str(exc), 600)
+            write_github_automation_status(loop_state, f"issue/branch bootstrap error: {github_note}")
+            emit_console("github", f"issue/branch bootstrap error: {github_note}")
     try:
         context = build_meeting_context(trigger, contract)
         role_outputs, verify_ok, verify_log, meeting_id = run_meeting(loop_state, trigger, contract, context)
         next_action = compute_next_action(role_outputs, contract)
+        github_notes: list[str] = []
+        if contract.enable_github_automation:
+            try:
+                publish_result = publish_issue_branch(loop_state, trigger, contract, role_outputs, verify_ok, verify_log)
+                if publish_result.ok and publish_result.pr_number:
+                    github_notes.append(publish_result.detail)
+                    post_message(
+                        "coordinator",
+                        f"PR #{publish_result.pr_number} 를 만들고 `develop` 자동 병합을 설정했습니다. {publish_result.pr_url}",
+                        meeting_id,
+                        "github_pr_open",
+                        trigger["id"],
+                        trigger.get("thread_id"),
+                    )
+                elif publish_result.detail:
+                    emit_console("github", trim(publish_result.detail, 140))
+            except Exception as exc:
+                github_note = trim(str(exc), 600)
+                github_notes.append(f"GitHub publish error: {github_note}")
+                write_github_automation_status(loop_state, f"publish error: {github_note}")
+                emit_console("github", f"publish error: {github_note}")
+            try:
+                release_result = sync_release_pr(loop_state, contract)
+                if release_result.ok and release_result.release_pr_number:
+                    github_notes.append(release_result.detail)
+                    post_message(
+                        "coordinator",
+                        f"Release PR #{release_result.release_pr_number} 를 준비했고 `main` 자동 병합을 설정했습니다. {release_result.release_pr_url}",
+                        meeting_id,
+                        "github_release_pr",
+                        trigger["id"],
+                        trigger.get("thread_id"),
+                    )
+                elif release_result.detail:
+                    emit_console("github", trim(release_result.detail, 140))
+            except Exception as exc:
+                github_note = trim(str(exc), 600)
+                github_notes.append(f"GitHub release error: {github_note}")
+                write_github_automation_status(loop_state, f"release error: {github_note}")
+                emit_console("github", f"release error: {github_note}")
         if verify_ok is False:
             update_failure_streak(loop_state, trigger)
             maybe_report_repeated_failure(loop_state, trigger)
@@ -1266,7 +1960,8 @@ def main() -> int:
             clear_failure_streak(loop_state)
         mark_trigger_done(loop_state, trigger)
         schedule_followup(loop_state, role_outputs, next_action, meeting_id)
-        write_iteration_journal(iteration, started_at, meeting_id, trigger, role_outputs, verify_ok, verify_log, next_action, note)
+        journal_note = note if not github_notes else f"{note} / {' / '.join(github_notes)}"
+        write_iteration_journal(iteration, started_at, meeting_id, trigger, role_outputs, verify_ok, verify_log, next_action, journal_note)
         loop_state["last_result"] = role_outputs[-1]["status"] if role_outputs else "idle"
         save_loop_state(loop_state)
         write_runtime_status(status="completed", detail=trim(next_action, 160), meeting_id=meeting_id, role="scribe", trigger=trigger["kind"])
@@ -1294,7 +1989,7 @@ def main() -> int:
             mark_trigger_done(loop_state, trigger)
         save_loop_state(loop_state)
         write_runtime_status(status="failed", detail=failure_note, meeting_id=loop_state.get("last_meeting_id", ""), role="watchdog", trigger=trigger["kind"])
-        post_message("watchdog", f"[meeting:{loop_state.get('last_meeting_id', '')}] 회의 실행 실패: {failure_note}", loop_state.get("last_meeting_id", f"failed-{iteration:04d}"), "loop_error", trigger["id"], trigger.get("thread_id"))
+        post_message("watchdog", f"회의 실행이 실패했습니다: {failure_note}", loop_state.get("last_meeting_id", f"failed-{iteration:04d}"), "loop_error", trigger["id"], trigger.get("thread_id"))
         return 1
 
 
