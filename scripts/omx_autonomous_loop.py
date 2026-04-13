@@ -72,6 +72,19 @@ class MeetingContext:
     related_summary: str
 
 
+ROLE_DISPLAY_NAMES = {
+    "planner": "planner",
+    "critic": "critic",
+    "researcher": "researcher",
+    "architect": "architect",
+    "executor": "executor",
+    "verifier": "verifier",
+    "coordinator": "coordinator",
+    "scribe": "scribe",
+    "watchdog": "watchdog",
+}
+
+
 ROLE_SPECS = {
     "planner": RoleSpec("planner", "최신 트리거와 상태를 읽고 이번 iteration의 가장 작은 P0를 고른다.", "read-only"),
     "critic": RoleSpec("critic", "계획의 허점, 정책 위반, 검증 누락, 재발 위험을 먼저 잡는다.", "read-only"),
@@ -94,6 +107,15 @@ def trim(text: str, limit: int = 3000) -> str:
     return normalized if len(normalized) <= limit else normalized[: limit - 3].rstrip() + "..."
 
 
+def decode_text_bytes(raw: bytes) -> str:
+    for encoding in ("utf-8", "cp949", "utf-16"):
+        try:
+            return raw.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("utf-8", errors="replace")
+
+
 def sanitize_text(value: str) -> str:
     text = value.replace("\r\n", "\n").replace("\r", "\n")
     text = CONTROL_CHAR_RE.sub("", text).strip()
@@ -102,7 +124,7 @@ def sanitize_text(value: str) -> str:
         ascii_letters = sum(1 for ch in text if ch.isascii() and ch.isalpha())
         if ascii_letters < 8:
             return "[인코딩 손상으로 원문을 보존하지 못함]"
-    text = DOUBLE_QUESTION_RE.sub("물음표 두 개", text)
+    text = DOUBLE_QUESTION_RE.sub("?", text)
     text = RAW_UNICODE_ESCAPE_RE.sub("[유니코드 이스케이프 제거]", text)
     return text
 
@@ -626,6 +648,18 @@ def build_context_excerpt() -> str:
     return "\n\n".join(f"## {label}\n{trim(read_text(path), limit)}" for label, path, limit in items)
 
 
+def build_docs_excerpt(contract: AgentsContract) -> str:
+    excerpts: list[str] = []
+    for raw_path in contract.required_docs[:4]:
+        doc_path = ROOT / raw_path
+        title = raw_path
+        if not doc_path.exists():
+            excerpts.append(f"## {title}\n- 파일이 아직 없다.")
+            continue
+        excerpts.append(f"## {title}\n{trim(read_text(doc_path), 900)}")
+    return "\n\n".join(excerpts) or "- 참고 문서 없음"
+
+
 def build_recent_excerpt() -> str:
     recent = load_jsonl(TEAM_CONVERSATION_LOG)[-RECENT_CONVERSATION_LIMIT:]
     if not recent:
@@ -636,12 +670,54 @@ def build_recent_excerpt() -> str:
     )
 
 
+def build_trigger_context(trigger: dict[str, Any]) -> str:
+    lines = [
+        f"- kind: {trigger['kind']}",
+        f"- label: {trigger['label']}",
+    ]
+    author = str(trigger.get("author", "")).strip()
+    if author:
+        lines.append(f"- author: {author}")
+    content = trim(str(trigger.get("content", "")).strip(), 600)
+    if content:
+        lines.append(f"- content: {content}")
+    superseded = [item for item in trigger.get("superseded_message_ids", []) if str(item).strip()]
+    if superseded:
+        lines.append(f"- superseded_message_ids: {', '.join(superseded)}")
+    thread_id = str(trigger.get("thread_id", "") or "").strip()
+    if thread_id:
+        lines.append(f"- thread_id: {thread_id}")
+    return "\n".join(lines)
+
+
+def build_focus_note(trigger: dict[str, Any]) -> str:
+    if trigger["kind"] == "discord_user":
+        return "사용자 질문에 바로 답하면서 역할 간 이견과 우려를 드러내는 회의형 대화를 만든다."
+    if trigger["kind"] == "verify_failure":
+        return "실패한 검증을 우선 복구하고 같은 실패를 반복하지 않는 우회책을 합의한다."
+    if trigger["kind"] == "followup":
+        return "직전 회의의 다음 액션을 실제 구현 가능한 가장 작은 단계로 축소한다."
+    return "현재 저장소 상태에서 가장 가치가 큰 다음 행동을 정하고 근거를 공유한다."
+
+
+def build_meeting_context(trigger: dict[str, Any], contract: AgentsContract) -> MeetingContext:
+    return MeetingContext(
+        started_at=iso_now(),
+        focus_note=build_focus_note(trigger),
+        trigger_context=build_trigger_context(trigger),
+        state_excerpt=build_context_excerpt(),
+        docs_excerpt=build_docs_excerpt(contract),
+        related_summary=build_recent_excerpt(),
+    )
+
+
 def build_role_prompt(
     role: RoleSpec,
     trigger: dict[str, Any],
     meeting_id: str,
     prior_outputs: list[dict[str, Any]],
     contract: AgentsContract,
+    context: MeetingContext,
 ) -> str:
     prior = "\n".join(
         textwrap.dedent(
@@ -649,24 +725,31 @@ def build_role_prompt(
             ### {item['role']}
             - status: {item['status']}
             - summary: {item['summary']}
-            - rationale: {item['rationale']}
+            - team_message: {item.get('team_message', '')}
+            - reply_to: {', '.join(item.get('reply_to', [])) or '없음'}
+            - question_for_next: {item.get('question_for_next', '') or '없음'}
             - proposed_action: {item['proposed_action']}
+            - risks: {' / '.join(item.get('risks', [])) or '없음'}
             """
         ).strip()
         for item in prior_outputs
-    ) or "- 없음"
+    ) or "- 아직 다른 역할 발언이 없다."
     docs = "\n".join(f"- {item}" for item in contract.required_docs) or "- 없음"
     return textwrap.dedent(
         f"""\
         당신은 OMX 역할 `{role.name}`이다.
         목표: {role.goal}
 
-        현재 회의
+        이 회의의 초점
+        - started_at: {context.started_at}
+        - focus_note: {context.focus_note}
+
+        현재 회의 메타데이터
         - meeting_id: {meeting_id}
         - trigger_kind: {trigger['kind']}
         - trigger_label: {trigger['label']}
-        - trigger_content: {trigger.get('content', '')}
-        - superseded_message_ids: {', '.join(trigger.get('superseded_message_ids', [])) or '없음'}
+        - trigger_context:
+        {context.trigger_context}
 
         최상위 계약
         - PRIMARY_TASK: {contract.primary_task}
@@ -679,6 +762,13 @@ def build_role_prompt(
         - 최신 Discord 사용자 지시 1건만 우선한다.
         - superseded_message_ids는 다시 읽지 않는다.
         - 질문은 정말 막힌 경우에만 최소화한다.
+        - Discord에 바로 올라갈 문장이므로 보고서체보다 대화체를 우선한다.
+        - `team_message`는 실제 회의 발언처럼 자연스러운 한국어 2~4문장으로 쓴다.
+        - 이전 역할이 있다면 `reply_to`에 최소 한 명 이상을 넣고, 그 의견을 받아서 찬성/보완/반박 중 하나를 분명히 한다.
+        - 이전 역할이 없다면 `reply_to`는 `["user"]`로 두고 사용자 메시지에 직접 반응한다.
+        - `question_for_next`는 정말 필요한 질문이나 다음 역할에게 넘길 논점을 한 문장으로 적고, 없으면 빈 문자열로 둔다.
+        - `summary`, `rationale`, `proposed_action`은 각각 한두 문장으로 짧고 구체적으로 쓴다.
+        - `reply_to`, `risks`, `verification`, `changed_files`, `followups`는 문자열 배열이다.
         - `??` 같은 플레이스홀더나 raw unicode escape를 쓰지 않는다.
         - 비밀, 토큰, webhook URL, env 값은 출력하지 않는다.
         - 출처 없는 가격, 뉴스, 점수를 만들지 않는다.
@@ -690,13 +780,21 @@ def build_role_prompt(
         {docs}
 
         상태 요약
-        {build_context_excerpt()}
+        {context.state_excerpt}
+
+        참고 문서 발췌
+        {context.docs_excerpt}
 
         최근 대화
-        {build_recent_excerpt()}
+        {context.related_summary}
 
         이전 역할 출력
         {prior}
+
+        출력 힌트
+        - 팀이 Discord에서 읽을 첫 문장은 바로 `team_message`다.
+        - 다른 역할의 우려를 그대로 반복하지 말고, 무엇을 보완하거나 뒤집는지 분명히 적는다.
+        - 근거 없는 낙관 대신 현재 저장소에서 확인한 사실과 다음 검증 단계를 함께 적는다.
         """
     ).strip()
 
@@ -704,15 +802,18 @@ def build_role_prompt(
 def normalize_role_output(role: RoleSpec, payload: dict[str, Any]) -> dict[str, Any]:
     payload = sanitize_value(payload)
     payload["role"] = role.name
-    for key in ("risks", "verification", "changed_files", "followups"):
+    for key in ("reply_to", "risks", "verification", "changed_files", "followups"):
         if not isinstance(payload.get(key), list):
             payload[key] = []
+        payload[key] = [str(item).strip() for item in payload[key] if str(item).strip()]
     if not role.writable:
         payload["changed_files"] = []
-    for key in ("summary", "rationale", "proposed_action", "status"):
+    for key in ("summary", "rationale", "proposed_action", "status", "team_message", "question_for_next"):
         payload[key] = str(payload.get(key, "")).strip()
     if not payload["status"]:
         payload["status"] = "continue"
+    if not payload["team_message"]:
+        payload["team_message"] = payload["summary"] or payload["proposed_action"] or f"{role.name} 의견을 정리 중이다."
     try:
         payload["confidence"] = float(payload.get("confidence", 0))
     except Exception:
@@ -720,16 +821,13 @@ def normalize_role_output(role: RoleSpec, payload: dict[str, Any]) -> dict[str, 
     payload["needs_human"] = bool(payload.get("needs_human", False))
     return payload
 
-def run_role(*, role: RoleSpec, trigger: dict[str, Any], meeting_id: str, prior_outputs: list[dict[str, Any]], contract: AgentsContract, context: MeetingContext) -> dict[str, Any]:
-    emit_console(role.name, f"run start trigger={trim(trigger['label'], 100)}")
-    write_runtime_status(status="role_running", detail=trim(trigger['label'], 160), meeting_id=meeting_id, role=role.name, trigger=trigger['kind'])
-
 def run_role(
     role: RoleSpec,
     trigger: dict[str, Any],
     meeting_id: str,
     prior_outputs: list[dict[str, Any]],
     contract: AgentsContract,
+    context: MeetingContext,
 ) -> dict[str, Any]:
     omx_exec = find_omx_exec()
     output_file = RUNTIME_DIR / f"{meeting_id}-{role.name}-output.json"
@@ -753,8 +851,10 @@ def run_role(
     else:
         args[2:2] = ["--sandbox", role.sandbox]
 
-    prompt = build_role_prompt(role, trigger, meeting_id, prior_outputs, contract)
     emit_console(role.name, f"run start trigger={trim(trigger['label'], 100)}")
+    write_runtime_status(status="role_running", detail=trim(trigger['label'], 160), meeting_id=meeting_id, role=role.name, trigger=trigger["kind"])
+    sync_discord_replies()
+    prompt = build_role_prompt(role, trigger, meeting_id, prior_outputs, contract, context)
     with log_file.open("w", encoding="utf-8") as handle:
         completed = subprocess.run(
             args,
@@ -777,28 +877,23 @@ def run_role(
 
 
 def format_role_message(payload: dict[str, Any], meeting_id: str, trigger: dict[str, Any]) -> str:
-    def render(items: list[str]) -> str:
-        return "\n".join(f"- {item}" for item in items) if items else "- 없음"
-
-    return textwrap.dedent(
-        f"""\
-        [meeting:{meeting_id}][{payload['role']}]
-        트리거: {trigger['label']}
-        상태: {payload['status']}
-        판단: {payload['summary']}
-        근거: {payload['rationale']}
-        다음 액션: {payload['proposed_action']}
-        리스크:
-        {render(payload['risks'])}
-        검증:
-        {render(payload['verification'])}
-        변경 파일:
-        {render(payload['changed_files'])}
-        후속:
-        {render(payload['followups'])}
-        confidence: {payload['confidence']:.2f}
-        """
-    ).strip()
+    reply_to = ", ".join(payload.get("reply_to", [])) or "user"
+    lines = [
+        f"[meeting:{meeting_id}] {ROLE_DISPLAY_NAMES.get(payload['role'], payload['role'])}: {payload['team_message']}",
+        f"상태: {payload['status']} | 응답 대상: {reply_to}",
+        f"다음 액션: {payload['proposed_action']}",
+    ]
+    question_for_next = str(payload.get("question_for_next", "")).strip()
+    if question_for_next:
+        lines.append(f"다음 질문: {question_for_next}")
+    risks = [str(item).strip() for item in payload.get("risks", []) if str(item).strip()]
+    if risks:
+        lines.append(f"우려: {' / '.join(risks[:2])}")
+    verification = [str(item).strip() for item in payload.get("verification", []) if str(item).strip()]
+    if verification:
+        lines.append(f"검증 메모: {' / '.join(verification[:2])}")
+    lines.append(f"트리거: {trigger['label']}")
+    return "\n".join(lines)
 
 
 def run_bash_script(script_path: Path, log_name: str, timeout: int) -> tuple[int, str]:
@@ -863,6 +958,9 @@ def build_verifier_output(executor_output: dict[str, Any] | None, verify_ok: boo
             "summary": "executor 전에 회의가 중단되어 검증 단계에 진입하지 못했다.",
             "rationale": "executor 결과가 없다.",
             "proposed_action": "막힌 역할의 사유를 먼저 해소한다.",
+            "team_message": "executor까지 회의가 이어지지 못해서 아직 검증 단계에 들어가지 못했습니다. 먼저 어디에서 막혔는지부터 정리해야 합니다.",
+            "question_for_next": "어떤 역할의 차단 사유를 먼저 풀어야 하는가?",
+            "reply_to": ["executor"],
             "risks": ["구현 상태를 검증하지 못했다."],
             "verification": ["verify gate skipped"],
             "changed_files": [],
@@ -877,6 +975,9 @@ def build_verifier_output(executor_output: dict[str, Any] | None, verify_ok: boo
             "summary": "executor가 차단 상태라 guard/verify gate를 생략했다.",
             "rationale": executor_output.get("summary", "executor blocked"),
             "proposed_action": "executor 차단 원인을 해결하고 같은 작업을 다시 검증한다.",
+            "team_message": "executor가 아직 막혀 있어서 지금 검증을 돌려도 의미가 없습니다. executor 쪽 차단 원인을 먼저 푼 뒤 같은 흐름을 다시 검증해야 합니다.",
+            "question_for_next": "executor 차단 원인을 지금 바로 해소할 수 있는가?",
+            "reply_to": ["executor"],
             "risks": ["구현 결과가 검증되지 않았다."],
             "verification": ["executor blocked; verify gate skipped"],
             "changed_files": [],
@@ -891,6 +992,9 @@ def build_verifier_output(executor_output: dict[str, Any] | None, verify_ok: boo
             "summary": "회의형 executor가 실행 계획까지만 정리했고 실제 코드 변경은 아직 수행하지 않았다.",
             "rationale": trim(verify_log, 400) or "회의 단계라 guard/verify를 생략했다.",
             "proposed_action": "다음 구현 iteration에서 executor 액션을 실제 코드 변경과 검증으로 이어간다.",
+            "team_message": "이번 executor는 회의용 정리까지만 끝냈고 실제 코드 변경은 아직 없습니다. 다음 iteration에서 이 액션을 구현과 검증으로 바로 이어가면 됩니다.",
+            "question_for_next": "다음 iteration에서 가장 먼저 구현할 한 단계는 무엇인가?",
+            "reply_to": ["executor"],
             "risks": ["실제 코드 변경 전이라 기능 상태는 아직 바뀌지 않았을 수 있다."],
             "verification": ["meeting-only executor; verify gate skipped"],
             "changed_files": [],
@@ -905,6 +1009,9 @@ def build_verifier_output(executor_output: dict[str, Any] | None, verify_ok: boo
             "summary": "executor 이후 guard/verify gate를 통과했다.",
             "rationale": "scripts/no_secrets_guard.sh와 scripts/verify_minimal.sh가 모두 성공했다.",
             "proposed_action": "다음 가장 작은 후속 구현 또는 QA 범위로 진행한다.",
+            "team_message": "executor 이후 검증 게이트는 통과했습니다. 이제 같은 맥락에서 가장 작은 후속 구현이나 QA로 넘어가도 됩니다.",
+            "question_for_next": "후속 구현과 QA 중 어디가 지금 더 가치가 큰가?",
+            "reply_to": ["executor"],
             "risks": [],
             "verification": ["scripts/no_secrets_guard.sh: pass", "scripts/verify_minimal.sh: pass"],
             "changed_files": [],
@@ -918,6 +1025,9 @@ def build_verifier_output(executor_output: dict[str, Any] | None, verify_ok: boo
         "summary": "executor 이후 guard/verify gate에서 실패가 발생했다.",
         "rationale": trim(verify_log, 400),
         "proposed_action": "VERIFY_LAST_FAILURE.md에 적힌 실패 명령부터 복구한다.",
+        "team_message": "executor 뒤 검증 게이트에서 실패가 났습니다. 이 상태로 넘기면 회귀를 품고 가게 되니 실패한 명령부터 바로 복구해야 합니다.",
+        "question_for_next": "실패 로그에서 가장 먼저 고쳐야 할 한 줄은 무엇인가?",
+        "reply_to": ["executor"],
         "risks": ["실패한 검증을 무시하면 회귀나 비밀 문제가 남을 수 있다."],
         "verification": ["guard/verify gate failed"],
         "changed_files": [],
@@ -944,7 +1054,17 @@ def schedule_followup(loop_state: dict[str, Any], role_outputs: list[dict[str, A
     loop_state["pending_followup"] = {"content": next_action.strip(), "source_meeting_id": meeting_id, "created_at": iso_now()}
 
 
-def write_iteration_journal(iteration: int, meeting_id: str, trigger: dict[str, Any] | None, role_outputs: list[dict[str, Any]], verify_ok: bool | None, verify_log: str, next_action: str, note: str) -> None:
+def write_iteration_journal(
+    iteration: int,
+    started_at: str,
+    meeting_id: str,
+    trigger: dict[str, Any] | None,
+    role_outputs: list[dict[str, Any]],
+    verify_ok: bool | None,
+    verify_log: str,
+    next_action: str,
+    note: str,
+) -> None:
     changed_files: list[str] = []
     verification_lines: list[str] = []
     for output in role_outputs:
@@ -966,14 +1086,15 @@ def write_iteration_journal(iteration: int, meeting_id: str, trigger: dict[str, 
         - meeting_id: {meeting_id}
         - trigger: {trigger['label'] if trigger else 'idle'}
         - note: {note}
+        - verify_result: {"pass" if verify_ok is True else "fail" if verify_ok is False else "skipped"}
 
         ## Role Summary
-        {chr(10).join(f"- {item['role']}: {item['summary']}" for item in role_outputs) or '- no role output'}
+        {chr(10).join(f"- {item['role']}: {item.get('team_message') or item['summary']}" for item in role_outputs) or '- no role output'}
 
-        ## Next Action
+        ## Changed Files
         {chr(10).join(f"- {item}" for item in changed_files) or '- none'}
 
-        ## Next Action
+        ## Verification
         {chr(10).join(f"- {item}" for item in verification_lines) or '- none'}
 
         ## Verify Log
@@ -1021,7 +1142,12 @@ def mark_trigger_done(loop_state: dict[str, Any], trigger: dict[str, Any]) -> No
     loop_state["last_autonomous_cycle_at"] = iso_now()
 
 
-def run_meeting(loop_state: dict[str, Any], trigger: dict[str, Any], contract: AgentsContract) -> tuple[list[dict[str, Any]], bool | None, str, str]:
+def run_meeting(
+    loop_state: dict[str, Any],
+    trigger: dict[str, Any],
+    contract: AgentsContract,
+    context: MeetingContext,
+) -> tuple[list[dict[str, Any]], bool | None, str, str]:
     loop_state["meeting_counter"] = int(loop_state.get("meeting_counter", 0)) + 1
     meeting_id = f"{utc_now().strftime('%Y%m%d-%H%M%S')}-{loop_state['meeting_counter']:04d}"
     loop_state["last_meeting_id"] = meeting_id
@@ -1029,14 +1155,27 @@ def run_meeting(loop_state: dict[str, Any], trigger: dict[str, Any], contract: A
         update_important_discord_notes()
 
     emit_console("meeting", f"start id={meeting_id} trigger={trim(trigger['label'], 120)}")
-    post_message("coordinator", f"[meeting:{meeting_id}] 회의를 시작한다. trigger={trigger['label']}", meeting_id, "meeting_start", trigger["id"], trigger.get("thread_id"))
+    post_message(
+        "coordinator",
+        textwrap.dedent(
+            f"""\
+            [meeting:{meeting_id}] coordinator: 이번 회의는 `{trigger['label']}`를 처리합니다.
+            사용자와 팀이 읽기 쉽도록 한국어로 짧고 명확하게 이야기해 주세요.
+            첫 쟁점: {context.focus_note}
+            """
+        ).strip(),
+        meeting_id,
+        "meeting_start",
+        trigger["id"],
+        trigger.get("thread_id"),
+    )
 
     role_outputs: list[dict[str, Any]] = []
     executor_output: dict[str, Any] | None = None
     verify_ok: bool | None = None
     verify_log = ""
     for role_name in ROLE_ORDER:
-        output = run_role(ROLE_SPECS[role_name], trigger, meeting_id, role_outputs, contract)
+        output = run_role(ROLE_SPECS[role_name], trigger, meeting_id, role_outputs, contract, context)
         role_outputs.append(output)
         post_message(role_name, format_role_message(output, meeting_id, trigger), meeting_id, role_name, trigger["id"], trigger.get("thread_id"))
         if role_name != "executor" and output.get("needs_human"):
@@ -1060,7 +1199,7 @@ def run_meeting(loop_state: dict[str, Any], trigger: dict[str, Any], contract: A
         "scribe",
         textwrap.dedent(
             f"""\
-            [meeting:{meeting_id}] 회의 종료
+            [meeting:{meeting_id}] scribe: 회의를 여기서 정리합니다.
             역할 요약:
             {chr(10).join(f"- {item['role']}: {item['summary']}" for item in role_outputs) or '- 없음'}
             다음 액션: {next_action}
@@ -1075,8 +1214,18 @@ def run_meeting(loop_state: dict[str, Any], trigger: dict[str, Any], contract: A
     return role_outputs, verify_ok, verify_log, meeting_id
 
 
-def write_idle_journal(iteration: int, loop_state: dict[str, Any], contract: AgentsContract) -> None:
-    write_iteration_journal(iteration, loop_state.get("last_meeting_id", f"idle-{iteration:04d}"), None, [], None, "", contract.primary_task or "Discord 최신 지시를 기다린다.", "새 트리거가 없어 대기한다.")
+def write_idle_journal(iteration: int, started_at: str, loop_state: dict[str, Any], contract: AgentsContract) -> None:
+    write_iteration_journal(
+        iteration,
+        started_at,
+        loop_state.get("last_meeting_id", f"idle-{iteration:04d}"),
+        None,
+        [],
+        None,
+        "",
+        contract.primary_task or "Discord 최신 지시를 기다린다.",
+        "새 트리거가 없어 대기한다.",
+    )
 
 
 
@@ -1084,6 +1233,7 @@ def main() -> int:
     ensure_dirs()
     repair_state_logs()
     contract = parse_agents_contract()
+    started_at = iso_now()
     emit_console("contract", f"primary={trim(contract.primary_task, 140)}")
     emit_console("contract", f"exit={trim(contract.min_exit_condition, 140)}")
     emit_console("contract", f"auto_continue={trim(contract.auto_continue_policy, 140)}")
@@ -1098,7 +1248,7 @@ def main() -> int:
     trigger = select_trigger(loop_state, contract)
     if not trigger:
         emit_console("idle", "no trigger")
-        write_idle_journal(iteration, loop_state, contract, started_at)
+        write_idle_journal(iteration, started_at, loop_state, contract)
         write_runtime_status(status="idle", detail="no trigger", trigger="idle")
         save_loop_state(loop_state)
         return 0
@@ -1116,7 +1266,7 @@ def main() -> int:
             clear_failure_streak(loop_state)
         mark_trigger_done(loop_state, trigger)
         schedule_followup(loop_state, role_outputs, next_action, meeting_id)
-        write_iteration_journal(iteration, meeting_id, trigger, role_outputs, verify_ok, verify_log, next_action, note)
+        write_iteration_journal(iteration, started_at, meeting_id, trigger, role_outputs, verify_ok, verify_log, next_action, note)
         loop_state["last_result"] = role_outputs[-1]["status"] if role_outputs else "idle"
         save_loop_state(loop_state)
         write_runtime_status(status="completed", detail=trim(next_action, 160), meeting_id=meeting_id, role="scribe", trigger=trigger["kind"])
@@ -1126,7 +1276,17 @@ def main() -> int:
         failure_note = trim(str(exc), 1500)
         emit_console("error", failure_note)
         write_verify_failure("active", "scripts/omx_autonomous_loop.py", "meeting execution failed", failure_note, "최신 role log를 확인하고 가장 작은 실패 단계부터 다시 실행한다.")
-        write_iteration_journal(iteration, loop_state.get("last_meeting_id", f"failed-{iteration:04d}"), trigger, [], False, failure_note, "OMX role 실행 오류를 먼저 복구한다.", "회의 실행 중 예외가 발생했다.")
+        write_iteration_journal(
+            iteration,
+            started_at,
+            loop_state.get("last_meeting_id", f"failed-{iteration:04d}"),
+            trigger,
+            [],
+            False,
+            failure_note,
+            "OMX role 실행 오류를 먼저 복구한다.",
+            "회의 실행 중 예외가 발생했다.",
+        )
         loop_state["last_result"] = "failed"
         update_failure_streak(loop_state, trigger)
         maybe_report_repeated_failure(loop_state, trigger)

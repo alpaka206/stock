@@ -46,7 +46,7 @@ def sanitize_text(value: str) -> str:
         ascii_letters = sum(1 for ch in text if ch.isascii() and ch.isalpha())
         if ascii_letters < 8:
             return '[인코딩 손상으로 원문을 보존하지 못함]'
-    text = DOUBLE_QUESTION_RE.sub('물음표 두 개', text)
+    text = DOUBLE_QUESTION_RE.sub('?', text)
     text = RAW_UNICODE_ESCAPE_RE.sub('[유니코드 이스케이프 제거]', text)
     return text
 
