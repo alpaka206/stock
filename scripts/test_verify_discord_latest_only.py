@@ -11,6 +11,7 @@ from verify_discord_latest_only import (
     DIAGNOSIS_READY_FOR_LOOP,
     build_snapshot,
     classify_latest_only_blockage,
+    determine_watch_status,
     verify_transition,
 )
 
@@ -298,6 +299,68 @@ def test_diagnosis_marks_already_handled_when_loop_consumed_latest_allowed() -> 
         raise AssertionError(f"expected already-handled diagnosis, got {diagnosis}")
 
 
+def test_watch_status_waits_for_message_before_new_allowed_message() -> None:
+    watch_status = determine_watch_status(
+        baseline_message_id="old-1",
+        diagnosis_payload={
+            "diagnosis": {
+                "category": DIAGNOSIS_NO_NEW_HUMAN,
+                "comparison": {
+                    "live_latest_allowed_after_cursor": None,
+                },
+            }
+        },
+        current_snapshot={
+            "loop_state": {
+                "handled_discord_message_ids": ["old-1"],
+                "last_meeting_id": "meeting-before",
+            }
+        },
+        before_snapshot_path=".omx/state/discord-latest-before.json",
+    )
+    if watch_status["status"] != "waiting_for_message":
+        raise AssertionError(f"expected waiting_for_message status, got {watch_status}")
+    if watch_status["ready_for_verify"] is not False:
+        raise AssertionError(f"expected ready_for_verify false, got {watch_status}")
+
+
+def test_watch_status_builds_verify_command_when_fixed_cursor_message_is_handled() -> None:
+    watch_status = determine_watch_status(
+        baseline_message_id="old-1",
+        diagnosis_payload={
+            "diagnosis": {
+                "category": DIAGNOSIS_ALREADY_HANDLED,
+                "comparison": {
+                    "live_latest_allowed_after_cursor": {
+                        "message_id": "new-4",
+                        "author_id": "user-1",
+                        "author": "alice",
+                    },
+                },
+            }
+        },
+        current_snapshot={
+            "loop_state": {
+                "handled_discord_message_ids": ["old-1", "new-4"],
+                "last_meeting_id": "meeting-4",
+            }
+        },
+        before_snapshot_path=".omx/state/discord-latest-before.json",
+    )
+    if watch_status["status"] != "handled":
+        raise AssertionError(f"expected handled status, got {watch_status}")
+    if watch_status["ready_for_verify"] is not True:
+        raise AssertionError(f"expected ready_for_verify true, got {watch_status}")
+    expected = (
+        "python scripts/verify_discord_latest_only.py verify "
+        "--before .omx/state/discord-latest-before.json "
+        "--message-id new-4 "
+        "--meeting-id meeting-4"
+    )
+    if watch_status["verify_command"] != expected:
+        raise AssertionError(f"unexpected verify_command: {watch_status}")
+
+
 def main() -> int:
     test_snapshot_and_verify_pass()
     test_verify_fails_when_executor_metadata_missing()
@@ -306,6 +369,8 @@ def main() -> int:
     test_diagnosis_marks_disallowed_human_message()
     test_diagnosis_marks_ready_for_loop_when_imported_but_not_handled()
     test_diagnosis_marks_already_handled_when_loop_consumed_latest_allowed()
+    test_watch_status_waits_for_message_before_new_allowed_message()
+    test_watch_status_builds_verify_command_when_fixed_cursor_message_is_handled()
     print("discord latest-only verification helper tests passed.")
     return 0
 
