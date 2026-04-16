@@ -317,6 +317,7 @@ def test_watch_status_waits_for_message_before_new_allowed_message() -> None:
             }
         },
         before_snapshot_path=".omx/state/discord-latest-before.json",
+        before_start_message_count=0,
     )
     if watch_status["status"] != "waiting_for_message":
         raise AssertionError(f"expected waiting_for_message status, got {watch_status}")
@@ -346,6 +347,7 @@ def test_watch_status_builds_verify_command_when_fixed_cursor_message_is_handled
             }
         },
         before_snapshot_path=".omx/state/discord-latest-before.json",
+        before_start_message_count=0,
     )
     if watch_status["status"] != "handled":
         raise AssertionError(f"expected handled status, got {watch_status}")
@@ -355,10 +357,45 @@ def test_watch_status_builds_verify_command_when_fixed_cursor_message_is_handled
         "python scripts/verify_discord_latest_only.py verify "
         "--before .omx/state/discord-latest-before.json "
         "--message-id new-4 "
-        "--meeting-id meeting-4"
+        "--meeting-id meeting-4 "
+        "--expect-start-message-delta 1"
     )
     if watch_status["verify_command"] != expected:
         raise AssertionError(f"unexpected verify_command: {watch_status}")
+
+
+def test_watch_status_omits_start_message_delta_when_before_snapshot_already_has_start_message() -> None:
+    watch_status = determine_watch_status(
+        baseline_message_id="old-1",
+        diagnosis_payload={
+            "diagnosis": {
+                "category": DIAGNOSIS_ALREADY_HANDLED,
+                "comparison": {
+                    "live_latest_allowed_after_cursor": {
+                        "message_id": "new-5",
+                        "author_id": "user-1",
+                        "author": "alice",
+                    },
+                },
+            }
+        },
+        current_snapshot={
+            "loop_state": {
+                "handled_discord_message_ids": ["old-1", "new-5"],
+                "last_meeting_id": "meeting-5",
+            }
+        },
+        before_snapshot_path=".omx/state/discord-latest-before.json",
+        before_start_message_count=2,
+    )
+    expected = (
+        "python scripts/verify_discord_latest_only.py verify "
+        "--before .omx/state/discord-latest-before.json "
+        "--message-id new-5 "
+        "--meeting-id meeting-5"
+    )
+    if watch_status["verify_command"] != expected:
+        raise AssertionError(f"unexpected verify_command without delta flag: {watch_status}")
 
 
 def main() -> int:
@@ -371,6 +408,7 @@ def main() -> int:
     test_diagnosis_marks_already_handled_when_loop_consumed_latest_allowed()
     test_watch_status_waits_for_message_before_new_allowed_message()
     test_watch_status_builds_verify_command_when_fixed_cursor_message_is_handled()
+    test_watch_status_omits_start_message_delta_when_before_snapshot_already_has_start_message()
     print("discord latest-only verification helper tests passed.")
     return 0
 
