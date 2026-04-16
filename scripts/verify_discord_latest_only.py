@@ -9,6 +9,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_STATE_DIR = ROOT / ".omx" / "state"
+DEFAULT_ENV_FILE = ROOT / "omx_discord_bridge" / ".env.discord"
 REQUIRED_ROLE_PHASES = ("planner", "critic", "researcher", "architect", "executor", "verifier")
 REQUIRED_ROLE_METADATA_KEYS = (
     "status",
@@ -25,10 +26,20 @@ REQUIRED_ROLE_METADATA_KEYS = (
     "needs_human",
 )
 START_MESSAGE = "\uc791\uc5c5\uc744 \uc2dc\uc791\ud569\ub2c8\ub2e4."
+DIAGNOSIS_NO_NEW_HUMAN = "no_new_human_message"
+DIAGNOSIS_DISALLOWED_HUMAN = "disallowed_human_message"
+DIAGNOSIS_IMPORT_STALLED = "import_cursor_stalled"
+DIAGNOSIS_ALREADY_HANDLED = "already_handled"
+DIAGNOSIS_READY_FOR_LOOP = "ready_for_loop"
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from omx_discord_bridge.discord_omx_bridge import fetch_channel_messages, load_env_values, parse_allowed_user_ids
 
 
 @dataclass(frozen=True)
@@ -145,6 +156,178 @@ def get_meeting_entries(state_dir: Path, meeting_id: str) -> list[dict[str, Any]
         for entry in read_jsonl(state_dir / "TEAM_CONVERSATION.jsonl")
         if str(entry.get("meeting_id", "")).strip() == meeting_id
     ]
+
+
+def fetch_discord_messages_page(*, channel_id: str, bot_token: str, after: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+    return fetch_channel_messages(channel_id=channel_id, bot_token=bot_token, after=after, limit=limit)
+
+
+def collect_live_messages_after_cursor(
+    *,
+    channel_id: str,
+    bot_token: str,
+    after_message_id: str,
+    max_pages: int,
+    page_size: int,
+) -> dict[str, Any]:
+    cursor = after_message_id.strip() or None
+    pages_scanned = 0
+    messages: list[dict[str, Any]] = []
+    truncated = False
+    while pages_scanned < max_pages:
+        batch = fetch_discord_messages_page(channel_id=channel_id, bot_token=bot_token, after=cursor, limit=page_size)
+        pages_scanned += 1
+        if not batch:
+            break
+        messages.extend(batch)
+        next_cursor = str(batch[-1].get("id", "")).strip()
+        if not next_cursor or next_cursor == cursor:
+            break
+        cursor = next_cursor
+        if len(batch) < min(max(page_size, 1), 100):
+            break
+    else:
+        truncated = True
+
+    return {
+        "pages_scanned": pages_scanned,
+        "message_count": len(messages),
+        "truncated": truncated,
+        "messages": messages,
+    }
+
+
+def summarize_live_message(message: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(message, dict):
+        return None
+    author = message.get("author") or {}
+    return {
+        "message_id": str(message.get("id", "")).strip(),
+        "author_id": str(author.get("id", "")).strip(),
+        "author": str(author.get("username", "")).strip(),
+        "bot": bool(author.get("bot")),
+        "content": str(message.get("content", "")).strip(),
+        "timestamp": str(message.get("timestamp", "")).strip(),
+    }
+
+
+def classify_latest_only_blockage(
+    *,
+    live_messages_after_cursor: list[dict[str, Any]],
+    inbox_entries: list[dict[str, Any]],
+    reply_last_message_id: str,
+    handled_message_ids: list[str],
+    allowed_user_ids: set[str],
+) -> dict[str, Any]:
+    inbox_user_entries = [entry for entry in inbox_entries if str(entry.get("source", "")).strip() == "discord_user"]
+    inbox_latest = inbox_user_entries[-1] if inbox_user_entries else {}
+    inbox_ids = {
+        str(entry.get("message_id", "")).strip()
+        for entry in inbox_user_entries
+        if str(entry.get("message_id", "")).strip()
+    }
+    handled_set = {str(item).strip() for item in handled_message_ids if str(item).strip()}
+
+    human_messages = [
+        message
+        for message in live_messages_after_cursor
+        if not bool((message.get("author") or {}).get("bot"))
+    ]
+    allowed_human_messages = [
+        message
+        for message in human_messages
+        if not allowed_user_ids or str((message.get("author") or {}).get("id", "")).strip() in allowed_user_ids
+    ]
+
+    latest_human = human_messages[-1] if human_messages else None
+    latest_allowed = allowed_human_messages[-1] if allowed_human_messages else None
+    latest_allowed_id = str((latest_allowed or {}).get("id", "")).strip()
+    handled_contains_latest_allowed = bool(latest_allowed_id and latest_allowed_id in handled_set)
+    inbox_contains_latest_allowed = bool(latest_allowed_id and latest_allowed_id in inbox_ids)
+    reply_matches_latest_allowed = bool(latest_allowed_id and reply_last_message_id == latest_allowed_id)
+
+    if latest_human is None:
+        category = DIAGNOSIS_NO_NEW_HUMAN
+        reason = "reply_state.last_message_id 이후에 새 human 메시지가 없습니다."
+    elif latest_allowed is None:
+        category = DIAGNOSIS_DISALLOWED_HUMAN
+        reason = "reply_state.last_message_id 이후 human 메시지는 있지만 allowed author가 아닙니다."
+    elif not inbox_contains_latest_allowed or not reply_matches_latest_allowed:
+        category = DIAGNOSIS_IMPORT_STALLED
+        reason = "최신 allowed human 메시지가 live Discord에는 있지만 inbox 또는 reply_state에 아직 반영되지 않았습니다."
+    elif handled_contains_latest_allowed:
+        category = DIAGNOSIS_ALREADY_HANDLED
+        reason = "최신 allowed human 메시지가 inbox/reply_state에 반영됐고 loop_state.handled에도 있어 새 trigger 후보가 아닙니다."
+    else:
+        category = DIAGNOSIS_READY_FOR_LOOP
+        reason = "최신 allowed human 메시지가 inbox/reply_state에 반영됐고 loop_state.handled에는 없어 다음 loop trigger 후보입니다."
+
+    return {
+        "category": category,
+        "ready_for_loop": category == DIAGNOSIS_READY_FOR_LOOP,
+        "reason": reason,
+        "comparison": {
+            "live_latest_human_after_cursor": summarize_live_message(latest_human),
+            "live_latest_allowed_after_cursor": summarize_live_message(latest_allowed),
+            "inbox_latest_discord_user": {
+                "message_id": str(inbox_latest.get("message_id", "")).strip(),
+                "author_id": str(inbox_latest.get("author_id", "")).strip(),
+                "author": str(inbox_latest.get("author", "")).strip(),
+            },
+            "reply_state_last_message_id": reply_last_message_id,
+            "loop_handled_contains_latest_allowed": handled_contains_latest_allowed,
+        },
+        "counts": {
+            "live_messages_after_cursor": len(live_messages_after_cursor),
+            "human_messages_after_cursor": len(human_messages),
+            "allowed_human_messages_after_cursor": len(allowed_human_messages),
+            "inbox_discord_user_count": len(inbox_user_entries),
+            "handled_discord_message_count": len(handled_set),
+        },
+    }
+
+
+def diagnose_latest_only_state(
+    *,
+    state_dir: Path,
+    env_file: Path,
+    max_pages: int,
+    page_size: int,
+) -> dict[str, Any]:
+    snapshot = build_snapshot(state_dir)
+    env_values = load_env_values(env_file)
+    channel_id = env_values.get("DISCORD_PARENT_CHANNEL_ID", "").strip()
+    bot_token = env_values.get("DISCORD_BOT_TOKEN", "").strip()
+    if not channel_id or not bot_token:
+        raise SystemExit("DISCORD_PARENT_CHANNEL_ID 또는 DISCORD_BOT_TOKEN 이 없어 live diagnosis를 실행할 수 없습니다.")
+
+    reply_last_message_id = str(snapshot.get("discord_reply_state", {}).get("last_message_id", "")).strip()
+    live_result = collect_live_messages_after_cursor(
+        channel_id=channel_id,
+        bot_token=bot_token,
+        after_message_id=reply_last_message_id,
+        max_pages=max_pages,
+        page_size=page_size,
+    )
+    diagnosis = classify_latest_only_blockage(
+        live_messages_after_cursor=list(live_result.get("messages", [])),
+        inbox_entries=read_jsonl(state_dir / "DISCORD_INBOX.jsonl"),
+        reply_last_message_id=reply_last_message_id,
+        handled_message_ids=list(snapshot.get("loop_state", {}).get("handled_discord_message_ids", [])),
+        allowed_user_ids=parse_allowed_user_ids(env_values.get("ALLOWED_DISCORD_USER_IDS", "")),
+    )
+    return {
+        "ok": True,
+        "state_dir": str(state_dir),
+        "env_file": str(env_file),
+        "reply_last_message_id": reply_last_message_id,
+        "live_scan": {
+            "pages_scanned": int(live_result.get("pages_scanned", 0)),
+            "message_count": int(live_result.get("message_count", 0)),
+            "truncated": bool(live_result.get("truncated", False)),
+        },
+        "diagnosis": diagnosis,
+    }
 
 
 def verify_transition(
@@ -306,6 +489,13 @@ def parse_args() -> argparse.Namespace:
     )
     verify.add_argument("--json", action="store_true", help="Print machine-readable JSON only.")
 
+    diagnose = subparsers.add_parser("diagnose", help="Compare live Discord messages with inbox/reply_state/loop_state and classify why latest-only is blocked.")
+    diagnose.add_argument("--state-dir", default=str(DEFAULT_STATE_DIR), help="State directory. Default: .omx/state")
+    diagnose.add_argument("--env-file", default=str(DEFAULT_ENV_FILE), help="Discord env file. Default: omx_discord_bridge/.env.discord")
+    diagnose.add_argument("--max-pages", type=int, default=5, help="Maximum Discord API pages to scan after reply_state.last_message_id.")
+    diagnose.add_argument("--page-size", type=int, default=100, help="Discord API page size per request. Max 100.")
+    diagnose.add_argument("--json", action="store_true", help="Print machine-readable JSON only.")
+
     return parser.parse_args()
 
 
@@ -342,6 +532,28 @@ def format_verification(result: VerificationResult) -> str:
     return "\n".join(lines)
 
 
+def format_diagnosis(payload: dict[str, Any]) -> str:
+    diagnosis = payload.get("diagnosis", {})
+    comparison = diagnosis.get("comparison", {})
+    live_human = comparison.get("live_latest_human_after_cursor") or {}
+    live_allowed = comparison.get("live_latest_allowed_after_cursor") or {}
+    live_scan = payload.get("live_scan", {})
+    lines = [
+        "Discord latest-only diagnosis",
+        f"- category: {diagnosis.get('category', '')}",
+        f"- ready_for_loop: {diagnosis.get('ready_for_loop')}",
+        f"- reason: {diagnosis.get('reason', '')}",
+        f"- live_scan.pages_scanned: {live_scan.get('pages_scanned', 0)}",
+        f"- live_scan.message_count: {live_scan.get('message_count', 0)}",
+        f"- live_latest_human_after_cursor: {live_human.get('message_id', '')} / {live_human.get('author', '')} / {live_human.get('author_id', '')}",
+        f"- live_latest_allowed_after_cursor: {live_allowed.get('message_id', '')} / {live_allowed.get('author', '')} / {live_allowed.get('author_id', '')}",
+        f"- inbox_latest_discord_user: {comparison.get('inbox_latest_discord_user', {}).get('message_id', '')}",
+        f"- reply_state.last_message_id: {comparison.get('reply_state_last_message_id', '')}",
+        f"- loop_handled_contains_latest_allowed: {comparison.get('loop_handled_contains_latest_allowed')}",
+    ]
+    return "\n".join(lines)
+
+
 def main() -> int:
     args = parse_args()
     state_dir = Path(args.state_dir)
@@ -356,6 +568,19 @@ def main() -> int:
             print(json.dumps(snapshot, ensure_ascii=False, indent=2))
         else:
             print(format_snapshot(snapshot))
+        return 0
+
+    if args.command == "diagnose":
+        payload = diagnose_latest_only_state(
+            state_dir=state_dir,
+            env_file=Path(args.env_file),
+            max_pages=max(int(args.max_pages), 1),
+            page_size=max(int(args.page_size), 1),
+        )
+        if args.json:
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+        else:
+            print(format_diagnosis(payload))
         return 0
 
     before_snapshot = read_json(Path(args.before), {})
