@@ -234,6 +234,22 @@ def verify_transition(
             errors.append(f"phase={phase} reply_to is empty")
         if not str(entry.get("team_message", "")).strip():
             errors.append(f"phase={phase} team_message is empty")
+        if str(entry.get("trigger_kind", "")).strip() != "discord_user":
+            errors.append(f"phase={phase} trigger_kind mismatch: {entry.get('trigger_kind')!r}")
+        if str(entry.get("trigger_message_id", "")).strip() != message_id:
+            errors.append(
+                f"phase={phase} trigger_message_id mismatch: {entry.get('trigger_message_id')!r}"
+            )
+        phase_superseded = entry.get("superseded_message_ids", [])
+        if not isinstance(phase_superseded, list):
+            errors.append(f"phase={phase} superseded_message_ids is not a list")
+        else:
+            normalized_phase_superseded = [str(item).strip() for item in phase_superseded if str(item).strip()]
+            if normalized_phase_superseded != superseded_message_ids:
+                errors.append(
+                    "phase="
+                    f"{phase} superseded_message_ids mismatch: {normalized_phase_superseded!r}"
+                )
 
     start_delta = compare_count(before_snapshot, after_snapshot, "team_conversation", "start_message_count")
     if start_delta is None:
