@@ -42,6 +42,7 @@ STEP_GROUPS = {
     "automation": [
         {"name": "omx contract parsing", "command": ["python", "scripts/test_omx_contract_parsing.py"]},
         {"name": "release PR manual merge policy", "command": ["python", "scripts/test_release_pr_policy.py"]},
+        {"name": "verifier output scope", "command": ["python", "scripts/test_verifier_output.py"]},
         {"name": "no secrets guard", "command": ["python", "scripts/no_secrets_guard.py"]},
         {"name": "discord bridge smoke", "command": ["python", "scripts/test_discord_bridge.py"]},
         {"name": "discord latest-only helper", "command": ["python", "scripts/test_verify_discord_latest_only.py"]},
