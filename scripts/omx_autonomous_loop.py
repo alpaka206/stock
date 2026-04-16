@@ -145,6 +145,9 @@ class GitHubFlowResult:
     pr_url: str = ""
     release_pr_number: int | None = None
     release_pr_url: str = ""
+    status: str = ""
+    report_to_discord: bool = False
+    record_in_journal: bool = False
 
 
 def release_policy_creates_pr(policy: str) -> bool:
@@ -1254,7 +1257,7 @@ def publish_issue_branch(
 def sync_release_pr(loop_state: dict[str, Any], contract: AgentsContract) -> GitHubFlowResult:
     flow = get_github_flow(loop_state)
     if not contract.enable_github_automation or not release_policy_creates_pr(contract.release_to_main_policy):
-        return GitHubFlowResult(True, "release 자동화 비활성")
+        return GitHubFlowResult(True, "release 자동화 비활성", status="release_disabled")
     auto_merge_release = release_policy_auto_merges(contract.release_to_main_policy)
     existing_release_pr_number = int(flow.get("release_pr_number") or 0)
     if existing_release_pr_number > 0:
@@ -1267,6 +1270,8 @@ def sync_release_pr(loop_state: dict[str, Any], contract: AgentsContract) -> Git
                 f"Release PR #{existing_release_pr_number} 가 main에 병합되었다.",
                 release_pr_number=existing_release_pr_number,
                 release_pr_url=str(release_view.get("url", flow.get("release_pr_url", ""))),
+                status="release_merged",
+                record_in_journal=True,
             )
         if isinstance(release_view, dict) and release_view.get("state") == "OPEN" and not auto_merge_release:
             release_pr_url = str(release_view.get("url", flow.get("release_pr_url", "")))
@@ -1279,23 +1284,30 @@ def sync_release_pr(loop_state: dict[str, Any], contract: AgentsContract) -> Git
             )
             waiting_message = f"Release PR #{existing_release_pr_number} 가 열려 있고 main 병합은 사용자 대기다."
             write_github_automation_status(loop_state, waiting_message)
-            return GitHubFlowResult(False, waiting_message, release_pr_number=existing_release_pr_number, release_pr_url=release_pr_url)
+            return GitHubFlowResult(
+                False,
+                waiting_message,
+                release_pr_number=existing_release_pr_number,
+                release_pr_url=release_pr_url,
+                status="release_pr_open",
+                record_in_journal=True,
+            )
     pr_number = int(flow.get("pr_number") or 0)
     if pr_number <= 0:
-        return GitHubFlowResult(False, "issue branch PR이 없어 release PR을 만들지 않는다.")
+        return GitHubFlowResult(False, "issue branch PR이 없어 release PR을 만들지 않는다.", status="issue_pr_missing")
 
     pr_view = gh_json("pr", "view", str(pr_number), "--json", "state,mergedAt,url")
     if not isinstance(pr_view, dict) or pr_view.get("state") != "MERGED":
         flow["status"] = "issue_pr_pending"
         write_github_automation_status(loop_state, "issue branch PR 병합을 기다리는 중이다.")
-        return GitHubFlowResult(False, "issue branch PR 병합 대기 중")
+        return GitHubFlowResult(False, "issue branch PR 병합 대기 중", status="issue_pr_pending")
 
     git_command("fetch", "origin", "main", "develop")
     ahead_count = int(git_command("rev-list", "--count", "origin/main..origin/develop") or "0")
     if ahead_count <= 0:
         flow["status"] = "develop_synced_to_main"
         write_github_automation_status(loop_state, "develop와 main 사이에 release할 차이가 없다.")
-        return GitHubFlowResult(False, "release할 차이가 없다.")
+        return GitHubFlowResult(False, "release할 차이가 없다.", status="develop_synced_to_main")
 
     release_pr = find_open_pr("develop", "main")
     if release_pr is None:
@@ -1335,7 +1347,14 @@ def sync_release_pr(loop_state: dict[str, Any], contract: AgentsContract) -> Git
         if not auto_merge_release:
             waiting_message = f"Release PR #{release_pr_number} 가 이미 열려 있고 main 병합은 사용자 대기다."
             write_github_automation_status(loop_state, waiting_message)
-            return GitHubFlowResult(False, waiting_message, release_pr_number=release_pr_number, release_pr_url=release_pr_url)
+            return GitHubFlowResult(
+                False,
+                waiting_message,
+                release_pr_number=release_pr_number,
+                release_pr_url=release_pr_url,
+                status="release_pr_open",
+                record_in_journal=True,
+            )
 
     if release_pr_number is None:
         raise RuntimeError("release PR 번호를 파싱하지 못했다.")
@@ -1350,9 +1369,47 @@ def sync_release_pr(loop_state: dict[str, Any], contract: AgentsContract) -> Git
     if auto_merge_release:
         gh_command("pr", "merge", str(release_pr_number), "--auto", "--merge", timeout=300)
         write_github_automation_status(loop_state, f"Release PR #{release_pr_number} 를 만들고 main 자동 병합을 설정했다.")
-        return GitHubFlowResult(True, f"Release PR #{release_pr_number} 를 만들고 main 자동 병합을 설정했다.", release_pr_number=release_pr_number, release_pr_url=release_pr_url)
+        return GitHubFlowResult(
+            True,
+            f"Release PR #{release_pr_number} 를 만들고 main 자동 병합을 설정했다.",
+            release_pr_number=release_pr_number,
+            release_pr_url=release_pr_url,
+            status="release_pr_created",
+            report_to_discord=True,
+            record_in_journal=True,
+        )
     write_github_automation_status(loop_state, f"Release PR #{release_pr_number} 를 만들었고 main 병합은 사용자 대기다.")
-    return GitHubFlowResult(True, f"Release PR #{release_pr_number} 를 만들었고 main 병합은 사용자 대기다.", release_pr_number=release_pr_number, release_pr_url=release_pr_url)
+    return GitHubFlowResult(
+        True,
+        f"Release PR #{release_pr_number} 를 만들었고 main 병합은 사용자 대기다.",
+        release_pr_number=release_pr_number,
+        release_pr_url=release_pr_url,
+        status="release_pr_created",
+        report_to_discord=True,
+        record_in_journal=True,
+    )
+
+
+def handle_release_pr_result(
+    release_result: GitHubFlowResult,
+    meeting_id: str,
+    trigger: dict[str, Any],
+    github_notes: list[str],
+) -> None:
+    if release_result.detail and release_result.record_in_journal:
+        github_notes.append(release_result.detail)
+    if release_result.report_to_discord and release_result.release_pr_number:
+        post_message(
+            "coordinator",
+            f"{release_result.detail} {release_result.release_pr_url}".strip(),
+            meeting_id,
+            "github_release_pr",
+            trigger["id"],
+            trigger.get("thread_id"),
+        )
+        return
+    if release_result.detail:
+        emit_console("github", trim(release_result.detail, 140))
 
 
 def build_context_excerpt() -> str:
@@ -2103,18 +2160,7 @@ def main() -> int:
                 emit_console("github", f"publish error: {github_note}")
             try:
                 release_result = sync_release_pr(loop_state, contract)
-                if release_result.ok and release_result.release_pr_number:
-                    github_notes.append(release_result.detail)
-                    post_message(
-                        "coordinator",
-                        f"{release_result.detail} {release_result.release_pr_url}".strip(),
-                        meeting_id,
-                        "github_release_pr",
-                        trigger["id"],
-                        trigger.get("thread_id"),
-                    )
-                elif release_result.detail:
-                    emit_console("github", trim(release_result.detail, 140))
+                handle_release_pr_result(release_result, meeting_id, trigger, github_notes)
             except Exception as exc:
                 github_note = trim(str(exc), 600)
                 github_notes.append(f"GitHub release error: {github_note}")
