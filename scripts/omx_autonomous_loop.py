@@ -783,6 +783,39 @@ def post_message(
     )
 
 
+def build_trigger_metadata(trigger: dict[str, Any]) -> dict[str, Any]:
+    metadata: dict[str, Any] = {
+        "trigger_kind": str(trigger.get("kind", "")).strip(),
+        "trigger_label": str(trigger.get("label", "")).strip(),
+    }
+    message_id = str(trigger.get("message_id", "")).strip()
+    if message_id:
+        metadata["trigger_message_id"] = message_id
+    author = str(trigger.get("author", "")).strip()
+    if author:
+        metadata["trigger_author"] = author
+    superseded_message_ids = [
+        str(item).strip()
+        for item in trigger.get("superseded_message_ids", [])
+        if str(item).strip()
+    ]
+    metadata["superseded_message_ids"] = superseded_message_ids
+    return metadata
+
+
+def merge_metadata(*payloads: dict[str, Any] | None) -> dict[str, Any]:
+    merged: dict[str, Any] = {}
+    for payload in payloads:
+        if not isinstance(payload, dict):
+            continue
+        for key, value in payload.items():
+            normalized_key = str(key).strip()
+            if not normalized_key:
+                continue
+            merged[normalized_key] = value
+    return merged
+
+
 def find_omx_exec() -> str:
     candidates = (
         os.getenv("OMX_EXECUTABLE", "").strip(),
@@ -2033,6 +2066,7 @@ def run_meeting(
     if trigger["kind"] == "discord_user":
         update_important_discord_notes()
 
+    trigger_metadata = build_trigger_metadata(trigger)
     emit_console("meeting", f"start id={meeting_id} trigger={trim(trigger['label'], 120)}")
     post_message(
         "coordinator",
@@ -2041,6 +2075,7 @@ def run_meeting(
         "meeting_start",
         trigger["id"],
         trigger.get("thread_id"),
+        metadata=trigger_metadata,
     )
 
     role_outputs: list[dict[str, Any]] = []
@@ -2057,7 +2092,7 @@ def run_meeting(
             role_name,
             trigger["id"],
             trigger.get("thread_id"),
-            metadata=output,
+            metadata=merge_metadata(trigger_metadata, output),
         )
         if role_name != "executor" and output.get("needs_human"):
             break
@@ -2080,7 +2115,7 @@ def run_meeting(
         "verifier",
         trigger["id"],
         trigger.get("thread_id"),
-        metadata=verifier_output,
+        metadata=merge_metadata(trigger_metadata, verifier_output),
     )
 
     next_action = compute_next_action(role_outputs, contract)
@@ -2098,6 +2133,7 @@ def run_meeting(
         "meeting_end",
         trigger["id"],
         trigger.get("thread_id"),
+        metadata=trigger_metadata,
     )
     emit_console("meeting", f"end id={meeting_id} roles={len(role_outputs)} next={trim(next_action, 120)}")
     return role_outputs, verify_ok, verify_log, meeting_id
