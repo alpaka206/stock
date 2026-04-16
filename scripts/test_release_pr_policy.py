@@ -201,6 +201,67 @@ def run_release_reporting_smoke() -> None:
     assert already_open_result.detail in [message for phase, message in console_logs if phase == "github"], "already-open release PR should still be logged locally"
 
 
+def run_release_sync_wrapper_smoke(release_contract: loop.AgentsContract) -> None:
+    posts: list[dict[str, str]] = []
+    original_sync_release_pr = loop.sync_release_pr
+    original_post_message = loop.post_message
+
+    created_result = loop.GitHubFlowResult(
+        True,
+        "Release PR #33 를 만들었고 main 병합은 사용자 대기다.",
+        release_pr_number=33,
+        release_pr_url="https://example.test/pull/33",
+        status="release_pr_created",
+        report_to_discord=True,
+        record_in_journal=True,
+    )
+
+    def fake_sync_release_pr(loop_state: dict[str, Any], contract: loop.AgentsContract) -> loop.GitHubFlowResult:
+        assert contract == release_contract
+        return created_result
+
+    def fake_post_message(
+        username: str,
+        content: str,
+        meeting_id: str,
+        phase: str,
+        trigger_id: str,
+        thread_id: str | None,
+        source: str = "agent",
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        posts.append(
+            {
+                "username": username,
+                "content": content,
+                "meeting_id": meeting_id,
+                "phase": phase,
+                "trigger_id": trigger_id,
+                "thread_id": thread_id or "",
+            }
+        )
+
+    loop.sync_release_pr = fake_sync_release_pr
+    loop.post_message = fake_post_message
+    try:
+        result = loop.sync_and_report_release_pr(
+            {"github_flow": {}},
+            release_contract,
+            meeting_id="github-release-sync",
+            trigger={"id": "loop-startup-release-sync", "thread_id": None},
+        )
+    finally:
+        loop.sync_release_pr = original_sync_release_pr
+        loop.post_message = original_post_message
+
+    assert result == created_result
+    assert len(posts) == 1, "startup release sync should reuse the reporting helper"
+    assert posts[0]["meeting_id"] == "github-release-sync"
+    assert posts[0]["trigger_id"] == "loop-startup-release-sync"
+    assert posts[0]["phase"] == "github_release_pr"
+    assert "사용자 대기" in posts[0]["content"]
+
+
 def main() -> int:
     contract = loop.parse_agents_contract()
     assert (
@@ -211,6 +272,7 @@ def main() -> int:
     run_manual_release_creation_smoke(release_contract)
     run_manual_release_reentry_smoke(release_contract)
     run_release_reporting_smoke()
+    run_release_sync_wrapper_smoke(release_contract)
 
     print("release PR manual merge policy smoke passed.")
     return 0

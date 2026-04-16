@@ -1412,6 +1412,24 @@ def handle_release_pr_result(
         emit_console("github", trim(release_result.detail, 140))
 
 
+def sync_and_report_release_pr(
+    loop_state: dict[str, Any],
+    contract: AgentsContract,
+    *,
+    meeting_id: str,
+    trigger: dict[str, Any],
+    github_notes: list[str] | None = None,
+) -> GitHubFlowResult:
+    release_result = sync_release_pr(loop_state, contract)
+    handle_release_pr_result(
+        release_result,
+        meeting_id,
+        trigger,
+        github_notes if github_notes is not None else [],
+    )
+    return release_result
+
+
 def build_context_excerpt() -> str:
     items = [
         ("DISCORD_IMPORTANT.md", DISCORD_IMPORTANT_FILE, 1000),
@@ -2093,9 +2111,12 @@ def main() -> int:
     loop_state = load_loop_state()
     if contract.enable_github_automation:
         try:
-            release_sync = sync_release_pr(loop_state, contract)
-            if release_sync.detail:
-                emit_console("github", trim(release_sync.detail, 140))
+            sync_and_report_release_pr(
+                loop_state,
+                contract,
+                meeting_id="github-release-sync",
+                trigger={"id": "loop-startup-release-sync", "thread_id": None},
+            )
         except Exception as exc:
             github_note = trim(str(exc), 600)
             write_github_automation_status(loop_state, f"release sync error: {github_note}")
@@ -2159,8 +2180,13 @@ def main() -> int:
                 write_github_automation_status(loop_state, f"publish error: {github_note}")
                 emit_console("github", f"publish error: {github_note}")
             try:
-                release_result = sync_release_pr(loop_state, contract)
-                handle_release_pr_result(release_result, meeting_id, trigger, github_notes)
+                sync_and_report_release_pr(
+                    loop_state,
+                    contract,
+                    meeting_id=meeting_id,
+                    trigger=trigger,
+                    github_notes=github_notes,
+                )
             except Exception as exc:
                 github_note = trim(str(exc), 600)
                 github_notes.append(f"GitHub release error: {github_note}")
