@@ -4,6 +4,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import textwrap
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -425,20 +426,10 @@ def save_loop_state(payload: dict[str, Any]) -> None:
 
 
 def update_important_discord_notes() -> None:
-    entries: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for item in reversed(load_jsonl(DISCORD_INBOX_LOG)):
-        if str(item.get("source")) != "discord_user":
-            continue
-        message_id = str(item.get("message_id", "")).strip()
-        content = str(item.get("content", "")).strip()
-        if not message_id or not content or message_id in seen:
-            continue
-        seen.add(message_id)
-        entries.append(item)
+    entries = load_discord_user_messages()
 
-    latest = entries[0] if entries else None
-    superseded = entries[1:]
+    latest = entries[-1] if entries else None
+    superseded = entries[:-1]
 
     lines = [
         "# 중요한 Discord 지시",
@@ -477,15 +468,43 @@ def update_important_discord_notes() -> None:
     write_text(DISCORD_IMPORTANT_FILE, "\n".join(lines) + "\n")
 
 
+def load_discord_user_messages() -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in reversed(load_jsonl(DISCORD_INBOX_LOG)):
+        if str(item.get("source")) != "discord_user":
+            continue
+        message_id = str(item.get("message_id", "")).strip()
+        content = str(item.get("content", "")).strip()
+        if not message_id or not content or message_id in seen:
+            continue
+        seen.add(message_id)
+        entries.append(item)
+    entries.reverse()
+    return entries
+
+
+def collect_pending_discord_user_messages(handled_message_ids: set[str]) -> list[dict[str, Any]]:
+    entries = load_discord_user_messages()
+    latest_handled_index = max(
+        (
+            index
+            for index, item in enumerate(entries)
+            if str(item.get("message_id", "")).strip() in handled_message_ids
+        ),
+        default=-1,
+    )
+    relevant_entries = entries[latest_handled_index + 1 :]
+    return [
+        item
+        for item in relevant_entries
+        if str(item.get("message_id", "")).strip() not in handled_message_ids
+    ]
+
+
 def select_trigger(loop_state: dict[str, Any], contract: AgentsContract) -> dict[str, Any] | None:
     handled = {str(item) for item in loop_state.get("handled_discord_message_ids", [])}
-    pending = [
-        item
-        for item in load_jsonl(DISCORD_INBOX_LOG)
-        if str(item.get("message_id", "")).strip()
-        and str(item.get("content", "")).strip()
-        and str(item.get("message_id")) not in handled
-    ]
+    pending = collect_pending_discord_user_messages(handled)
     if pending:
         latest = pending[-1]
         return {
@@ -601,22 +620,28 @@ def append_local_conversation(
     phase: str,
     trigger_id: str,
     thread_id: str | None,
+    metadata: dict[str, Any] | None = None,
 ) -> None:
     username = sanitize_text(username)
     content = sanitize_text(content)
-    append_jsonl(
-        TEAM_CONVERSATION_LOG,
-        {
-            "source": source,
-            "role": username,
-            "content": content,
-            "meeting_id": meeting_id,
-            "phase": phase,
-            "trigger_id": trigger_id,
-            "thread_id": thread_id or "",
-            "created_at": iso_now(),
-        },
-    )
+    entry: dict[str, Any] = {
+        "source": source,
+        "role": username,
+        "content": content,
+        "meeting_id": meeting_id,
+        "phase": phase,
+        "trigger_id": trigger_id,
+        "thread_id": thread_id or "",
+        "created_at": iso_now(),
+    }
+    if isinstance(metadata, dict):
+        reserved = {"source", "role", "content", "meeting_id", "phase", "trigger_id", "thread_id", "created_at"}
+        for key, value in sanitize_value(metadata).items():
+            normalized_key = str(key).strip()
+            if not normalized_key or normalized_key in reserved:
+                continue
+            entry[normalized_key] = value
+    append_jsonl(TEAM_CONVERSATION_LOG, entry)
 
 
 def direct_discord_webhook_post(webhook_url: str, content: str, username: str, thread_id: str | None) -> bool:
@@ -644,20 +669,22 @@ def post_message(
     trigger_id: str,
     thread_id: str | None,
     source: str = "agent",
+    metadata: dict[str, Any] | None = None,
 ) -> None:
     username = sanitize_text(username)
     content = sanitize_text(content)
-    payload = json.dumps(
-        {
-            "username": username,
-            "content": content,
-            "thread_id": thread_id,
-            "meeting_id": meeting_id,
-            "phase": phase,
-            "source": source,
-            "trigger_id": trigger_id,
-        }
-    ).encode("utf-8")
+    event_payload: dict[str, Any] = {
+        "username": username,
+        "content": content,
+        "thread_id": thread_id or "",
+        "meeting_id": meeting_id,
+        "phase": phase,
+        "source": source,
+        "trigger_id": trigger_id,
+    }
+    if isinstance(metadata, dict):
+        event_payload["metadata"] = sanitize_value(metadata)
+    payload = json.dumps(event_payload).encode("utf-8")
     try:
         req = request.Request(
             bridge_url("/event"),
@@ -688,6 +715,7 @@ def post_message(
         phase,
         trigger_id,
         thread_id,
+        metadata=metadata,
     )
 
 
@@ -777,19 +805,40 @@ def collect_non_ignored_dirty_paths(snapshot: dict[str, str] | None = None) -> l
     return sorted(path for path in current if not is_ignored_executor_path(path))
 
 
+def summarize_path_list(paths: list[str], *, limit: int = 8) -> str:
+    if not paths:
+        return ""
+    preview = ", ".join(paths[:limit])
+    if len(paths) <= limit:
+        return preview
+    return f"{preview} 외 {len(paths) - limit}건"
+
+
 def check_executor_write_gate() -> WriteGateResult:
     branch = get_current_branch()
     if not branch:
-        return WriteGateResult(False, "현재 git 브랜치를 확인할 수 없어 executor 쓰기를 시작하지 않는다.", branch)
+        return WriteGateResult(False, "현재 git 브랜치를 확인할 수 없어 executor 쓰기를 시작하지 않습니다.", branch)
     if branch in PROTECTED_BRANCHES:
         protected = ", ".join(sorted(PROTECTED_BRANCHES))
-        return WriteGateResult(False, f"현재 브랜치 `{branch}` 는 보호 브랜치다. `{protected}` 에서는 executor가 쓰기 작업을 하지 않는다.", branch)
+        return WriteGateResult(False, f"현재 브랜치 `{branch}` 는 보호 브랜치입니다. `{protected}` 에서는 executor가 쓰기 작업을 하지 않습니다.", branch)
+
     dirty_paths = collect_non_ignored_dirty_paths()
-    if dirty_paths:
-        preview = ", ".join(dirty_paths[:8])
-        more = "" if len(dirty_paths) <= 8 else f" 외 {len(dirty_paths) - 8}건"
-        return WriteGateResult(False, f"작업트리가 깨끗하지 않아 executor 쓰기를 시작하지 않는다. `.omx/` 밖 변경 파일: {preview}{more}", branch)
-    return WriteGateResult(True, "", branch)
+    if not dirty_paths:
+        return WriteGateResult(True, "", branch)
+
+    forbidden = [path for path in dirty_paths if is_forbidden_executor_path(path)]
+    if forbidden:
+        return WriteGateResult(False, f"executor가 이어서 다루면 안 되는 민감 경로가 dirty 상태입니다: {summarize_path_list(forbidden)}", branch)
+
+    disallowed = [path for path in dirty_paths if not is_allowed_executor_path(path)]
+    if disallowed:
+        return WriteGateResult(False, f"executor 허용 범위를 벗어난 dirty 파일이 있습니다: {summarize_path_list(disallowed)}", branch)
+
+    return WriteGateResult(
+        True,
+        f"issue branch에서 허용된 기존 변경을 이어서 사용합니다. `.omx/` 밖 변경 파일: {summarize_path_list(dirty_paths)}",
+        branch,
+    )
 
 
 def build_write_gate_output(role: RoleSpec, reason: str, *, branch: str, status: str = "blocked", changed_files: list[str] | None = None) -> dict[str, Any]:
@@ -1283,6 +1332,27 @@ def build_focus_note(trigger: dict[str, Any]) -> str:
     return "현재 저장소 상태에서 가장 가치가 큰 다음 행동을 정하고 근거를 공유한다."
 
 
+def build_coordinator_opening(trigger: dict[str, Any], context: MeetingContext, loop_state: dict[str, Any]) -> str:
+    if trigger["kind"] != "discord_user":
+        return "\n".join(
+            [
+                f"이번 회의는 `{trigger['label']}` 를 처리합니다.",
+                "사용자가 빠르게 읽을 수 있도록 짧고 분명하게 이어서 말하겠습니다.",
+                f"초점: {context.focus_note}",
+            ]
+        )
+
+    lines = ["읽은 메시지를 기준으로 지금부터 역할별로 짧게 보겠습니다."]
+    pending_followup = str((loop_state.get("pending_followup") or {}).get("content", "")).strip()
+    if pending_followup:
+        lines.append(f"직전 후속 작업 `{pending_followup}` 는 잠시 보류하고 이 질문부터 먼저 처리합니다.")
+    superseded_count = len([item for item in trigger.get("superseded_message_ids", []) if str(item).strip()])
+    if superseded_count:
+        lines.append(f"직전 미처리 메시지 {superseded_count}건은 최신 메시지 기준으로 함께 정리합니다.")
+    lines.append(f"초점: {context.focus_note}")
+    return "\n".join(lines)
+
+
 def build_meeting_context(trigger: dict[str, Any], contract: AgentsContract) -> MeetingContext:
     return MeetingContext(
         started_at=iso_now(),
@@ -1326,12 +1396,14 @@ def build_role_prompt(
             쓰기 안전 게이트
             - 현재 role은 실제 파일 수정이 가능하다.
             - 보호 브랜치 `{', '.join(sorted(PROTECTED_BRANCHES))}` 에서는 수정하지 말고 blocked로 응답한다.
-            - `.omx/` 밖 작업트리가 더러우면 수정하지 말고 blocked로 응답한다.
+            - `.omx/` 밖 dirty 파일이 있더라도 모두 허용 범위 안이면 같은 작업을 이어받아 계속할 수 있다.
+            - `.omx/` 밖 dirty 파일 중 허용 범위를 벗어나거나 민감 경로가 섞여 있으면 수정하지 말고 blocked로 응답한다.
             - 허용 경로: {', '.join(EXECUTOR_ALLOWED_PREFIXES)}
             - 허용 단일 파일: {', '.join(sorted(EXECUTOR_ALLOWED_FILES))}
             - 금지 경로: {', '.join(EXECUTOR_FORBIDDEN_PREFIXES)}
             - 금지 파일 패턴: {', '.join(EXECUTOR_FORBIDDEN_GLOBS)}
             - 수정했다면 `changed_files`에는 실제 바꾼 파일만 적는다.
+            - 기존 dirty 파일을 이어받더라도 범위를 넓히지 말고 이번 trigger에 필요한 최소 수정만 한다.
             - 구현을 했다면 즉시 끝내지 말고, 어떤 검증을 다음 게이트에 넘길지 분명히 적는다.
             """
         ).rstrip()
@@ -1479,6 +1551,8 @@ def run_role(
     if not isinstance(payload, dict):
         raise RuntimeError(f"{role.name} returned non-object payload")
     normalized = normalize_role_output(role, payload)
+    if role.writable and gate_result.reason:
+        normalized.setdefault("verification", []).append(gate_result.reason)
     if role.writable:
         reported_files = list(normalized.get("changed_files", []))
         gate_ok, actual_changed, gate_reason = validate_executor_changes(role, gate_result.branch)
@@ -1519,11 +1593,10 @@ def format_role_message(payload: dict[str, Any], meeting_id: str, trigger: dict[
     return "\n".join(lines)
 
 
-def run_bash_script(script_path: Path, log_name: str, timeout: int) -> tuple[int, str]:
-    bash_exe = find_bash()
+def run_command(command: list[str], log_name: str, timeout: int) -> tuple[int, str]:
     log_file = RUNTIME_DIR / log_name
     completed = subprocess.run(
-        [bash_exe, str(script_path)],
+        command,
         cwd=ROOT,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -1555,15 +1628,15 @@ def write_verify_failure(status: str, failing_command: str, symptom: str, likely
 
 def run_verify_gate() -> tuple[bool, str]:
     steps = [
-        (ROOT / "scripts" / "no_secrets_guard.sh", "scripts/no_secrets_guard.sh", "no-secrets-guard.log", 300),
-        (ROOT / "scripts" / "verify_minimal.sh", "scripts/verify_minimal.sh", "verify-last.log", VERIFY_TIMEOUT_SECONDS),
+        ([sys.executable, "scripts/no_secrets_guard.py"], "python scripts/no_secrets_guard.py", "no-secrets-guard.log", 300),
+        ([sys.executable, "scripts/verify_minimal.py"], "python scripts/verify_minimal.py", "verify-last.log", VERIFY_TIMEOUT_SECONDS),
     ]
     logs: list[str] = []
-    for script_path, label, log_name, timeout in steps:
+    for command, label, log_name, timeout in steps:
         try:
-            returncode, log_text = run_bash_script(script_path, log_name, timeout)
+            returncode, log_text = run_command(command, log_name, timeout)
         except Exception as exc:
-            write_verify_failure("active", label, "verification setup failed", str(exc), "bash 경로와 스크립트 실행 환경을 먼저 복구한다.")
+            write_verify_failure("active", label, "verification setup failed", str(exc), "검증 스크립트 실행 환경을 먼저 복구한다.")
             return False, f"$ {label}\n{exc}"
         logs.append(f"$ {label}\n{log_text}")
         if returncode != 0:
@@ -1630,13 +1703,13 @@ def build_verifier_output(executor_output: dict[str, Any] | None, verify_ok: boo
             "role": "verifier",
             "status": "pass",
             "summary": "executor 이후 guard/verify gate를 통과했다.",
-            "rationale": "scripts/no_secrets_guard.sh와 scripts/verify_minimal.sh가 모두 성공했다.",
-            "proposed_action": "다음 가장 작은 후속 구현 또는 QA 범위로 진행한다.",
-            "team_message": "executor 이후 검증 게이트는 통과했습니다. 이제 같은 맥락에서 가장 작은 후속 구현이나 QA로 넘어가도 됩니다.",
+            "rationale": "no secrets guard와 standard verify가 모두 성공했다.",
+            "proposed_action": "다음 가치 작업, 후속 구현, 또는 QA 범위로 진행한다.",
+            "team_message": "executor 이후 검증 게이트는 통과했습니다. 이제 같은 맥락에서 가치가 높은 후속 구현이나 QA로 이어가면 됩니다.",
             "question_for_next": "후속 구현과 QA 중 어디가 지금 더 가치가 큰가?",
             "reply_to": ["executor"],
             "risks": [],
-            "verification": ["scripts/no_secrets_guard.sh: pass", "scripts/verify_minimal.sh: pass"],
+            "verification": ["python scripts/no_secrets_guard.py: pass", "python scripts/verify_minimal.py: pass"],
             "changed_files": [],
             "followups": list(executor_output.get("followups", [])),
             "confidence": 0.86,
@@ -1698,7 +1771,7 @@ def write_iteration_journal(
             if item not in verification_lines:
                 verification_lines.append(item)
     if verify_ok is True:
-        for item in ("scripts/no_secrets_guard.sh: pass", "scripts/verify_minimal.sh: pass"):
+        for item in ("python scripts/no_secrets_guard.py: pass", "python scripts/verify_minimal.py: pass"):
             if item not in verification_lines:
                 verification_lines.append(item)
     journal = textwrap.dedent(
@@ -1780,13 +1853,7 @@ def run_meeting(
     emit_console("meeting", f"start id={meeting_id} trigger={trim(trigger['label'], 120)}")
     post_message(
         "coordinator",
-        textwrap.dedent(
-            f"""\
-            이번 회의는 `{trigger['label']}`를 처리합니다.
-            사용자와 팀이 읽기 쉽도록 한국어로 짧고 명확하게 이야기해 주세요.
-            첫 쟁점: {context.focus_note}
-            """
-        ).strip(),
+        build_coordinator_opening(trigger, context, loop_state),
         meeting_id,
         "meeting_start",
         trigger["id"],
@@ -1800,7 +1867,15 @@ def run_meeting(
     for role_name in ROLE_ORDER:
         output = run_role(ROLE_SPECS[role_name], trigger, meeting_id, role_outputs, contract, context)
         role_outputs.append(output)
-        post_message(role_name, format_role_message(output, meeting_id, trigger), meeting_id, role_name, trigger["id"], trigger.get("thread_id"))
+        post_message(
+            role_name,
+            format_role_message(output, meeting_id, trigger),
+            meeting_id,
+            role_name,
+            trigger["id"],
+            trigger.get("thread_id"),
+            metadata=output,
+        )
         if role_name != "executor" and output.get("needs_human"):
             break
         if role_name == "executor":
@@ -1815,7 +1890,15 @@ def run_meeting(
 
     verifier_output = build_verifier_output(executor_output, verify_ok, verify_log)
     role_outputs.append(verifier_output)
-    post_message("verifier", format_role_message(verifier_output, meeting_id, trigger), meeting_id, "verifier", trigger["id"], trigger.get("thread_id"))
+    post_message(
+        "verifier",
+        format_role_message(verifier_output, meeting_id, trigger),
+        meeting_id,
+        "verifier",
+        trigger["id"],
+        trigger.get("thread_id"),
+        metadata=verifier_output,
+    )
 
     next_action = compute_next_action(role_outputs, contract)
     post_message(
