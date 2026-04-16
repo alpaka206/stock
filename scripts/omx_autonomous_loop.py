@@ -328,9 +328,37 @@ def write_runtime_status(*, status: str, detail: str = "", meeting_id: str = "",
 def parse_agents_contract() -> AgentsContract:
     text = read_text(AGENTS_FILE)
 
-    def find_value(key: str, default: str = "") -> str:
+    def normalize_markdown_block(block: str) -> str:
+        lines: list[str] = []
+        for raw_line in block.splitlines():
+            stripped = raw_line.strip()
+            if not stripped or stripped.startswith("## "):
+                continue
+            stripped = re.sub(r"^###\s*", "", stripped)
+            stripped = re.sub(r"^[-*]\s*", "", stripped)
+            stripped = re.sub(r"^\d+\.\s*", "", stripped)
+            lines.append(stripped)
+        return " ".join(lines).strip()
+
+    def find_section_value(*titles: str) -> str:
+        for title in titles:
+            match = re.search(
+                rf"^(?:##|#)\s+{re.escape(title)}\s*$([\s\S]*?)(?=^\s*(?:##|#)\s+|\Z)",
+                text,
+                flags=re.MULTILINE,
+            )
+            if match:
+                section_value = normalize_markdown_block(match.group(1))
+                if section_value:
+                    return section_value
+        return ""
+
+    def find_value(key: str, default: str = "", *fallback_titles: str) -> str:
         match = re.search(rf"^- {re.escape(key)}:\s*(.+)$", text, flags=re.MULTILINE)
-        return match.group(1).strip() if match else default
+        if match:
+            return match.group(1).strip()
+        fallback = find_section_value(*fallback_titles)
+        return fallback or default
 
     def find_bool(key: str, default: bool = False) -> bool:
         raw = find_value(key, "true" if default else "false").lower()
@@ -340,23 +368,37 @@ def parse_agents_contract() -> AgentsContract:
     collecting = False
     for line in text.splitlines():
         stripped = line.strip()
-        if not collecting and stripped == "먼저 읽을 문서":
+        if not collecting and stripped in {"먼저 읽을 문서", "## 먼저 읽을 문서", "# 먼저 읽을 문서"}:
             collecting = True
             continue
-        if collecting and stripped.startswith("## "):
+        if collecting and re.match(r"^(?:##|#)\s+", stripped):
             break
         if collecting and stripped.startswith("- "):
             docs.append(stripped[2:].strip().strip("`"))
         elif collecting and docs and stripped:
             break
 
+    raw_consensus = find_value(
+        "MULTI_AGENT_CONSENSUS",
+        "planner -> critic -> researcher -> architect -> executor -> verifier",
+        "다중 agent 합의 규칙",
+    )
+    consensus_order = tuple(part.strip() for part in raw_consensus.split("->") if part.strip()) or (
+        "planner",
+        "critic",
+        "researcher",
+        "architect",
+        "executor",
+        "verifier",
+    )
+
     return AgentsContract(
-        primary_task=find_value("PRIMARY_TASK"),
-        min_exit_condition=find_value("MIN_EXIT_CONDITION"),
-        auto_continue_policy=find_value("AUTO_CONTINUE_POLICY"),
+        primary_task=find_value("PRIMARY_TASK", "", "최상위 목표"),
+        min_exit_condition=find_value("MIN_EXIT_CONDITION", "", "최소 종료 조건"),
+        auto_continue_policy=find_value("AUTO_CONTINUE_POLICY", "", "실행 원칙"),
         release_to_main_policy=find_value("RELEASE_TO_MAIN_POLICY"),
         required_docs=tuple(docs),
-        consensus_order=find_value("MULTI_AGENT_CONSENSUS", "planner -> critic -> researcher -> architect -> executor -> verifier"),
+        consensus_order=consensus_order,
         enable_github_automation=find_bool("ENABLE_GITHUB_AUTOMATION", ENABLE_GITHUB_AUTOMATION_DEFAULT),
         issue_pr_policy=find_value("ISSUE_PR_POLICY", "issue-first branch -> develop, develop -> main release pr"),
         review_feedback_policy=find_value("REVIEW_FEEDBACK_POLICY", "same-branch same-pr follow-up"),
@@ -365,13 +407,21 @@ def parse_agents_contract() -> AgentsContract:
 
 def parse_backlog_first_unchecked(text: str) -> str:
     current_section = ""
+    saw_p0 = False
+    first_unchecked = ""
     for line in text.splitlines():
         stripped = line.strip()
         if stripped.startswith("## "):
             current_section = stripped[3:].strip()
-        elif current_section == "P0" and stripped.startswith("- [ ] "):
-            return stripped[len("- [ ] ") :].strip()
-    return ""
+            if current_section == "P0":
+                saw_p0 = True
+        elif stripped.startswith("- [ ] "):
+            task = stripped[len("- [ ] ") :].strip()
+            if current_section == "P0":
+                return task
+            if not first_unchecked:
+                first_unchecked = task
+    return first_unchecked if not saw_p0 else ""
 
 
 def parse_next_prompt_action(text: str) -> str:
@@ -1428,7 +1478,7 @@ def build_role_prompt(
         - MIN_EXIT_CONDITION: {contract.min_exit_condition}
         - AUTO_CONTINUE_POLICY: {contract.auto_continue_policy}
         - RELEASE_TO_MAIN_POLICY: {contract.release_to_main_policy}
-        - MULTI_AGENT_CONSENSUS: {contract.consensus_order}
+        - MULTI_AGENT_CONSENSUS: {' -> '.join(contract.consensus_order)}
 
         규칙
         - 최신 Discord 사용자 지시 1건만 우선한다.

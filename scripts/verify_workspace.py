@@ -40,6 +40,7 @@ STEP_GROUPS = {
         {"name": "text quality", "command": ["python", "scripts/text_quality_guard.py"]},
     ],
     "automation": [
+        {"name": "omx contract parsing", "command": ["python", "scripts/test_omx_contract_parsing.py"]},
         {"name": "no secrets guard", "command": ["python", "scripts/no_secrets_guard.py"]},
         {"name": "discord bridge smoke", "command": ["python", "scripts/test_discord_bridge.py"]},
     ],

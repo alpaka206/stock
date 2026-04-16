@@ -30,6 +30,19 @@
 - `docs/design/design-memory.md`
 - `docs/codex/prompt-order.md`
 
+## 기계 판독 계약
+
+아래 key-value 블록은 `scripts/omx_autonomous_loop.py` 가 직접 읽으므로 형식을 유지한다.
+
+- PRIMARY_TASK: 1단계 Discord 기반 agent 회의형 자동화 완성, 2단계 주식 데이터·API·FE·BE 기능 완성, 3단계 QA·배포·배포 사이트 직접 확인까지 마무리한 뒤 추가 가치가 높은 기능과 점검까지 진행
+- MIN_EXIT_CONDITION: 1단계에서 허용된 Discord 사용자 메시지 1건이 최신 트리거로만 소비되고 `planner -> critic -> researcher -> architect -> executor -> verifier` 응답이 실제 Discord와 `.omx/state/TEAM_CONVERSATION.jsonl` 에 남는다. 2단계에서 `/overview`, `/radar`, `/stocks/[symbol]`, `/history` 와 관련 API·FE·BE 연결이 end-to-end 로 동작하고 차트, 뉴스, 공시, 히스토리 핵심 기능이 검증된다. 3단계에서 `pnpm verify:automation`, `pnpm verify:standard`, release 검증, `develop -> main` 반영, 배포 사이트 FE/BE 직접 확인이 끝난다. 4단계에서 남은 리스크와 후속 가치 작업이 한국어 문서로 정리된다.
+- AUTO_CONTINUE_POLICY: 최소 종료 조건을 충족할 때까지 가장 작고 검증 가능한 다음 작업을 스스로 고르고 계속 진행
+- RELEASE_TO_MAIN_POLICY: auto-merge-if-green
+- ENABLE_GITHUB_AUTOMATION: true
+- ISSUE_PR_POLICY: issue-first branch -> develop, develop -> main release pr
+- REVIEW_FEEDBACK_POLICY: same-branch same-pr follow-up
+- MULTI_AGENT_CONSENSUS: planner -> critic -> researcher -> architect -> executor -> verifier
+
 ## 최상위 목표
 
 ### 1단계: Discord 기반 agent 회의형 자동화 완성
