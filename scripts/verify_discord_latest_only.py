@@ -357,13 +357,22 @@ def latest_allowed_message_from_diagnosis(payload: dict[str, Any]) -> dict[str, 
     return latest_allowed if message_id else None
 
 
-def build_verify_command(before_path: str, message_id: str, meeting_id: str) -> str:
-    return (
+def build_verify_command(
+    before_path: str,
+    message_id: str,
+    meeting_id: str,
+    *,
+    expect_start_message_delta: int = 0,
+) -> str:
+    command = (
         "python scripts/verify_discord_latest_only.py verify "
         f"--before {before_path} "
         f"--message-id {message_id} "
         f"--meeting-id {meeting_id}"
     )
+    if expect_start_message_delta != 0:
+        command += f" --expect-start-message-delta {expect_start_message_delta}"
+    return command
 
 
 def determine_watch_status(
@@ -372,6 +381,7 @@ def determine_watch_status(
     diagnosis_payload: dict[str, Any],
     current_snapshot: dict[str, Any],
     before_snapshot_path: str,
+    before_start_message_count: int = 0,
 ) -> dict[str, Any]:
     latest_allowed = latest_allowed_message_from_diagnosis(diagnosis_payload)
     latest_allowed_id = str((latest_allowed or {}).get("message_id", "")).strip()
@@ -390,7 +400,13 @@ def determine_watch_status(
         if latest_allowed_id in handled_ids and latest_meeting_id:
             status = "handled"
             ready_for_verify = True
-            verify_command = build_verify_command(before_snapshot_path, latest_allowed_id, latest_meeting_id)
+            expect_start_message_delta = 1 if before_start_message_count == 0 else 0
+            verify_command = build_verify_command(
+                before_snapshot_path,
+                latest_allowed_id,
+                latest_meeting_id,
+                expect_start_message_delta=expect_start_message_delta,
+            )
         else:
             status = "waiting_for_loop"
 
@@ -437,6 +453,7 @@ def watch_latest_only_state(
             diagnosis_payload=payload,
             current_snapshot=current_snapshot,
             before_snapshot_path=str(snapshot_output),
+            before_start_message_count=int(before_snapshot.get("team_conversation", {}).get("start_message_count", 0)),
         )
         last_payload = payload
         last_watch_status = watch_status
