@@ -27,9 +27,12 @@ DISCORD_INBOX_LOG = ROOT / '.omx' / 'state' / 'DISCORD_INBOX.jsonl'
 DISCORD_INBOX_SUMMARY = ROOT / '.omx' / 'state' / 'DISCORD_INBOX.md'
 DISCORD_REPLY_STATE = ROOT / '.omx' / 'state' / 'DISCORD_REPLY_STATE.json'
 BRIDGE_RUNTIME_STATUS = ROOT / '.omx' / 'runtime' / 'discord-bridge-status.json'
+LOOP_RUNTIME_STATUS = ROOT / '.omx' / 'runtime' / 'omx-loop-status.json'
+WATCHER_STATE = ROOT / '.omx' / 'state' / 'DISCORD_WATCHER_STATE.json'
 CONTROL_CHAR_RE = re.compile(r'[\x00-\x08\x0B\x0C\x0E-\x1F]')
 RAW_UNICODE_ESCAPE_RE = re.compile(r'\\u[0-9a-fA-F]{4}')
 DOUBLE_QUESTION_RE = re.compile(r'\?\?')
+MAX_TRACKED_ACK_IDS = 400
 HANGUL_RE = re.compile(r'[가-힣]')
 
 
@@ -116,6 +119,48 @@ def append_jsonl(path: Path, payload: dict[str, Any]) -> None:
         handle.write(json.dumps(sanitize_value(payload), ensure_ascii=False) + '\n')
 
 
+CONVERSATION_RESERVED_KEYS = {
+    'source',
+    'role',
+    'content',
+    'thread_id',
+    'meeting_id',
+    'phase',
+    'trigger_id',
+    'created_at',
+}
+
+
+def build_conversation_entry(
+    *,
+    source: str,
+    role: str,
+    content: str,
+    thread_id: str | None,
+    meeting_id: str,
+    phase: str,
+    trigger_id: str,
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    entry: dict[str, Any] = {
+        'source': source,
+        'role': role,
+        'content': content,
+        'thread_id': thread_id or '',
+        'meeting_id': meeting_id,
+        'phase': phase,
+        'trigger_id': trigger_id,
+        'created_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+    }
+    if isinstance(metadata, dict):
+        for key, value in sanitize_value(metadata).items():
+            normalized_key = str(key).strip()
+            if not normalized_key or normalized_key in CONVERSATION_RESERVED_KEYS:
+                continue
+            entry[normalized_key] = value
+    return entry
+
+
 def load_jsonl(path: Path) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     if not path.exists():
@@ -175,6 +220,39 @@ def save_reply_state(last_message_id: str) -> None:
     )
 
 
+def load_watcher_state() -> dict[str, Any]:
+    if not WATCHER_STATE.exists():
+        return {'acked_message_ids': []}
+    try:
+        payload = json.loads(WATCHER_STATE.read_text(encoding='utf-8'))
+    except json.JSONDecodeError:
+        return {'acked_message_ids': []}
+    if not isinstance(payload, dict):
+        return {'acked_message_ids': []}
+    acked = payload.get('acked_message_ids', [])
+    if not isinstance(acked, list):
+        acked = []
+    payload['acked_message_ids'] = [str(item).strip() for item in acked if str(item).strip()]
+    return payload
+
+
+def save_watcher_state(payload: dict[str, Any]) -> None:
+    acked = payload.get('acked_message_ids', [])
+    if isinstance(acked, list):
+        payload['acked_message_ids'] = [str(item).strip() for item in acked if str(item).strip()][-MAX_TRACKED_ACK_IDS:]
+    WATCHER_STATE.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+
+def load_loop_runtime_status() -> dict[str, Any]:
+    if not LOOP_RUNTIME_STATUS.exists():
+        return {}
+    try:
+        payload = json.loads(LOOP_RUNTIME_STATUS.read_text(encoding='utf-8'))
+    except json.JSONDecodeError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
 def send_discord_message(
     *,
     webhook_url: str,
@@ -185,6 +263,7 @@ def send_discord_message(
     meeting_id: str = '',
     phase: str = '',
     trigger_id: str = '',
+    metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     content = sanitize_text(content)
     username = sanitize_text(username)
@@ -198,19 +277,70 @@ def send_discord_message(
     response.raise_for_status()
     append_jsonl(
         CONVERSATION_LOG,
-        {
-            'source': source,
-            'role': username,
-            'content': content,
-            'thread_id': thread_id or '',
-            'meeting_id': meeting_id,
-            'phase': phase,
-            'trigger_id': trigger_id,
-            'created_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
-        },
+        build_conversation_entry(
+            source=source,
+            role=username,
+            content=content,
+            thread_id=thread_id,
+            meeting_id=meeting_id,
+            phase=phase,
+            trigger_id=trigger_id,
+            metadata=metadata,
+        ),
     )
     write_runtime_status(status='event_sent', detail=f'{username} -> discord', responded=1)
     return {'ok': True, 'status_code': response.status_code}
+
+
+def build_watcher_ack_message(latest: dict[str, Any], superseded_count: int, runtime_status: dict[str, Any]) -> str:
+    status = str(runtime_status.get('status', '')).strip()
+    role = str(runtime_status.get('role', '')).strip()
+    if status == 'role_running':
+        opener = '읽었습니다. 지금 진행 중인 역할 단계를 짧게 마무리한 뒤 이 메시지를 최우선으로 이어서 보겠습니다.'
+    elif status == 'running':
+        opener = '읽었습니다. 현재 루프를 확인했고 이 메시지를 최우선으로 회의에 올리겠습니다.'
+    else:
+        opener = '읽었습니다. 이 메시지를 최우선으로 회의에 올리겠습니다.'
+
+    details: list[str] = []
+    if role and status == 'role_running' and role not in {'coordinator', 'scribe', 'watchdog'}:
+        details.append(f'현재는 {role} 단계까지 진행된 상태입니다.')
+    if superseded_count > 0:
+        details.append(f'바로 앞의 미처리 메시지 {superseded_count}건은 최신 메시지 기준으로 함께 정리하겠습니다.')
+    return ' '.join([opener, *details]).strip()
+
+
+def maybe_send_import_ack(imported: list[dict[str, Any]], env_values: dict[str, str]) -> int:
+    if not imported:
+        return 0
+    webhook_url = env_values.get('DISCORD_WEBHOOK_URL', '').strip()
+    if not webhook_url:
+        return 0
+
+    latest = imported[-1]
+    message_id = str(latest.get('message_id', '')).strip()
+    if not message_id:
+        return 0
+
+    watcher_state = load_watcher_state()
+    acked = set(watcher_state.get('acked_message_ids', []))
+    if message_id in acked:
+        return 0
+
+    send_discord_message(
+        webhook_url=webhook_url,
+        content=build_watcher_ack_message(latest, max(len(imported) - 1, 0), load_loop_runtime_status()),
+        username='coordinator',
+        thread_id=str(latest.get('thread_id', '')).strip() or None,
+        source='watcher_ack',
+        meeting_id=f'watcher-{message_id}',
+        phase='watcher_ack',
+        trigger_id=f'discord-{message_id}',
+    )
+    watcher_state.setdefault('acked_message_ids', [])
+    watcher_state['acked_message_ids'].append(message_id)
+    save_watcher_state(watcher_state)
+    return 1
 
 
 def fetch_channel_messages(*, channel_id: str, bot_token: str, after: str | None = None, limit: int = 25) -> list[dict[str, Any]]:
@@ -272,8 +402,17 @@ def import_discord_replies(*, env_values: dict[str, str]) -> dict[str, Any]:
     if last_seen:
         save_reply_state(last_seen)
     write_inbox_summary(imported)
-    write_runtime_status(status='reply_sync_ok', detail='reply sync complete', imported=len(imported))
-    return {'ok': True, 'imported': len(imported), 'detail': 'reply sync complete'}
+    acked = 0
+    if imported:
+        try:
+            acked = maybe_send_import_ack(imported, env_values)
+        except Exception as exc:
+            write_runtime_status(status='watcher_ack_error', detail=str(exc), imported=len(imported))
+    detail = 'reply sync complete'
+    if acked:
+        detail = f'{detail}; watcher ack sent'
+    write_runtime_status(status='reply_sync_ok', detail=detail, imported=len(imported), responded=acked)
+    return {'ok': True, 'imported': len(imported), 'responded': acked, 'detail': detail}
 
 
 def start_reply_poller(env_path: Path) -> threading.Thread:
@@ -344,11 +483,14 @@ class BridgeHandler(BaseHTTPRequestHandler):
 
         content = str(payload.get('content', '')).strip()
         username = str(payload.get('username', 'executor')).strip() or 'executor'
-        thread_id = str(payload.get('thread_id', '')).strip() or None
+        raw_thread_id = payload.get('thread_id', '')
+        thread_id_text = '' if raw_thread_id is None else str(raw_thread_id).strip()
+        thread_id = None if thread_id_text.lower() in {'', 'none', 'null'} else thread_id_text
         meeting_id = str(payload.get('meeting_id', '')).strip()
         phase = str(payload.get('phase', '')).strip()
         trigger_id = str(payload.get('trigger_id', '')).strip()
         source = str(payload.get('source', 'agent')).strip() or 'agent'
+        metadata = payload.get('metadata')
         if not content:
             self.send_response(400)
             self.send_header('Content-Type', 'application/json')
@@ -366,6 +508,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 meeting_id=meeting_id,
                 phase=phase,
                 trigger_id=trigger_id,
+                metadata=metadata if isinstance(metadata, dict) else None,
             )
         except Exception as exc:
             write_runtime_status(status='event_error', detail=str(exc))

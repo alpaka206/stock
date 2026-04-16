@@ -19,6 +19,9 @@
 - `scripts/check-discord-bridge.sh`
 - `scripts/send-discord-event.py`
 - `scripts/test-discord-bridge.sh`
+- `scripts/test_discord_bridge.py`
+- `scripts/no_secrets_guard.py`
+- `scripts/verify_minimal.py`
 - `scripts/sync-discord-replies.sh`
 
 ## Shared Logs
@@ -38,20 +41,21 @@
 6. Each role emits a Korean `team_message` that responds to the previous speaker instead of a flat smoke log.
 7. Discord shows the role through the webhook username, so the visible body should avoid duplicated `meeting_id` or role prefixes while local logs keep the correlation fields.
 8. Every role message and the closing summary are posted back to Discord and also logged locally when bridge fallback is used.
-9. After `executor`, the loop runs `scripts/no_secrets_guard.sh` and `scripts/verify_minimal.sh`.
+9. After `executor`, the loop runs `python scripts/no_secrets_guard.py` and `python scripts/verify_minimal.py`.
 
 ## Suggested Launch
 ```powershell
-& 'C:\Program Files\Git\bin\bash.exe' scripts/run-discord-bridge.sh
+python omx_discord_bridge/discord_omx_bridge.py
 $env:INFINITE_MODE='true'
-& 'C:\Program Files\Git\bin\bash.exe' scripts/omx-loop.sh
+python scripts/omx_autonomous_loop.py
 ```
 
 ## Fast Bridge Smoke Test
 ```powershell
 & 'C:\Program Files\Git\bin\bash.exe' scripts/check-discord-bridge.sh
-& 'C:\Program Files\Git\bin\bash.exe' scripts/test-discord-bridge.sh
+python scripts/test_discord_bridge.py
 python scripts/send-discord-event.py --username coordinator --meeting-id manual-check --phase handoff --trigger-id manual-check "UTF-8 수동 알림 점검"
+pnpm verify:automation
 ```
 
 Expected result:
