@@ -43,6 +43,7 @@ STEP_GROUPS = {
         {"name": "omx contract parsing", "command": ["python", "scripts/test_omx_contract_parsing.py"]},
         {"name": "no secrets guard", "command": ["python", "scripts/no_secrets_guard.py"]},
         {"name": "discord bridge smoke", "command": ["python", "scripts/test_discord_bridge.py"]},
+        {"name": "discord latest-only helper", "command": ["python", "scripts/test_verify_discord_latest_only.py"]},
     ],
     "web": [
         {"name": "web lint", "command": [PNPM_BIN, "lint:web"]},
