@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -72,6 +73,11 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
         if isinstance(payload, dict):
             entries.append(payload)
     return entries
+
+
+def write_json_file(path: Path, payload: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def latest_iso_from_entries(entries: list[dict[str, Any]]) -> str:
@@ -293,6 +299,7 @@ def diagnose_latest_only_state(
     env_file: Path,
     max_pages: int,
     page_size: int,
+    live_after_message_id: str | None = None,
 ) -> dict[str, Any]:
     snapshot = build_snapshot(state_dir)
     env_values = load_env_values(env_file)
@@ -302,10 +309,15 @@ def diagnose_latest_only_state(
         raise SystemExit("DISCORD_PARENT_CHANNEL_ID 또는 DISCORD_BOT_TOKEN 이 없어 live diagnosis를 실행할 수 없습니다.")
 
     reply_last_message_id = str(snapshot.get("discord_reply_state", {}).get("last_message_id", "")).strip()
+    effective_live_after_message_id = (
+        str(live_after_message_id).strip()
+        if live_after_message_id is not None
+        else reply_last_message_id
+    )
     live_result = collect_live_messages_after_cursor(
         channel_id=channel_id,
         bot_token=bot_token,
-        after_message_id=reply_last_message_id,
+        after_message_id=effective_live_after_message_id,
         max_pages=max_pages,
         page_size=page_size,
     )
@@ -321,12 +333,142 @@ def diagnose_latest_only_state(
         "state_dir": str(state_dir),
         "env_file": str(env_file),
         "reply_last_message_id": reply_last_message_id,
+        "live_after_message_id": effective_live_after_message_id,
         "live_scan": {
             "pages_scanned": int(live_result.get("pages_scanned", 0)),
             "message_count": int(live_result.get("message_count", 0)),
             "truncated": bool(live_result.get("truncated", False)),
         },
         "diagnosis": diagnosis,
+    }
+
+
+def latest_allowed_message_from_diagnosis(payload: dict[str, Any]) -> dict[str, Any] | None:
+    diagnosis = payload.get("diagnosis", {})
+    if not isinstance(diagnosis, dict):
+        return None
+    comparison = diagnosis.get("comparison", {})
+    if not isinstance(comparison, dict):
+        return None
+    latest_allowed = comparison.get("live_latest_allowed_after_cursor")
+    if not isinstance(latest_allowed, dict):
+        return None
+    message_id = str(latest_allowed.get("message_id", "")).strip()
+    return latest_allowed if message_id else None
+
+
+def build_verify_command(before_path: str, message_id: str, meeting_id: str) -> str:
+    return (
+        "python scripts/verify_discord_latest_only.py verify "
+        f"--before {before_path} "
+        f"--message-id {message_id} "
+        f"--meeting-id {meeting_id}"
+    )
+
+
+def determine_watch_status(
+    *,
+    baseline_message_id: str,
+    diagnosis_payload: dict[str, Any],
+    current_snapshot: dict[str, Any],
+    before_snapshot_path: str,
+) -> dict[str, Any]:
+    latest_allowed = latest_allowed_message_from_diagnosis(diagnosis_payload)
+    latest_allowed_id = str((latest_allowed or {}).get("message_id", "")).strip()
+    handled_ids = [
+        str(item).strip()
+        for item in current_snapshot.get("loop_state", {}).get("handled_discord_message_ids", [])
+        if str(item).strip()
+    ]
+    latest_meeting_id = str(current_snapshot.get("loop_state", {}).get("last_meeting_id", "")).strip()
+
+    status = "waiting_for_message"
+    ready_for_verify = False
+    verify_command = ""
+
+    if latest_allowed_id and latest_allowed_id != baseline_message_id:
+        if latest_allowed_id in handled_ids and latest_meeting_id:
+            status = "handled"
+            ready_for_verify = True
+            verify_command = build_verify_command(before_snapshot_path, latest_allowed_id, latest_meeting_id)
+        else:
+            status = "waiting_for_loop"
+
+    return {
+        "status": status,
+        "ready_for_verify": ready_for_verify,
+        "latest_allowed_message": latest_allowed,
+        "message_id": latest_allowed_id,
+        "meeting_id": latest_meeting_id if ready_for_verify else "",
+        "verify_command": verify_command,
+    }
+
+
+def watch_latest_only_state(
+    *,
+    state_dir: Path,
+    env_file: Path,
+    snapshot_output: Path,
+    timeout_seconds: float,
+    poll_interval_seconds: float,
+    max_pages: int,
+    page_size: int,
+) -> dict[str, Any]:
+    before_snapshot = build_snapshot(state_dir)
+    write_json_file(snapshot_output, before_snapshot)
+    baseline_message_id = str(before_snapshot.get("discord_reply_state", {}).get("last_message_id", "")).strip()
+    deadline = time.monotonic() + max(timeout_seconds, 0.1)
+    polls = 0
+    last_payload: dict[str, Any] | None = None
+    last_watch_status: dict[str, Any] | None = None
+
+    while True:
+        polls += 1
+        current_snapshot = build_snapshot(state_dir)
+        payload = diagnose_latest_only_state(
+            state_dir=state_dir,
+            env_file=env_file,
+            max_pages=max_pages,
+            page_size=page_size,
+            live_after_message_id=baseline_message_id,
+        )
+        watch_status = determine_watch_status(
+            baseline_message_id=baseline_message_id,
+            diagnosis_payload=payload,
+            current_snapshot=current_snapshot,
+            before_snapshot_path=str(snapshot_output),
+        )
+        last_payload = payload
+        last_watch_status = watch_status
+        if watch_status.get("ready_for_verify") is True:
+            return {
+                "ok": True,
+                "before_snapshot": before_snapshot,
+                "before_snapshot_path": str(snapshot_output),
+                "baseline_message_id": baseline_message_id,
+                "polls": polls,
+                "diagnosis": payload.get("diagnosis", {}),
+                "watch_status": watch_status,
+            }
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(max(poll_interval_seconds, 0.2))
+
+    return {
+        "ok": False,
+        "before_snapshot": before_snapshot,
+        "before_snapshot_path": str(snapshot_output),
+        "baseline_message_id": baseline_message_id,
+        "polls": polls,
+        "diagnosis": (last_payload or {}).get("diagnosis", {}),
+        "watch_status": last_watch_status or {
+            "status": "waiting_for_message",
+            "ready_for_verify": False,
+            "latest_allowed_message": None,
+            "message_id": "",
+            "meeting_id": "",
+            "verify_command": "",
+        },
     }
 
 
@@ -496,6 +638,23 @@ def parse_args() -> argparse.Namespace:
     diagnose.add_argument("--page-size", type=int, default=100, help="Discord API page size per request. Max 100.")
     diagnose.add_argument("--json", action="store_true", help="Print machine-readable JSON only.")
 
+    watch = subparsers.add_parser(
+        "watch",
+        help="Capture a before snapshot, keep a fixed live cursor, and wait until the next allowed Discord user message is fully handled.",
+    )
+    watch.add_argument("--state-dir", default=str(DEFAULT_STATE_DIR), help="State directory. Default: .omx/state")
+    watch.add_argument("--env-file", default=str(DEFAULT_ENV_FILE), help="Discord env file. Default: omx_discord_bridge/.env.discord")
+    watch.add_argument(
+        "--snapshot-output",
+        default=str(DEFAULT_STATE_DIR / "discord-latest-before.json"),
+        help="Path to write the before snapshot JSON. Default: .omx/state/discord-latest-before.json",
+    )
+    watch.add_argument("--timeout-seconds", type=float, default=180.0, help="How long to wait for the next allowed message to be handled.")
+    watch.add_argument("--poll-interval-seconds", type=float, default=3.0, help="Polling interval while waiting for the next allowed message.")
+    watch.add_argument("--max-pages", type=int, default=5, help="Maximum Discord API pages to scan from the fixed baseline cursor.")
+    watch.add_argument("--page-size", type=int, default=100, help="Discord API page size per request. Max 100.")
+    watch.add_argument("--json", action="store_true", help="Print machine-readable JSON only.")
+
     return parser.parse_args()
 
 
@@ -554,6 +713,27 @@ def format_diagnosis(payload: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def format_watch(payload: dict[str, Any]) -> str:
+    watch_status = payload.get("watch_status", {})
+    diagnosis = payload.get("diagnosis", {})
+    latest_allowed = watch_status.get("latest_allowed_message") or {}
+    lines = [
+        "Discord latest-only watch",
+        f"- ok: {payload.get('ok')}",
+        f"- before_snapshot_path: {payload.get('before_snapshot_path', '')}",
+        f"- baseline_message_id: {payload.get('baseline_message_id', '')}",
+        f"- polls: {payload.get('polls', 0)}",
+        f"- status: {watch_status.get('status', '')}",
+        f"- diagnosis_category: {diagnosis.get('category', '')}",
+        f"- latest_allowed_message: {watch_status.get('message_id', '')} / {latest_allowed.get('author', '')} / {latest_allowed.get('author_id', '')}",
+        f"- meeting_id: {watch_status.get('meeting_id', '')}",
+    ]
+    verify_command = str(watch_status.get("verify_command", "")).strip()
+    if verify_command:
+        lines.append(f"- verify_command: {verify_command}")
+    return "\n".join(lines)
+
+
 def main() -> int:
     args = parse_args()
     state_dir = Path(args.state_dir)
@@ -582,6 +762,22 @@ def main() -> int:
         else:
             print(format_diagnosis(payload))
         return 0
+
+    if args.command == "watch":
+        payload = watch_latest_only_state(
+            state_dir=state_dir,
+            env_file=Path(args.env_file),
+            snapshot_output=Path(args.snapshot_output),
+            timeout_seconds=float(args.timeout_seconds),
+            poll_interval_seconds=float(args.poll_interval_seconds),
+            max_pages=max(int(args.max_pages), 1),
+            page_size=max(int(args.page_size), 1),
+        )
+        if args.json:
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+        else:
+            print(format_watch(payload))
+        return 0 if bool(payload.get("ok")) else 1
 
     before_snapshot = read_json(Path(args.before), {})
     if not isinstance(before_snapshot, dict):
