@@ -1862,14 +1862,34 @@ def build_verifier_output(executor_output: dict[str, Any] | None, verify_ok: boo
             "needs_human": False,
         }
     if verify_ok:
+        executor_scope = trim(str(executor_output.get("summary", "")).strip(), 220)
+        executor_proposed = trim(str(executor_output.get("proposed_action", "")).strip(), 220)
+        executor_followup = next(
+            (trim(str(item).strip(), 220) for item in executor_output.get("followups", []) if str(item).strip()),
+            "",
+        )
+        summary = "executor가 정리한 범위 기준으로 guard/verify gate를 통과했다."
+        rationale = "no secrets guard와 standard verify가 모두 성공했다."
+        team_message = "executor 이후 검증 게이트는 통과했습니다. 이제 같은 맥락에서 가치가 높은 후속 구현이나 QA로 이어가면 됩니다."
+        proposed_action = executor_followup or executor_proposed or "다음 가치 작업, 후속 구현, 또는 QA 범위로 진행한다."
+        question_for_next = "후속 구현과 QA 중 어디가 지금 더 가치가 큰가?"
+        if executor_scope:
+            summary = f"executor가 정리한 범위({executor_scope}) 기준으로 guard/verify gate를 통과했다."
+            rationale = f"{executor_scope} 범위에서 no secrets guard와 standard verify가 모두 성공했다."
+            team_message = f"이번 확인은 {executor_scope} 범위에서 닫혔고 guard/verify gate도 통과했습니다."
+            if executor_proposed:
+                team_message += f" {executor_proposed}"
+            elif executor_followup:
+                team_message += f" 다음에는 {executor_followup}로 이어가면 됩니다."
+            question_for_next = executor_followup or question_for_next
         return {
             "role": "verifier",
             "status": "pass",
-            "summary": "executor 이후 guard/verify gate를 통과했다.",
-            "rationale": "no secrets guard와 standard verify가 모두 성공했다.",
-            "proposed_action": "다음 가치 작업, 후속 구현, 또는 QA 범위로 진행한다.",
-            "team_message": "executor 이후 검증 게이트는 통과했습니다. 이제 같은 맥락에서 가치가 높은 후속 구현이나 QA로 이어가면 됩니다.",
-            "question_for_next": "후속 구현과 QA 중 어디가 지금 더 가치가 큰가?",
+            "summary": summary,
+            "rationale": rationale,
+            "proposed_action": proposed_action,
+            "team_message": team_message,
+            "question_for_next": question_for_next,
             "reply_to": ["executor"],
             "risks": [],
             "verification": ["python scripts/no_secrets_guard.py: pass", "python scripts/verify_minimal.py: pass"],
