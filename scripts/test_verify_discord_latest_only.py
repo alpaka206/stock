@@ -4,7 +4,15 @@ import json
 import tempfile
 from pathlib import Path
 
-from verify_discord_latest_only import build_snapshot, verify_transition
+from verify_discord_latest_only import (
+    DIAGNOSIS_ALREADY_HANDLED,
+    DIAGNOSIS_DISALLOWED_HUMAN,
+    DIAGNOSIS_NO_NEW_HUMAN,
+    DIAGNOSIS_READY_FOR_LOOP,
+    build_snapshot,
+    classify_latest_only_blockage,
+    verify_transition,
+)
 
 
 def write_json(path: Path, payload: object) -> None:
@@ -48,6 +56,19 @@ def role_entry(
         "needs_human": False,
         "status": "done",
         "created_at": "2026-04-17T00:00:00Z",
+    }
+
+
+def live_message(message_id: str, *, author_id: str, username: str, bot: bool = False, content: str = "hello") -> dict:
+    return {
+        "id": message_id,
+        "content": content,
+        "timestamp": "2026-04-17T00:00:00.000000+00:00",
+        "author": {
+            "id": author_id,
+            "username": username,
+            "bot": bot,
+        },
     }
 
 
@@ -209,10 +230,82 @@ def test_verify_fails_when_trigger_message_id_is_missing() -> None:
             raise AssertionError(f"missing trigger_message_id error not found: {result.errors}")
 
 
+def test_diagnosis_marks_no_new_human_message() -> None:
+    diagnosis = classify_latest_only_blockage(
+        live_messages_after_cursor=[
+            live_message("bot-1", author_id="bot", username="coordinator", bot=True),
+            live_message("bot-2", author_id="bot", username="planner", bot=True),
+        ],
+        inbox_entries=[
+            {"source": "discord_user", "message_id": "old-1", "author_id": "user-1", "author": "alice", "content": "old"}
+        ],
+        reply_last_message_id="old-1",
+        handled_message_ids=["old-1"],
+        allowed_user_ids={"user-1"},
+    )
+    if diagnosis["category"] != DIAGNOSIS_NO_NEW_HUMAN:
+        raise AssertionError(f"expected no-new-human diagnosis, got {diagnosis}")
+
+
+def test_diagnosis_marks_disallowed_human_message() -> None:
+    diagnosis = classify_latest_only_blockage(
+        live_messages_after_cursor=[
+            live_message("bot-1", author_id="bot", username="coordinator", bot=True),
+            live_message("human-1", author_id="user-2", username="bob", content="new human"),
+        ],
+        inbox_entries=[
+            {"source": "discord_user", "message_id": "old-1", "author_id": "user-1", "author": "alice", "content": "old"}
+        ],
+        reply_last_message_id="old-1",
+        handled_message_ids=["old-1"],
+        allowed_user_ids={"user-1"},
+    )
+    if diagnosis["category"] != DIAGNOSIS_DISALLOWED_HUMAN:
+        raise AssertionError(f"expected disallowed-human diagnosis, got {diagnosis}")
+
+
+def test_diagnosis_marks_ready_for_loop_when_imported_but_not_handled() -> None:
+    diagnosis = classify_latest_only_blockage(
+        live_messages_after_cursor=[
+            live_message("human-2", author_id="user-1", username="alice", content="new allowed"),
+        ],
+        inbox_entries=[
+            {"source": "discord_user", "message_id": "old-1", "author_id": "user-1", "author": "alice", "content": "old"},
+            {"source": "discord_user", "message_id": "human-2", "author_id": "user-1", "author": "alice", "content": "new allowed"},
+        ],
+        reply_last_message_id="human-2",
+        handled_message_ids=["old-1"],
+        allowed_user_ids={"user-1"},
+    )
+    if diagnosis["category"] != DIAGNOSIS_READY_FOR_LOOP:
+        raise AssertionError(f"expected ready-for-loop diagnosis, got {diagnosis}")
+
+
+def test_diagnosis_marks_already_handled_when_loop_consumed_latest_allowed() -> None:
+    diagnosis = classify_latest_only_blockage(
+        live_messages_after_cursor=[
+            live_message("human-3", author_id="user-1", username="alice", content="latest allowed"),
+        ],
+        inbox_entries=[
+            {"source": "discord_user", "message_id": "old-1", "author_id": "user-1", "author": "alice", "content": "old"},
+            {"source": "discord_user", "message_id": "human-3", "author_id": "user-1", "author": "alice", "content": "latest allowed"},
+        ],
+        reply_last_message_id="human-3",
+        handled_message_ids=["old-1", "human-3"],
+        allowed_user_ids={"user-1"},
+    )
+    if diagnosis["category"] != DIAGNOSIS_ALREADY_HANDLED:
+        raise AssertionError(f"expected already-handled diagnosis, got {diagnosis}")
+
+
 def main() -> int:
     test_snapshot_and_verify_pass()
     test_verify_fails_when_executor_metadata_missing()
     test_verify_fails_when_trigger_message_id_is_missing()
+    test_diagnosis_marks_no_new_human_message()
+    test_diagnosis_marks_disallowed_human_message()
+    test_diagnosis_marks_ready_for_loop_when_imported_but_not_handled()
+    test_diagnosis_marks_already_handled_when_loop_consumed_latest_allowed()
     print("discord latest-only verification helper tests passed.")
     return 0
 
