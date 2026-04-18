@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@ag-grid-community/locale':
-        specifier: ^35.1.0
-        version: 35.1.0
+        specifier: ^35.2.1
+        version: 35.2.1
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.71.2(react@19.2.3))
@@ -90,8 +90,8 @@ importers:
 
 packages:
 
-  '@ag-grid-community/locale@35.1.0':
-    resolution: {integrity: sha512-Tez1imtqfipMT3O1Ay+dyDcFJIj6H6gXBp45s44pwkzWQzxO20IBpZUrmAPTNRMYVZNXqCVbNsozWrPaVFAgeQ==}
+  '@ag-grid-community/locale@35.2.1':
+    resolution: {integrity: sha512-wZHO08v/Yysa2FuSbuEc4TulTqths5iwCDaIogLhykYdQSMF3yetpL6dswtn69mdvRT0C2YBqIZOq4BS1ztnvA==}
 
   '@alloc/quick-lru@5.2.0':
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
@@ -3752,7 +3752,7 @@ packages:
 
 snapshots:
 
-  '@ag-grid-community/locale@35.1.0': {}
+  '@ag-grid-community/locale@35.2.1': {}
 
   '@alloc/quick-lru@5.2.0': {}
 
