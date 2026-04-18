@@ -150,6 +150,17 @@ git:
     - "develop"
     - "develop_loop"
   issue_branch_prefix: "issue"
+  issue_title_format: "<type>: <summary>"
+  issue_title_prefixes:
+    - "feat"
+    - "fix"
+    - "refactor"
+    - "docs"
+    - "chore"
+    - "ci"
+    - "test"
+    - "perf"
+  forbid_generic_issue_titles: true
   pr_base: "develop_loop"
   merge_strategy: "squash"
   delete_branch_after_merge: true
