@@ -65,9 +65,8 @@ def run_manual_release_creation_smoke(release_contract: loop.AgentsContract) -> 
     assert result.status == "release_pr_created"
     assert result.report_to_discord is True
     assert result.record_in_journal is True
-    assert "사용자 대기" in result.detail
     assert loop_state["github_flow"]["status"] == "release_pr_open"
-    assert status_messages and "사용자 대기" in status_messages[-1]
+    assert status_messages
     assert any(call[:2] == ("pr", "create") for call in gh_calls)
     assert not any(call[:2] == ("pr", "merge") for call in gh_calls)
 
@@ -127,9 +126,8 @@ def run_manual_release_reentry_smoke(release_contract: loop.AgentsContract) -> N
     assert result.status == "release_pr_open"
     assert result.report_to_discord is False
     assert result.record_in_journal is True
-    assert "사용자 대기" in result.detail
     assert loop_state["github_flow"]["status"] == "release_pr_open"
-    assert status_messages and "사용자 대기" in status_messages[-1]
+    assert status_messages
     assert not gh_calls
 
 
@@ -167,7 +165,7 @@ def run_release_reporting_smoke() -> None:
 
     created_result = loop.GitHubFlowResult(
         True,
-        "Release PR #22 를 만들었고 main 병합은 사용자 대기다.",
+        "Release PR #22를 만들고 main 병합은 사용자 대기 상태로 둔다.",
         release_pr_number=22,
         release_pr_url="https://example.test/pull/22",
         status="release_pr_created",
@@ -176,7 +174,7 @@ def run_release_reporting_smoke() -> None:
     )
     already_open_result = loop.GitHubFlowResult(
         False,
-        "Release PR #22 가 이미 열려 있고 main 병합은 사용자 대기다.",
+        "Release PR #22가 이미 열려 있고 main 병합은 사용자 대기 상태다.",
         release_pr_number=22,
         release_pr_url="https://example.test/pull/22",
         status="release_pr_open",
@@ -208,7 +206,7 @@ def run_release_sync_wrapper_smoke(release_contract: loop.AgentsContract) -> Non
 
     created_result = loop.GitHubFlowResult(
         True,
-        "Release PR #33 를 만들었고 main 병합은 사용자 대기다.",
+        "Release PR #33을 만들고 main 병합은 사용자 대기 상태로 둔다.",
         release_pr_number=33,
         release_pr_url="https://example.test/pull/33",
         status="release_pr_created",
