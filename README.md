@@ -67,6 +67,11 @@ pnpm verify:api
 python scripts/api_smoke.py
 ```
 
+## 배포 주소
+
+- 현재 배포된 stock 사이트: [https://stock-radar-board.vercel.app](https://stock-radar-board.vercel.app)
+- 대표 진입 화면: [https://stock-radar-board.vercel.app/overview](https://stock-radar-board.vercel.app/overview)
+
 ## Codex / Ralph Loop
 
 - 프로젝트별 Ralph 설정: `.ralph-loop.yml`
