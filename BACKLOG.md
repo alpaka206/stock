@@ -9,4 +9,6 @@
 - [x] 변경사항 커밋
 - [x] `issue/131-최상위-계약-primary-task -> develop_loop` PR 생성
 - [x] PR #132 auto-merge 활성화
+- [x] PR #133 잔여 review thread 상태 확인
+- [x] `[::1]` loopback 후속 작업을 이슈 #134 로 분리
 - [ ] 외부 배포 프런트 URL 직접 확인 가능 여부 재점검
