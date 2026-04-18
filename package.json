@@ -1,5 +1,6 @@
 {
   "name": "stock-workspace",
+  "license": "MIT",
   "private": true,
   "packageManager": "pnpm@10.22.0",
   "scripts": {
