@@ -1,0 +1,49 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+    "python.analysis.extraPaths": [
+      "${workspaceFolder}\\apps\\api"
+    ],
+    "python.analysis.typeCheckingMode": "basic",
+    "eslint.workingDirectories": [
+      {
+        "directory": "apps/web",
+        "changeProcessCWD": true
+      }
+    ],
+    "files.exclude": {
+      ".omx/journal": true,
+      ".omx/logs": true,
+      ".omx/runtime": true,
+      ".playwright-mcp": true,
+      ".pnpm-store": true,
+      "apps/web/.next": true,
+      "node_modules": true
+    },
+    "search.exclude": {
+      ".omx/journal": true,
+      ".omx/logs": true,
+      ".omx/runtime": true,
+      ".playwright-mcp": true,
+      ".pnpm-store": true,
+      "apps/web/.next": true,
+      "node_modules": true
+    },
+    "terminal.integrated.cwd": "${workspaceFolder}"
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      "ms-python.vscode-pylance",
+      "dbaeumer.vscode-eslint",
+      "bradlc.vscode-tailwindcss",
+      "ms-vscode.powershell",
+      "github.vscode-github-actions"
+    ]
+  }
+}

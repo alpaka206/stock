@@ -41,24 +41,22 @@ credentials/
 
 .codex/
 .agents/
+!.codex/
+!.codex/**
+!.agents/
+!.agents/**
 
 .omx/logs/
 .omx/runtime/
 .omx/tmp/
 .omx/metrics.json
 .omx/journal/
+.omx/state/
+.ralph/
+.playwright-mcp/
 omx_discord_bridge/.venv/
 omx_discord_bridge/__pycache__/
 omx_discord_bridge/logs/
-
-.omx/state/**
-!.omx/state/
-!.omx/state/TASK.md
-!.omx/state/STATE.md
-!.omx/state/BACKLOG.md
-!.omx/state/NEXT_PROMPT.md
-!.omx/state/DISCORD_STATUS.md
-!.omx/state/VERIFY_LAST_FAILURE.md
 
 !.omx/plans/
 !.omx/plans/**
