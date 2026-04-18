@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+import logging
 from typing import Any, Literal
 
 from app.config import Settings
@@ -13,6 +14,7 @@ from app.services.prompt_loader import PromptLoader
 from app.services.providers.factory import create_provider
 
 ProbeMode = Literal["config", "remote"]
+logger = logging.getLogger(__name__)
 
 
 async def build_readiness_report(
@@ -51,17 +53,19 @@ def _check_prompt_contracts(prompt_loader: PromptLoader) -> dict[str, Any]:
             "required": True,
         }
     except FileNotFoundError as exc:
+        logger.warning("Prompt contract file missing: %s", exc)
         return {
             "name": "prompt-contracts",
             "ok": False,
-            "detail": f"Missing required prompt or contract file: {exc}",
+            "detail": "Missing required prompt or contract file.",
             "required": True,
         }
     except Exception as exc:  # pragma: no cover
+        logger.exception("Prompt contract loading failed: %s", exc)
         return {
             "name": "prompt-contracts",
             "ok": False,
-            "detail": f"Prompt/contract loading failed: {exc}",
+            "detail": "Prompt/contract loading failed.",
             "required": True,
         }
 
@@ -76,10 +80,11 @@ def _check_provider_factory(settings: Settings) -> dict[str, Any]:
             "required": True,
         }
     except Exception as exc:  # pragma: no cover
+        logger.exception("Provider creation failed: %s", exc)
         return {
             "name": "provider-factory",
             "ok": False,
-            "detail": f"Provider creation failed: {exc}",
+            "detail": "Provider creation failed.",
             "required": True,
         }
 
@@ -290,17 +295,19 @@ async def _run_probe(
             "required": required,
         }
     except (ProviderConfigurationError, ExternalServiceError) as exc:
+        logger.warning("Readiness probe failed for %s: %s", name, exc)
         return {
             "name": name,
             "ok": False,
-            "detail": str(exc),
+            "detail": f"{detail} failed. Check server logs for details.",
             "required": required,
         }
     except Exception as exc:  # pragma: no cover
+        logger.exception("Unexpected readiness probe failure for %s: %s", name, exc)
         return {
             "name": name,
             "ok": False,
-            "detail": f"{detail} failed with exception: {exc}",
+            "detail": f"{detail} failed. Check server logs for details.",
             "required": required,
         }
 

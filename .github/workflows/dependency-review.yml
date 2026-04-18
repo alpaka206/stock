@@ -15,19 +15,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.22.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -85,6 +87,6 @@ jobs:
             echo "- python audit: ${PYTHON_AUDIT_OUTCOME}"
             echo "- npm license summary: ${NPM_LICENSE_OUTCOME}"
             echo ""
-            echo "이 워크플로는 현재 저장소의 기존 취약점/라이선스 상태를 리포트하는 용도입니다."
-            echo "실제 경보와 자동 수정은 Dependabot alerts 및 security updates로 추적합니다."
+            echo "This workflow reports the current vulnerability and license status."
+            echo "Actual remediation is tracked through Dependabot alerts and security updates."
           } >> "$GITHUB_STEP_SUMMARY"
