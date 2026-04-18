@@ -1,0 +1,103 @@
+project:
+  name: "sample-project"
+  repo: "owner/repository"
+  language: "ko"
+  locale: "ko-KR"
+
+goal: |
+  이 저장소를 Ralph 자율 루프로 운영한다.
+  일반적인 기술 선택은 사용자에게 묻지 않고 구현, 복구, 검증, 이슈/PR 흐름까지 계속 진행한다.
+  Discord는 원격 제어, 감사 로그, 필수 승인 요청 채널로만 사용한다.
+
+minimum_done:
+  - "현재 목표에 해당하는 구현 또는 복구가 완료된다"
+  - "설정한 검증 명령이 통과한다"
+  - "변경사항이 issue 브랜치에만 커밋된다"
+  - "issue 브랜치에서 develop_loop로 향하는 PR이 생성되거나 갱신된다"
+  - "main, develop, develop_loop에는 직접 커밋하거나 직접 push하지 않는다"
+
+loop:
+  max_iterations: 30
+  failure_threshold: 3
+  continue_without_user_by_default: true
+
+ask_user_only_when:
+  - "유료 서비스 결제나 과금 변경이 필요하다"
+  - "API key, secret, token, 외부 계정 자격증명이 필요하다"
+  - "프로덕션 배포가 필요하다"
+  - "되돌리기 어려운 DB 또는 데이터 작업이 필요하다"
+
+writing:
+  language: "ko"
+  style: "모든 진행 요약, Discord 메시지, 로그 요약, 설명, PR 요약은 한국어로 작성한다."
+  avoid:
+    - "불필요한 영어 설명"
+    - "과장된 홍보 문체"
+    - "의미 없는 AI 상투어"
+
+runtime:
+  bridge_host: "127.0.0.1"
+  bridge_port:
+  ascii_workspace_drive: ""
+
+discord:
+  mode: "all"
+  channel_id: ""
+  thread_per_run: false
+  notify_on:
+    - "start"
+    - "issue_created"
+    - "pr_created"
+    - "tests_failed_3_times"
+    - "blocked"
+    - "needs_paid_service"
+    - "needs_secret"
+    - "merge_done"
+    - "complete"
+  remote_commands:
+    - "/ralph status"
+    - "/ralph pause"
+    - "/ralph resume"
+    - "/ralph stop"
+    - "/ralph nudge <message>"
+    - "/ralph goal <message>"
+    - "/ralph done <message>"
+    - "/ralph logs"
+    - "/ralph pr"
+
+git:
+  base_branch: "develop_loop"
+  protected_branches:
+    - "main"
+    - "develop"
+    - "develop_loop"
+  no_commit_on:
+    - "main"
+    - "develop"
+    - "develop_loop"
+  no_direct_push_to:
+    - "main"
+    - "develop"
+    - "develop_loop"
+  issue_branch_prefix: "issue"
+  pr_base: "develop_loop"
+  merge_strategy: "squash"
+  delete_branch_after_merge: true
+  release_to_main_policy: "disabled"
+
+commands:
+  install: "pnpm install"
+  lint: "pnpm lint"
+  test: "pnpm test"
+  build: "pnpm build"
+  verify:
+    - "pnpm test"
+
+agents:
+  planner: true
+  implementer: true
+  reviewer: true
+  tester: true
+  gitops: true
+  agent_discussion_policy: "internal_codex_subagents"
+  discord_for_agent_discussion: "summary_only"

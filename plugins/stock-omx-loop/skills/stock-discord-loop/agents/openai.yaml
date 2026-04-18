@@ -1,0 +1,4 @@
+interface:
+  display_name: "Stock Discord Loop"
+  short_description: "Run, verify, and quiet the stock repo Discord-driven OMX loop."
+  default_prompt: "Use $stock-discord-loop to inspect the Discord bridge, state files, and OMX loop in this repository."
