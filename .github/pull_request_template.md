@@ -19,7 +19,7 @@
 - 
 
 ## 체크리스트
-- [ ] `main`, `develop`, `develop_loop`에 직접 커밋하거나 직접 push하지 않았다
-- [ ] 이 PR은 `develop_loop` 기준으로 생성했다
-- [ ] 데이터 출처, unavailable, 에러 처리 기준을 확인했다
-- [ ] 불필요한 런타임 파일이나 비밀값이 포함되지 않았다
+- [ ] `main`, `develop`, `develop_loop`에 직접 commit/push 하지 않았다
+- [ ] PR 제목이 `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`, `ci:` 중 하나로 시작한다
+- [ ] 출처, unavailable, 오류 처리 기준을 확인했다
+- [ ] 불필요한 비밀값이나 생성 산출물을 포함하지 않았다
