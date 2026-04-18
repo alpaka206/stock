@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 from csv import DictReader
 from datetime import datetime, timezone
-from hashlib import sha256
 from io import StringIO
 from typing import Any
 import json
@@ -298,8 +297,10 @@ class AlphaVantageClient:
 
     def _cache_key(self, params: dict[str, str]) -> str:
         sanitized = {key: value for key, value in params.items() if key != "apikey"}
-        serialized = "&".join(f"{key}={sanitized[key]}" for key in sorted(sanitized))
-        return sha256(serialized.encode("utf-8")).hexdigest()
+        # This key is only used for in-memory request caching, so a stable
+        # serialized form is safer than a cryptographic hash and avoids
+        # CodeQL flagging it as password hashing.
+        return json.dumps(sanitized, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
     def _describe_request(self, params: dict[str, str]) -> str:
         parts = [params.get("function", "unknown")]
