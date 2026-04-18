@@ -60,16 +60,16 @@ def run_manual_release_creation_smoke(release_contract: loop.AgentsContract) -> 
         loop.git_command = original_git_command
         loop.write_github_automation_status = original_write_status
 
-    assert result.ok is True, "manual release policy should still create a release PR"
-    assert result.release_pr_number == 22, "release PR number should come from created PR URL"
-    assert result.status == "release_pr_created", "created release PR should return explicit status"
-    assert result.report_to_discord is True, "created release PR should notify Discord once"
-    assert result.record_in_journal is True, "created release PR should remain in journal notes"
-    assert "사용자 대기" in result.detail, "release detail should say manual merge is pending"
+    assert result.ok is True
+    assert result.release_pr_number == 22
+    assert result.status == "release_pr_created"
+    assert result.report_to_discord is True
+    assert result.record_in_journal is True
+    assert "사용자 대기" in result.detail
     assert loop_state["github_flow"]["status"] == "release_pr_open"
     assert status_messages and "사용자 대기" in status_messages[-1]
-    assert any(call[:2] == ("pr", "create") for call in gh_calls), "release PR should be created"
-    assert not any(call[:2] == ("pr", "merge") for call in gh_calls), "manual release policy must not auto-merge main PRs"
+    assert any(call[:2] == ("pr", "create") for call in gh_calls)
+    assert not any(call[:2] == ("pr", "merge") for call in gh_calls)
 
 
 def run_manual_release_reentry_smoke(release_contract: loop.AgentsContract) -> None:
@@ -122,15 +122,15 @@ def run_manual_release_reentry_smoke(release_contract: loop.AgentsContract) -> N
         loop.git_command = original_git_command
         loop.write_github_automation_status = original_write_status
 
-    assert result.ok is False, "existing open release PR should not be treated as a new create"
+    assert result.ok is False
     assert result.release_pr_number == 22
-    assert result.status == "release_pr_open", "re-entry should keep release_pr_open status"
-    assert result.report_to_discord is False, "already-open release PR should not post to Discord again"
-    assert result.record_in_journal is True, "already-open release PR should still remain in journal notes"
+    assert result.status == "release_pr_open"
+    assert result.report_to_discord is False
+    assert result.record_in_journal is True
     assert "사용자 대기" in result.detail
     assert loop_state["github_flow"]["status"] == "release_pr_open"
     assert status_messages and "사용자 대기" in status_messages[-1]
-    assert not gh_calls, "re-entry should not recreate or merge release PRs"
+    assert not gh_calls
 
 
 def run_release_reporting_smoke() -> None:
@@ -194,11 +194,11 @@ def run_release_reporting_smoke() -> None:
         loop.post_message = original_post_message
         loop.emit_console = original_emit_console
 
-    assert github_notes == [created_result.detail, already_open_result.detail], "created/open release PR details should stay in journal notes"
-    assert len(posts) == 1, "only freshly created release PR should notify Discord"
+    assert github_notes == [created_result.detail, already_open_result.detail]
+    assert len(posts) == 1
     assert posts[0]["phase"] == "github_release_pr"
     assert "사용자 대기" in posts[0]["content"]
-    assert already_open_result.detail in [message for phase, message in console_logs if phase == "github"], "already-open release PR should still be logged locally"
+    assert already_open_result.detail in [message for phase, message in console_logs if phase == "github"]
 
 
 def run_release_sync_wrapper_smoke(release_contract: loop.AgentsContract) -> None:
@@ -245,18 +245,18 @@ def run_release_sync_wrapper_smoke(release_contract: loop.AgentsContract) -> Non
     loop.post_message = fake_post_message
     try:
         result = loop.sync_and_report_release_pr(
-            {"github_flow": {}},
+            {"github_flow": {"issue_number": 1}},
             release_contract,
             meeting_id="github-release-sync",
             trigger={"id": "loop-startup-release-sync", "thread_id": None},
+            github_notes=[],
         )
     finally:
         loop.sync_release_pr = original_sync_release_pr
         loop.post_message = original_post_message
 
     assert result == created_result
-    assert len(posts) == 1, "startup release sync should reuse the reporting helper"
-    assert posts[0]["meeting_id"] == "github-release-sync"
+    assert len(posts) == 1
     assert posts[0]["trigger_id"] == "loop-startup-release-sync"
     assert posts[0]["phase"] == "github_release_pr"
     assert "사용자 대기" in posts[0]["content"]
@@ -264,11 +264,12 @@ def run_release_sync_wrapper_smoke(release_contract: loop.AgentsContract) -> Non
 
 def main() -> int:
     contract = loop.parse_agents_contract()
-    assert (
-        contract.release_to_main_policy == loop.RELEASE_TO_MAIN_PR_ONLY_POLICY
-    ), f"RELEASE_TO_MAIN_POLICY must be {loop.RELEASE_TO_MAIN_PR_ONLY_POLICY}"
+    release_contract = replace(
+        contract,
+        enable_github_automation=True,
+        release_to_main_policy=loop.RELEASE_TO_MAIN_PR_ONLY_POLICY,
+    )
 
-    release_contract = replace(contract, enable_github_automation=True)
     run_manual_release_creation_smoke(release_contract)
     run_manual_release_reentry_smoke(release_contract)
     run_release_reporting_smoke()

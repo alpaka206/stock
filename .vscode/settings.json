@@ -3,5 +3,29 @@
   "python.analysis.extraPaths": [
     "apps/api"
   ],
-  "python.analysis.typeCheckingMode": "basic"
+  "python.analysis.typeCheckingMode": "basic",
+  "eslint.workingDirectories": [
+    {
+      "directory": "apps/web",
+      "changeProcessCWD": true
+    }
+  ],
+  "files.exclude": {
+    ".omx/journal": true,
+    ".omx/logs": true,
+    ".omx/runtime": true,
+    ".playwright-mcp": true,
+    ".pnpm-store": true,
+    "apps/web/.next": true,
+    "node_modules": true
+  },
+  "search.exclude": {
+    ".omx/journal": true,
+    ".omx/logs": true,
+    ".omx/runtime": true,
+    ".playwright-mcp": true,
+    ".pnpm-store": true,
+    "apps/web/.next": true,
+    "node_modules": true
+  }
 }
