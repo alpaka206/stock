@@ -59,6 +59,7 @@ STEP_GROUPS = {
     ],
     "api": [
         {"name": "contract parity", "command": [PNPM_BIN, "check:contracts"]},
+        {"name": "alpha vantage cache key", "command": ["python", "scripts/test_alpha_vantage_cache_key.py"]},
         {
             "name": "api py_compile",
             "command": ["python", "-m", "py_compile", *PY_COMPILE_TARGETS],
