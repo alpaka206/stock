@@ -2,7 +2,8 @@
 - PR #154는 `issue/134-research-api-ipv6-loopback -> develop_loop`로 생성되었고 squash merge로 `develop_loop`에 반영되었다.
 - PR #155(`develop_loop -> develop`)는 열려 있으며, PR #135를 먼저 반영해야 최신 작업을 모두 포함할 수 있다.
 - PR #135는 `issue/131-최상위-계약-primary-task -> develop_loop`이며 오래된 브랜치지만 release timeout, OMX write gate, 운영 문서 변경이 남아 있다.
-- 현재 브랜치는 PR #135 브랜치 리베이스 중이며 문서 충돌을 최신 작업 흐름 기준으로 정리하고 있다.
+- PR #135 리베이스 중 오래된 문서 상태 충돌은 최신 작업 흐름 기준으로 정리하고 있다.
+- PR #133 후속 review thread 확인과 `[::1]` 로컬 판정 보완은 이미 PR #154에 포함된 현재 상태와 맞춰 정리한다.
 - Dependabot 호환 업데이트는 PR #154에 묶어 반영했다. ESLint 10 PR #151은 현재 React ESLint 플러그인 생태계와 맞지 않아 별도 보류가 필요하다.
 
 최근 검증 결과
