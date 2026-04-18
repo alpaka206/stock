@@ -42,3 +42,4 @@ pnpm verify:web
 - Feature logic stays under `features/*`.
 - API-first loading is preferred.
 - Fixture fallback must be explicit, not silent.
+- `RESEARCH_ALLOW_FIXTURE_FALLBACK=false` 인 release 성격 환경에서 원격 API를 직접 붙일 때는 cold start를 감안해 최소 30초 타임아웃을 사용한다.

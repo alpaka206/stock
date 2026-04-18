@@ -1,0 +1,11 @@
+- [x] release 모드 원격 API fetch 타임아웃 정책 점검
+- [x] `/overview` SSR 500 재현 및 원인 확인
+- [x] 원격 API minimum timeout 정책 코드 반영
+- [x] 웹 문서와 env 체크리스트 갱신
+- [x] `pnpm verify:automation`
+- [x] `pnpm verify:standard`
+- [x] `pnpm verify:release`
+- [x] 로컬 production 웹 서버에서 `/overview`, `/radar`, `/stocks/NVDA`, `/history` 직접 확인
+- [ ] 변경사항 커밋
+- [ ] `issue/131-최상위-계약-primary-task -> develop_loop` PR 생성
+- [ ] 외부 배포 프런트 URL 직접 확인 가능 여부 재점검
