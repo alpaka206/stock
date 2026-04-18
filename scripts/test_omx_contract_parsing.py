@@ -23,13 +23,13 @@ def main() -> int:
     assert contract.git_base_branch == "develop_loop"
     assert contract.issue_branch_prefix == "issue"
     assert set(contract.protected_branches) >= {"main", "develop", "develop_loop"}
-    assert contract.release_to_main_policy == "disabled"
+    assert contract.release_to_main_policy == "pr-only-manual-merge"
     assert contract.runtime_bridge_host == "127.0.0.1"
     assert contract.runtime_bridge_port == 8787
     assert contract.runtime_ascii_workspace_drive == "X:"
 
-    flat_backlog = "# BACKLOG\n\n- [ ] 첫 번째 작업\n- [ ] 두 번째 작업\n"
-    assert loop.parse_backlog_first_unchecked(flat_backlog) == "첫 번째 작업"
+    flat_backlog = "# BACKLOG\n\n- [ ] 첫번째 작업\n- [ ] 두번째 작업\n"
+    assert loop.parse_backlog_first_unchecked(flat_backlog) == "첫번째 작업"
 
     legacy_backlog = "# BACKLOG\n\n## P0\n- [ ] 우선 작업\n\n## P1\n- [ ] 다음 작업\n"
     assert loop.parse_backlog_first_unchecked(legacy_backlog) == "우선 작업"
