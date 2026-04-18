@@ -23,7 +23,8 @@ description: Operate and repair the stock repo's Discord-driven OMX loop, user-t
 1. 먼저 `../../../AGENTS.md`, `../../../docs/discord-bridge.md`, `../../../.omx/state/TASK.md`, `../../../.omx/state/STATE.md`, `../../../.omx/state/VERIFY_LAST_FAILURE.md`를 읽어 현재 규칙과 상태를 확인한다.
 2. 비밀값이 필요한 작업이면 `../../../omx_discord_bridge/.env.discord`가 있는지만 확인하고, 값 자체는 출력하지 않는다.
 3. 검증부터 시작할 때는 저장소 루트에서 `pnpm verify:automation` 또는 `pnpm verify:standard`를 실행한다.
-4. Windows에서 실제 실행은 `../../../scripts/run-discord-bridge.ps1`와 `../../../scripts/omx-loop.ps1`를 우선 사용한다.
+4. Windows 운영의 상주 조합은 `bridge + omx-loop`이며 `../../../scripts/run-discord-bridge.ps1`와 `../../../scripts/omx-loop.ps1 -InfiniteMode`를 함께 계속 띄워 둔다.
+5. `../../../scripts/ralph-run.ps1`는 필요할 때만 Codex를 한 번 실행하고 끝나는 단발 스크립트라 매 iteration마다 다시 돌리는 기본 루프에 넣지 않는다.
 
 ## Runtime Model
 

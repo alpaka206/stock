@@ -5,6 +5,8 @@
 - Web and API are separate runtimes.
 - `/health` is liveness only.
 - `/readyz` is the readiness endpoint.
+- Current deployed web URL: [https://stock-radar-board.vercel.app](https://stock-radar-board.vercel.app)
+- Primary deployed entry route: [https://stock-radar-board.vercel.app/overview](https://stock-radar-board.vercel.app/overview)
 
 ## Recommended Topology
 - Web: Vercel
