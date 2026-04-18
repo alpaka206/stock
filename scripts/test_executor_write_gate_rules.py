@@ -23,6 +23,9 @@ def main() -> int:
     module = load_module()
 
     assert module.is_allowed_executor_path(".gitignore") is True
+    assert module.is_allowed_executor_path("BACKLOG.md") is True
+    assert module.is_allowed_executor_path("NEXT_PROMPT.md") is True
+    assert module.is_allowed_executor_path("STATE.md") is True
     assert module.is_allowed_executor_path(".vscode/settings.json") is True
     assert module.is_allowed_executor_path(".vscode/tasks.json") is True
     assert module.is_allowed_executor_path("plugins/stock-omx-loop/.codex-plugin/plugin.json") is True
