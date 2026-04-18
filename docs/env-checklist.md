@@ -39,3 +39,7 @@
 - API: `STOCK_API_PROVIDER=real`
 - LLM: `RESEARCH_LLM_PROVIDER=auto` or `none`
 - Web: `STOCK_API_BASE_URL=http://localhost:8000`
+
+## Release-like Timeout Note
+- `RESEARCH_ALLOW_FIXTURE_FALLBACK=false` 이고 원격 API URL을 직접 붙이는 경우에는 cold start를 고려해 웹 fetch 타임아웃을 최소 30초로 본다.
+- `OVERVIEW_API_TIMEOUT_MS` 를 별도로 둘 때도 30000ms 이상을 권장한다.

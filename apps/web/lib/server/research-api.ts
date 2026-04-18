@@ -3,6 +3,7 @@ import "server-only";
 import type { ResearchDataSource, SourceRef } from "@/lib/research/types";
 
 const DEFAULT_RESEARCH_API_TIMEOUT_MS = 15000;
+const RELEASE_REMOTE_RESEARCH_API_MIN_TIMEOUT_MS = 30000;
 const RESEARCH_FIXTURE_FALLBACK_ENV = "RESEARCH_ALLOW_FIXTURE_FALLBACK";
 
 type FetchResearchApiJsonOptions = {
@@ -65,9 +66,10 @@ export async function fetchResearchApiJson<TPayload>({
         revalidate: 300,
       },
     };
+    const effectiveTimeoutMs = getEffectiveResearchApiTimeoutMs(timeoutMs, apiUrl);
 
-    if (timeoutMs > 0 && typeof AbortSignal.timeout === "function") {
-      requestInit.signal = AbortSignal.timeout(timeoutMs);
+    if (effectiveTimeoutMs > 0 && typeof AbortSignal.timeout === "function") {
+      requestInit.signal = AbortSignal.timeout(effectiveTimeoutMs);
     }
 
     const response = await fetch(apiUrl, requestInit);
@@ -212,6 +214,33 @@ function resolveResearchApiUrl({
   });
 
   return url.toString();
+}
+
+function getEffectiveResearchApiTimeoutMs(timeoutMs: number, apiUrl: string) {
+  if (timeoutMs <= 0) {
+    return timeoutMs;
+  }
+
+  if (!isFixtureFallbackLocked()) {
+    return timeoutMs;
+  }
+
+  if (isLocalResearchApiUrl(apiUrl)) {
+    return timeoutMs;
+  }
+
+  return Math.max(timeoutMs, RELEASE_REMOTE_RESEARCH_API_MIN_TIMEOUT_MS);
+}
+
+function isLocalResearchApiUrl(apiUrl: string) {
+  const hostname = new URL(apiUrl).hostname.trim().toLowerCase();
+
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === "0.0.0.0"
+  );
 }
 
 function buildUrlWithPath(rawUrl: string, pathSuffix?: string) {
