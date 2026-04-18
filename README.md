@@ -83,6 +83,12 @@ python scripts/api_smoke.py
 - Discord 브리지 실행: `powershell -ExecutionPolicy Bypass -File scripts/run-discord-bridge.ps1`
 - 자율 루프 실행: `powershell -ExecutionPolicy Bypass -File scripts/omx-loop.ps1 -InfiniteMode`
 
+운영 기준
+
+- 상주 조합은 `bridge + omx-loop`이며 `scripts/run-discord-bridge.ps1`와 `scripts/omx-loop.ps1 -InfiniteMode`를 함께 계속 띄워 둡니다.
+- `scripts/ralph-run.ps1`는 필요할 때만 Codex를 한 번 실행하고 끝나는 단발 스크립트라 매 iteration마다 다시 돌리는 기본 루프가 아닙니다.
+- 새 지시를 수동으로 한 번 처리하거나 스모크를 다시 시작해야 할 때만 `scripts/ralph-run.ps1`를 다시 실행하면 됩니다.
+
 Discord 제어 명령
 
 - `/ralph status`
