@@ -10,6 +10,7 @@ Thumbs.db
 apps/web/.next/
 apps/web/node_modules/
 apps/web/.vercel/
+apps/web/pnpm-lock.yaml
 apps/api/.pytest_cache/
 apps/api/.env
 apps/web/.env
