@@ -297,7 +297,8 @@ class AlphaVantageClient:
             raise ExternalServiceError(f"Alpha Vantage {request_target} returned an empty CSV payload.")
 
     def _cache_key(self, params: dict[str, str]) -> str:
-        serialized = "&".join(f"{key}={params[key]}" for key in sorted(params))
+        sanitized = {key: value for key, value in params.items() if key != "apikey"}
+        serialized = "&".join(f"{key}={sanitized[key]}" for key in sorted(sanitized))
         return sha256(serialized.encode("utf-8")).hexdigest()
 
     def _describe_request(self, params: dict[str, str]) -> str:
