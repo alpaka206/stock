@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from csv import DictReader
 from datetime import datetime, timezone
-from hashlib import sha1
+from hashlib import sha256
 from io import StringIO
 from typing import Any
 import json
@@ -298,7 +298,7 @@ class AlphaVantageClient:
 
     def _cache_key(self, params: dict[str, str]) -> str:
         serialized = "&".join(f"{key}={params[key]}" for key in sorted(params))
-        return sha1(serialized.encode("utf-8")).hexdigest()
+        return sha256(serialized.encode("utf-8")).hexdigest()
 
     def _describe_request(self, params: dict[str, str]) -> str:
         parts = [params.get("function", "unknown")]
