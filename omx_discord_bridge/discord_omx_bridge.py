@@ -11,8 +11,10 @@ from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import httpx
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+RALPH_LOOP_FILE = ROOT / '.ralph-loop.yml'
 DEFAULT_ENV_FILE = ROOT / 'omx_discord_bridge' / '.env.discord'
 REQUIRED_KEYS = (
     'DISCORD_GUILD_ID',
@@ -29,6 +31,9 @@ DISCORD_REPLY_STATE = ROOT / '.omx' / 'state' / 'DISCORD_REPLY_STATE.json'
 BRIDGE_RUNTIME_STATUS = ROOT / '.omx' / 'runtime' / 'discord-bridge-status.json'
 LOOP_RUNTIME_STATUS = ROOT / '.omx' / 'runtime' / 'omx-loop-status.json'
 WATCHER_STATE = ROOT / '.omx' / 'state' / 'DISCORD_WATCHER_STATE.json'
+RALPH_CONTROL_STATE = ROOT / '.omx' / 'state' / 'RALPH_CONTROL_STATE.json'
+OMX_LOOP_STATE = ROOT / '.omx' / 'state' / 'OMX_LOOP_STATE.json'
+RALPH_PROGRESS_FILE = ROOT / '.ralph' / 'progress.md'
 CONTROL_CHAR_RE = re.compile(r'[\x00-\x08\x0B\x0C\x0E-\x1F]')
 RAW_UNICODE_ESCAPE_RE = re.compile(r'\\u[0-9a-fA-F]{4}')
 DOUBLE_QUESTION_RE = re.compile(r'\?\?')
@@ -39,6 +44,38 @@ HANGUL_RE = re.compile(r'[가-힣]')
 def ensure_state_dirs() -> None:
     (ROOT / '.omx' / 'state').mkdir(parents=True, exist_ok=True)
     (ROOT / '.omx' / 'runtime').mkdir(parents=True, exist_ok=True)
+
+
+def load_ralph_loop_config() -> dict[str, Any]:
+    if not RALPH_LOOP_FILE.exists():
+        return {}
+    try:
+        payload = yaml.safe_load(RALPH_LOOP_FILE.read_text(encoding='utf-8'))
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def resolve_bridge_host_port() -> tuple[str, int]:
+    config = load_ralph_loop_config()
+    runtime_cfg = config.get('runtime', {}) if isinstance(config.get('runtime'), dict) else {}
+
+    host = str(runtime_cfg.get('bridge_host', '127.0.0.1') or '127.0.0.1').strip() or '127.0.0.1'
+    try:
+        port = int(runtime_cfg.get('bridge_port', 8787) or 8787)
+    except (TypeError, ValueError):
+        port = 8787
+
+    env_host = os.getenv('DISCORD_BRIDGE_HOST', '').strip()
+    env_port = os.getenv('DISCORD_BRIDGE_PORT', '').strip()
+    if env_host:
+        host = env_host
+    if env_port:
+        try:
+            port = int(env_port)
+        except ValueError:
+            port = 8787
+    return host, max(port, 1)
 
 
 def sanitize_text(value: str) -> str:
@@ -102,6 +139,19 @@ def load_env_keys(env_path: Path) -> dict[str, bool]:
 
 def parse_allowed_user_ids(raw: str) -> set[str]:
     return {item.strip() for item in raw.split(',') if item.strip()}
+
+
+def normalize_discord_mode(value: str) -> str:
+    normalized = value.strip().lower()
+    if normalized in {'all', 'signal-only', 'local-only'}:
+        return normalized
+    return 'all'
+
+
+def resolve_discord_mode(env_values: dict[str, str]) -> str:
+    explicit = os.getenv('OMX_DISCORD_MODE', '').strip()
+    from_file = str(env_values.get('OMX_DISCORD_MODE', '')).strip()
+    return normalize_discord_mode(explicit or from_file or 'all')
 
 
 def build_webhook_url(webhook_url: str, thread_id: str | None) -> str:
@@ -243,6 +293,24 @@ def save_watcher_state(payload: dict[str, Any]) -> None:
     WATCHER_STATE.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
 
+def load_control_state() -> dict[str, Any]:
+    if not RALPH_CONTROL_STATE.exists():
+        return {'command': '', 'nudge': '', 'goal_override': '', 'done_overrides': []}
+    try:
+        payload = json.loads(RALPH_CONTROL_STATE.read_text(encoding='utf-8'))
+    except json.JSONDecodeError:
+        return {'command': '', 'nudge': '', 'goal_override': '', 'done_overrides': []}
+    if not isinstance(payload, dict):
+        return {'command': '', 'nudge': '', 'goal_override': '', 'done_overrides': []}
+    if not isinstance(payload.get('done_overrides'), list):
+        payload['done_overrides'] = []
+    return payload
+
+
+def save_control_state(payload: dict[str, Any]) -> None:
+    RALPH_CONTROL_STATE.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+
 def load_loop_runtime_status() -> dict[str, Any]:
     if not LOOP_RUNTIME_STATUS.exists():
         return {}
@@ -251,6 +319,152 @@ def load_loop_runtime_status() -> dict[str, Any]:
     except json.JSONDecodeError:
         return {}
     return payload if isinstance(payload, dict) else {}
+
+
+def load_loop_state() -> dict[str, Any]:
+    if not OMX_LOOP_STATE.exists():
+        return {}
+    try:
+        payload = json.loads(OMX_LOOP_STATE.read_text(encoding='utf-8'))
+    except json.JSONDecodeError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def parse_ralph_command(content: str) -> dict[str, str] | None:
+    normalized = sanitize_text(content).strip()
+    if not normalized.lower().startswith('/ralph'):
+        return None
+    rest = normalized[len('/ralph') :].strip()
+    if not rest:
+        return {'action': 'status', 'value': ''}
+    parts = rest.split(maxsplit=1)
+    action = parts[0].strip().lower()
+    value = parts[1].strip() if len(parts) > 1 else ''
+    return {'action': action, 'value': value}
+
+
+def build_status_reply() -> str:
+    runtime = load_loop_runtime_status()
+    loop_state = load_loop_state()
+    control = load_control_state()
+    github_flow = loop_state.get('github_flow', {}) if isinstance(loop_state.get('github_flow'), dict) else {}
+    branch = str(github_flow.get('branch', '')).strip() or 'unknown'
+    pr_url = str(github_flow.get('pr_url', '')).strip() or '-'
+    return '\n'.join(
+        [
+            f"[ralph:{ROOT.name}] status",
+            f"- runtime: {runtime.get('status', 'unknown')}",
+            f"- detail: {runtime.get('detail', '') or '-'}",
+            f"- role: {runtime.get('role', '') or '-'}",
+            f"- branch: {branch}",
+            f"- pr: {pr_url}",
+            f"- control: {control.get('command', '') or 'running'}",
+        ]
+    )
+
+
+def build_logs_reply() -> str:
+    if RALPH_PROGRESS_FILE.exists():
+        text = RALPH_PROGRESS_FILE.read_text(encoding='utf-8').strip()
+        lines = text.splitlines()
+        if len(lines) > 18:
+            lines = lines[-18:]
+        return '\n'.join(lines)
+    runtime = load_loop_runtime_status()
+    return '\n'.join(
+        [
+            f"[ralph:{ROOT.name}] logs",
+            f"- runtime: {runtime.get('status', 'unknown')}",
+            f"- detail: {runtime.get('detail', '') or '-'}",
+        ]
+    )
+
+
+def build_pr_reply() -> str:
+    github_flow = load_loop_state().get('github_flow', {})
+    if not isinstance(github_flow, dict):
+        github_flow = {}
+    pr_url = str(github_flow.get('pr_url', '')).strip()
+    release_pr_url = str(github_flow.get('release_pr_url', '')).strip()
+    if pr_url:
+        return f"[ralph:{ROOT.name}] current PR\n- {pr_url}"
+    if release_pr_url:
+        return f"[ralph:{ROOT.name}] current release PR\n- {release_pr_url}"
+    return f"[ralph:{ROOT.name}] 아직 열린 PR이 없습니다."
+
+
+def handle_ralph_control_command(command: dict[str, str], payload: dict[str, Any], env_values: dict[str, str]) -> bool:
+    action = str(command.get('action', '')).strip().lower()
+    value = str(command.get('value', '')).strip()
+    control = load_control_state()
+    message_id = str(payload.get('message_id', '')).strip()
+    response = ''
+
+    if action == 'status':
+        response = build_status_reply()
+    elif action == 'logs':
+        response = build_logs_reply()
+    elif action == 'pr':
+        response = build_pr_reply()
+    elif action == 'pause':
+        control['command'] = 'pause'
+        response = f"[ralph:{ROOT.name}] pause 설정됨"
+    elif action == 'resume':
+        control['command'] = 'resume'
+        response = f"[ralph:{ROOT.name}] resume 설정됨"
+    elif action == 'stop':
+        control['command'] = 'stop'
+        response = f"[ralph:{ROOT.name}] stop 설정됨"
+    elif action == 'nudge':
+        control['nudge'] = value
+        response = f"[ralph:{ROOT.name}] nudge 반영: {value or '(empty)'}"
+    elif action == 'goal':
+        control['goal_override'] = value
+        response = f"[ralph:{ROOT.name}] goal override 반영"
+    elif action == 'done':
+        done_overrides = control.get('done_overrides', [])
+        if not isinstance(done_overrides, list):
+            done_overrides = []
+        if value and value not in done_overrides:
+            done_overrides.append(value)
+        control['done_overrides'] = done_overrides
+        response = f"[ralph:{ROOT.name}] done 조건 추가됨"
+    else:
+        response = "[ralph] 지원하지 않는 명령입니다. status, pause, resume, stop, nudge, goal, done, logs, pr 중 하나를 사용하세요."
+
+    control['updated_at'] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+    control['message_id'] = message_id
+    save_control_state(control)
+
+    append_jsonl(
+        CONVERSATION_LOG,
+        build_conversation_entry(
+            source='discord_control',
+            role='user',
+            content=str(payload.get('content', '')).strip(),
+            thread_id=str(payload.get('thread_id', '')).strip() or None,
+            meeting_id=f'control-{message_id or "manual"}',
+            phase=f'control_{action or "unknown"}',
+            trigger_id=f'control-{message_id or "manual"}',
+            metadata={'author': payload.get('author', 'unknown')},
+        ),
+    )
+
+    if response and resolve_discord_mode(env_values) != 'local-only':
+        webhook_url = env_values.get('DISCORD_WEBHOOK_URL', '').strip()
+        if webhook_url:
+            send_discord_message(
+                webhook_url=webhook_url,
+                content=response,
+                username='coordinator',
+                thread_id=str(payload.get('thread_id', '')).strip() or None,
+                source='discord_control',
+                meeting_id=f'control-{message_id or "manual"}',
+                phase=f'control_{action or "unknown"}',
+                trigger_id=f'control-{message_id or "manual"}',
+            )
+    return True
 
 
 def send_discord_message(
@@ -312,6 +526,8 @@ def build_watcher_ack_message(latest: dict[str, Any], superseded_count: int, run
 
 def maybe_send_import_ack(imported: list[dict[str, Any]], env_values: dict[str, str]) -> int:
     if not imported:
+        return 0
+    if resolve_discord_mode(env_values) == 'local-only':
         return 0
     webhook_url = env_values.get('DISCORD_WEBHOOK_URL', '').strip()
     if not webhook_url:
@@ -393,6 +609,11 @@ def import_discord_replies(*, env_values: dict[str, str]) -> dict[str, Any]:
             'created_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
         }
         if not payload['message_id'] or not payload['content']:
+            continue
+        control_command = parse_ralph_command(payload['content'])
+        if control_command is not None:
+            handle_ralph_control_command(control_command, payload, env_values)
+            last_seen = payload['message_id'] or last_seen
             continue
         append_jsonl(DISCORD_INBOX_LOG, payload)
         append_jsonl(CONVERSATION_LOG, payload)
@@ -532,8 +753,7 @@ def main() -> int:
     repair_state_logs()
     env_path = Path(os.getenv('DISCORD_ENV_FILE', str(DEFAULT_ENV_FILE)))
     key_status = load_env_keys(env_path)
-    host = os.getenv('DISCORD_BRIDGE_HOST', '127.0.0.1')
-    port = int(os.getenv('DISCORD_BRIDGE_PORT', '8787'))
+    host, port = resolve_bridge_host_port()
     write_runtime_status(status='starting', detail='bridge boot')
     print(json.dumps({'env_file_exists': env_path.exists(), 'keys': key_status}, ensure_ascii=False))
     if env_path.exists():

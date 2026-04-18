@@ -168,6 +168,9 @@ def main() -> int:
             {
                 "reply_to": ["architect", "critic"],
                 "team_message": "executor는 reply_to와 team_message가 TEAM_CONVERSATION에 그대로 남는지 확인 포인트를 잡겠습니다.",
+                "trigger_kind": "discord_user",
+                "trigger_message_id": "live-message-1",
+                "superseded_message_ids": ["live-message-0"],
                 "changed_files": ["scripts/omx_autonomous_loop.py", "omx_discord_bridge/discord_omx_bridge.py"],
                 "status": "done",
             },
@@ -236,6 +239,19 @@ def main() -> int:
                 executor_entry.get("team_message")
                 == "executor는 reply_to와 team_message가 TEAM_CONVERSATION에 그대로 남는지 확인 포인트를 잡겠습니다.",
                 "executor team_message missing from TEAM_CONVERSATION log",
+            )
+
+            ensure(
+                executor_entry.get("trigger_kind") == "discord_user",
+                f"executor trigger_kind missing or wrong: {executor_entry.get('trigger_kind')!r}",
+            )
+            ensure(
+                executor_entry.get("trigger_message_id") == "live-message-1",
+                f"executor trigger_message_id missing or wrong: {executor_entry.get('trigger_message_id')!r}",
+            )
+            ensure(
+                executor_entry.get("superseded_message_ids") == ["live-message-0"],
+                f"executor superseded_message_ids missing or wrong: {executor_entry.get('superseded_message_ids')!r}",
             )
 
             webhook_payloads = list(capture_server.payloads)  # type: ignore[attr-defined]

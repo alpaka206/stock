@@ -12,6 +12,8 @@
     "smoke:api": "python scripts/api_smoke.py",
     "smoke:discord-bridge": "python scripts/test_discord_bridge.py",
     "guard:no-secrets": "python scripts/no_secrets_guard.py",
+    "ralph:init": "powershell -ExecutionPolicy Bypass -File scripts/ralph-init.ps1",
+    "verify:ralph": "python scripts/verify_ralph_setup.py",
     "verify:automation": "python scripts/verify_workspace.py --group automation",
     "verify:minimal": "python scripts/verify_minimal.py",
     "verify:web": "python scripts/verify_workspace.py --group web",

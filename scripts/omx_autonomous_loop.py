@@ -6,7 +6,7 @@ import re
 import subprocess
 import sys
 import textwrap
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from fnmatch import fnmatch
 from pathlib import Path
@@ -14,8 +14,11 @@ from shutil import which
 from typing import Any
 from urllib import error, parse, request
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 AGENTS_FILE = ROOT / "AGENTS.md"
+RALPH_LOOP_FILE = ROOT / ".ralph-loop.yml"
 STATE_DIR = ROOT / ".omx" / "state"
 RUNTIME_DIR = ROOT / ".omx" / "runtime"
 JOURNAL_DIR = ROOT / ".omx" / "journal"
@@ -34,7 +37,11 @@ LOOP_RUNTIME_STATUS_FILE = RUNTIME_DIR / "omx-loop-status.json"
 ROLE_SCHEMA_FILE = ROOT / "scripts" / "omx_role_output.schema.json"
 CODE_REVIEW_FILE = STATE_DIR / "CODEX_REVIEW_LAST.md"
 GITHUB_AUTOMATION_STATUS_FILE = STATE_DIR / "GITHUB_AUTOMATION_STATUS.md"
+RALPH_CONTROL_STATE_FILE = STATE_DIR / "RALPH_CONTROL_STATE.json"
+RALPH_PROGRESS_FILE = ROOT / ".ralph" / "progress.md"
+RALPH_STATE_FILE = ROOT / ".ralph" / "state.json"
 
+DISCORD_BRIDGE_HOST = os.getenv("DISCORD_BRIDGE_HOST", "127.0.0.1").strip() or "127.0.0.1"
 DISCORD_BRIDGE_PORT = int(os.getenv("DISCORD_BRIDGE_PORT", "8787"))
 AUTONOMOUS_IDLE_INTERVAL_SECONDS = max(int(os.getenv("OMX_AUTONOMOUS_IDLE_INTERVAL_SECONDS", "300")), 60)
 ROLE_TIMEOUT_SECONDS = max(int(os.getenv("OMX_ROLE_TIMEOUT_SECONDS", "900")), 120)
@@ -46,6 +53,17 @@ CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F]")
 RAW_UNICODE_ESCAPE_RE = re.compile(r"\\u[0-9a-fA-F]{4}")
 DOUBLE_QUESTION_RE = re.compile(r"\?\?")
 HANGUL_RE = re.compile(r"[가-힣]")
+DISCORD_SIGNAL_PHASES = frozenset(
+    {
+        "meeting_start",
+        "meeting_end",
+        "failure_streak",
+        "loop_error",
+        "github_issue_branch",
+        "github_pr_open",
+        "github_release_pr",
+    }
+)
 EXECUTOR_WRITABLE = os.getenv("OMX_EXECUTOR_WRITABLE", "true").strip().lower() == "true"
 PROTECTED_BRANCHES = {
     item.strip()
@@ -56,7 +74,7 @@ EXECUTOR_ALLOWED_PREFIXES = tuple(
     item.strip()
     for item in os.getenv(
         "OMX_EXECUTOR_ALLOWED_PREFIXES",
-        ".github/,apps/,docs/,omx_discord_bridge/,packages/,scripts/",
+        ".github/,apps/,docs/,omx_discord_bridge/,packages/,plugins/,scripts/,.vscode/",
     ).split(",")
     if item.strip()
 )
@@ -64,10 +82,18 @@ EXECUTOR_ALLOWED_FILES = {
     item.strip()
     for item in os.getenv(
         "OMX_EXECUTOR_ALLOWED_FILES",
-        "AGENTS.md,README.md,package.json,pnpm-lock.yaml,pnpm-workspace.yaml",
+        ".gitignore,AGENTS.md,README.md,package.json,pnpm-lock.yaml,pnpm-workspace.yaml",
     ).split(",")
     if item.strip()
 }
+EXECUTOR_ALLOWED_GLOBS = tuple(
+    item.strip()
+    for item in os.getenv(
+        "OMX_EXECUTOR_ALLOWED_GLOBS",
+        "*.code-workspace",
+    ).split(",")
+    if item.strip()
+)
 EXECUTOR_IGNORED_PREFIXES = tuple(
     item.strip()
     for item in os.getenv("OMX_EXECUTOR_IGNORED_PREFIXES", ".omx/").split(",")
@@ -89,22 +115,59 @@ EXECUTOR_FORBIDDEN_GLOBS = tuple(
     ).split(",")
     if item.strip()
 )
+EXECUTOR_FORBIDDEN_GLOB_EXCEPTIONS = tuple(
+    item.strip()
+    for item in os.getenv(
+        "OMX_EXECUTOR_FORBIDDEN_GLOB_EXCEPTIONS",
+        ".env.example,*.env.example",
+    ).split(",")
+    if item.strip()
+)
 ISSUE_BRANCH_BASE = os.getenv("OMX_ISSUE_BRANCH_BASE", "develop").strip() or "develop"
 ISSUE_BRANCH_PREFIX = os.getenv("OMX_ISSUE_BRANCH_PREFIX", "auto").strip() or "auto"
 ENABLE_GITHUB_AUTOMATION_DEFAULT = os.getenv("ENABLE_GITHUB_AUTOMATION", "true").strip().lower() == "true"
+RELEASE_TO_MAIN_AUTO_MERGE_POLICY = "auto-merge-if-green"
+RELEASE_TO_MAIN_PR_ONLY_POLICY = "pr-only-manual-merge"
+REPEATED_FAILURE_THRESHOLD = 3
 
 
 @dataclass(frozen=True)
 class AgentsContract:
-    primary_task: str
-    min_exit_condition: str
-    auto_continue_policy: str
-    release_to_main_policy: str
-    required_docs: tuple[str, ...]
-    consensus_order: tuple[str, ...]
-    enable_github_automation: bool
-    issue_pr_policy: str
-    review_feedback_policy: str
+    primary_task: str = ""
+    min_exit_condition: str = ""
+    auto_continue_policy: str = ""
+    release_to_main_policy: str = ""
+    required_docs: tuple[str, ...] = ()
+    consensus_order: tuple[str, ...] = ()
+    enable_github_automation: bool = False
+    issue_pr_policy: str = ""
+    review_feedback_policy: str = ""
+    project_name: str = ""
+    minimum_done: tuple[str, ...] = ()
+    ask_user_only_when: tuple[str, ...] = ()
+    continue_without_user_by_default: bool = True
+    failure_threshold: int = 3
+    max_iterations: int = 30
+    git_base_branch: str = ""
+    protected_branches: tuple[str, ...] = ()
+    no_commit_on: tuple[str, ...] = ()
+    no_direct_push_to: tuple[str, ...] = ()
+    issue_branch_prefix: str = ""
+    pr_base_branch: str = ""
+    merge_strategy: str = "squash"
+    delete_branch_after_merge: bool = True
+    install_command: str = ""
+    lint_command: str = ""
+    test_command: str = ""
+    build_command: str = ""
+    verify_commands: tuple[str, ...] = ()
+    discord_channel_id: str = ""
+    discord_thread_per_run: bool = False
+    discord_notify_on: tuple[str, ...] = ()
+    discord_remote_commands: tuple[str, ...] = ()
+    runtime_bridge_host: str = "127.0.0.1"
+    runtime_bridge_port: int = 8787
+    runtime_ascii_workspace_drive: str = ""
 
 
 @dataclass(frozen=True)
@@ -143,6 +206,18 @@ class GitHubFlowResult:
     pr_url: str = ""
     release_pr_number: int | None = None
     release_pr_url: str = ""
+    status: str = ""
+    report_to_discord: bool = False
+    record_in_journal: bool = False
+
+
+def release_policy_creates_pr(policy: str) -> bool:
+    normalized = policy.strip()
+    return normalized in {RELEASE_TO_MAIN_AUTO_MERGE_POLICY, RELEASE_TO_MAIN_PR_ONLY_POLICY}
+
+
+def release_policy_auto_merges(policy: str) -> bool:
+    return policy.strip() == RELEASE_TO_MAIN_AUTO_MERGE_POLICY
 
 
 ROLE_DISPLAY_NAMES = {
@@ -325,7 +400,110 @@ def write_runtime_status(*, status: str, detail: str = "", meeting_id: str = "",
     )
 
 
+def parse_string_list(value: Any) -> tuple[str, ...]:
+    if isinstance(value, (list, tuple)):
+        return tuple(str(item).strip() for item in value if str(item).strip())
+    if isinstance(value, str):
+        return tuple(part.strip() for part in value.split(",") if part.strip())
+    return ()
+
+
+def parse_positive_int(value: Any, default: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(parsed, 1)
+
+
+def load_ralph_loop_config() -> dict[str, Any]:
+    if not RALPH_LOOP_FILE.exists():
+        return {}
+    try:
+        payload = yaml.safe_load(RALPH_LOOP_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def build_contract_from_ralph_config(config: dict[str, Any]) -> AgentsContract:
+    project = config.get("project", {}) if isinstance(config.get("project"), dict) else {}
+    loop_cfg = config.get("loop", {}) if isinstance(config.get("loop"), dict) else {}
+    git_cfg = config.get("git", {}) if isinstance(config.get("git"), dict) else {}
+    commands_cfg = config.get("commands", {}) if isinstance(config.get("commands"), dict) else {}
+    discord_cfg = config.get("discord", {}) if isinstance(config.get("discord"), dict) else {}
+    runtime_cfg = config.get("runtime", {}) if isinstance(config.get("runtime"), dict) else {}
+
+    minimum_done = parse_string_list(config.get("minimum_done", []))
+    ask_only = parse_string_list(config.get("ask_user_only_when", []))
+    context_docs = parse_string_list(config.get("context_docs", []))
+    continue_without_user_by_default = bool(loop_cfg.get("continue_without_user_by_default", True))
+
+    verify_commands = parse_string_list(commands_cfg.get("verify", []))
+    if not verify_commands:
+        verify_commands = tuple(
+            item
+            for item in (
+                str(commands_cfg.get("lint", "")).strip(),
+                str(commands_cfg.get("test", "")).strip(),
+                str(commands_cfg.get("build", "")).strip(),
+            )
+            if item
+        )
+
+    auto_continue_policy = "continue-by-default" if continue_without_user_by_default else "ask-before-continue"
+    if ask_only:
+        auto_continue_policy = f"{auto_continue_policy}; ask only when: {' / '.join(ask_only)}"
+
+    required_docs = [str(RALPH_LOOP_FILE.relative_to(ROOT)), "README.md"]
+    for doc in context_docs:
+        if doc and doc not in required_docs:
+            required_docs.append(doc)
+
+    return AgentsContract(
+        primary_task=str(config.get("goal", "")).strip(),
+        min_exit_condition=" / ".join(minimum_done),
+        auto_continue_policy=auto_continue_policy,
+        release_to_main_policy=str(git_cfg.get("release_to_main_policy", "disabled")).strip(),
+        required_docs=tuple(required_docs),
+        consensus_order=("planner", "critic", "researcher", "architect", "executor", "verifier"),
+        enable_github_automation=True,
+        issue_pr_policy=f"issue-first branch -> {str(git_cfg.get('pr_base', 'develop_loop')).strip() or 'develop_loop'}",
+        review_feedback_policy="same-branch same-pr follow-up",
+        project_name=str(project.get("name", "")).strip(),
+        minimum_done=minimum_done,
+        ask_user_only_when=ask_only,
+        continue_without_user_by_default=continue_without_user_by_default,
+        failure_threshold=parse_positive_int(loop_cfg.get("failure_threshold", 3) or 3, 3),
+        max_iterations=parse_positive_int(loop_cfg.get("max_iterations", 30) or 30, 30),
+        git_base_branch=str(git_cfg.get("base_branch", "develop_loop")).strip() or "develop_loop",
+        protected_branches=parse_string_list(git_cfg.get("protected_branches", ["main", "develop", "develop_loop"])),
+        no_commit_on=parse_string_list(git_cfg.get("no_commit_on", ["main", "develop", "develop_loop"])),
+        no_direct_push_to=parse_string_list(git_cfg.get("no_direct_push_to", ["main", "develop", "develop_loop"])),
+        issue_branch_prefix=str(git_cfg.get("issue_branch_prefix", "issue")).strip() or "issue",
+        pr_base_branch=str(git_cfg.get("pr_base", "develop_loop")).strip() or "develop_loop",
+        merge_strategy=str(git_cfg.get("merge_strategy", "squash")).strip() or "squash",
+        delete_branch_after_merge=bool(git_cfg.get("delete_branch_after_merge", True)),
+        install_command=str(commands_cfg.get("install", "")).strip(),
+        lint_command=str(commands_cfg.get("lint", "")).strip(),
+        test_command=str(commands_cfg.get("test", "")).strip(),
+        build_command=str(commands_cfg.get("build", "")).strip(),
+        verify_commands=verify_commands,
+        discord_channel_id=str(discord_cfg.get("channel_id", "")).strip(),
+        discord_thread_per_run=bool(discord_cfg.get("thread_per_run", False)),
+        discord_notify_on=parse_string_list(discord_cfg.get("notify_on", [])),
+        discord_remote_commands=parse_string_list(discord_cfg.get("remote_commands", [])),
+        runtime_bridge_host=str(runtime_cfg.get("bridge_host", "127.0.0.1")).strip() or "127.0.0.1",
+        runtime_bridge_port=parse_positive_int(runtime_cfg.get("bridge_port", 8787) or 8787, 8787),
+        runtime_ascii_workspace_drive=str(runtime_cfg.get("ascii_workspace_drive", "")).strip().upper(),
+    )
+
+
 def parse_agents_contract() -> AgentsContract:
+    ralph_config = load_ralph_loop_config()
+    if ralph_config:
+        return build_contract_from_ralph_config(ralph_config)
+
     text = read_text(AGENTS_FILE)
 
     def normalize_markdown_block(block: str) -> str:
@@ -403,6 +581,65 @@ def parse_agents_contract() -> AgentsContract:
         issue_pr_policy=find_value("ISSUE_PR_POLICY", "issue-first branch -> develop, develop -> main release pr"),
         review_feedback_policy=find_value("REVIEW_FEEDBACK_POLICY", "same-branch same-pr follow-up"),
     )
+
+
+def apply_contract_runtime_overrides(contract: AgentsContract) -> None:
+    global DISCORD_BRIDGE_HOST, DISCORD_BRIDGE_PORT, ISSUE_BRANCH_BASE, ISSUE_BRANCH_PREFIX, OMX_WORKSPACE_ROOT, PROTECTED_BRANCHES, REPEATED_FAILURE_THRESHOLD
+
+    if contract.runtime_bridge_host:
+        DISCORD_BRIDGE_HOST = contract.runtime_bridge_host
+        os.environ["DISCORD_BRIDGE_HOST"] = contract.runtime_bridge_host
+    if contract.runtime_bridge_port > 0:
+        DISCORD_BRIDGE_PORT = contract.runtime_bridge_port
+        os.environ["DISCORD_BRIDGE_PORT"] = str(contract.runtime_bridge_port)
+    if contract.runtime_ascii_workspace_drive and not os.getenv("OMX_WORKSPACE_ROOT", "").strip():
+        os.environ["OMX_ASCII_WORKSPACE_DRIVE"] = contract.runtime_ascii_workspace_drive
+        OMX_WORKSPACE_ROOT = resolve_workspace_root()
+
+    if contract.git_base_branch:
+        ISSUE_BRANCH_BASE = contract.git_base_branch
+    if contract.issue_branch_prefix:
+        ISSUE_BRANCH_PREFIX = contract.issue_branch_prefix
+    if contract.protected_branches:
+        PROTECTED_BRANCHES = {item for item in contract.protected_branches if item}
+    if contract.failure_threshold > 0:
+        REPEATED_FAILURE_THRESHOLD = contract.failure_threshold
+
+
+def load_control_state() -> dict[str, Any]:
+    default = {
+        "command": "",
+        "nudge": "",
+        "goal_override": "",
+        "done_overrides": [],
+        "updated_at": "",
+        "message_id": "",
+    }
+    payload = load_json(RALPH_CONTROL_STATE_FILE, default)
+    merged = default | payload if isinstance(payload, dict) else default
+    if not isinstance(merged.get("done_overrides"), list):
+        merged["done_overrides"] = []
+    return merged
+
+
+def save_control_state(payload: dict[str, Any]) -> None:
+    write_json(RALPH_CONTROL_STATE_FILE, payload)
+
+
+def apply_control_overrides(contract: AgentsContract, control_state: dict[str, Any]) -> AgentsContract:
+    goal_override = str(control_state.get("goal_override", "")).strip()
+    done_overrides = tuple(str(item).strip() for item in control_state.get("done_overrides", []) if str(item).strip())
+    updated_contract = contract
+    if goal_override:
+        updated_contract = replace(updated_contract, primary_task=goal_override)
+    if done_overrides:
+        minimum_done = tuple(dict.fromkeys([*updated_contract.minimum_done, *done_overrides]))
+        updated_contract = replace(
+            updated_contract,
+            minimum_done=minimum_done,
+            min_exit_condition=" / ".join(minimum_done),
+        )
+    return updated_contract
 
 
 def parse_backlog_first_unchecked(text: str) -> str:
@@ -638,7 +875,7 @@ def select_trigger(loop_state: dict[str, Any], contract: AgentsContract) -> dict
 
 
 def bridge_url(path: str) -> str:
-    return f"http://127.0.0.1:{DISCORD_BRIDGE_PORT}{path}"
+    return f"http://{DISCORD_BRIDGE_HOST}:{DISCORD_BRIDGE_PORT}{path}"
 
 
 def sync_discord_replies() -> None:
@@ -660,6 +897,32 @@ def load_discord_env_values() -> dict[str, str]:
         key, value = line.split("=", 1)
         values[key.strip()] = value.strip()
     return values
+
+
+def normalize_discord_mode(value: str) -> str:
+    normalized = value.strip().lower()
+    if normalized in {"all", "signal-only", "local-only"}:
+        return normalized
+    return "all"
+
+
+def resolve_discord_mode(env_values: dict[str, str] | None = None) -> str:
+    env_values = env_values or {}
+    explicit = os.getenv("OMX_DISCORD_MODE", "").strip()
+    from_file = str(env_values.get("OMX_DISCORD_MODE", "")).strip()
+    return normalize_discord_mode(explicit or from_file or "all")
+
+
+def should_emit_to_discord(phase: str, metadata: dict[str, Any] | None, mode: str) -> bool:
+    if mode == "all":
+        return True
+    if mode == "local-only":
+        return False
+    if phase in DISCORD_SIGNAL_PHASES:
+        return True
+    if isinstance(metadata, dict) and bool(metadata.get("needs_human")):
+        return True
+    return False
 
 
 def append_local_conversation(
@@ -723,6 +986,22 @@ def post_message(
 ) -> None:
     username = sanitize_text(username)
     content = sanitize_text(content)
+    merged_metadata = sanitize_value(metadata) if isinstance(metadata, dict) else None
+    env_values = load_discord_env_values()
+    discord_mode = resolve_discord_mode(env_values)
+    if not should_emit_to_discord(phase, merged_metadata, discord_mode):
+        append_local_conversation(
+            username,
+            content,
+            f"{source}_local",
+            meeting_id,
+            phase,
+            trigger_id,
+            thread_id,
+            metadata=merged_metadata,
+        )
+        return
+
     event_payload: dict[str, Any] = {
         "username": username,
         "content": content,
@@ -732,8 +1011,8 @@ def post_message(
         "source": source,
         "trigger_id": trigger_id,
     }
-    if isinstance(metadata, dict):
-        event_payload["metadata"] = sanitize_value(metadata)
+    if isinstance(merged_metadata, dict):
+        event_payload["metadata"] = merged_metadata
     payload = json.dumps(event_payload).encode("utf-8")
     try:
         req = request.Request(
@@ -750,7 +1029,6 @@ def post_message(
     except Exception:
         pass
 
-    env_values = load_discord_env_values()
     sent = direct_discord_webhook_post(
         env_values.get("DISCORD_WEBHOOK_URL", "").strip(),
         content,
@@ -765,8 +1043,41 @@ def post_message(
         phase,
         trigger_id,
         thread_id,
-        metadata=metadata,
+        metadata=merged_metadata,
     )
+
+
+def build_trigger_metadata(trigger: dict[str, Any]) -> dict[str, Any]:
+    metadata: dict[str, Any] = {
+        "trigger_kind": str(trigger.get("kind", "")).strip(),
+        "trigger_label": str(trigger.get("label", "")).strip(),
+    }
+    message_id = str(trigger.get("message_id", "")).strip()
+    if message_id:
+        metadata["trigger_message_id"] = message_id
+    author = str(trigger.get("author", "")).strip()
+    if author:
+        metadata["trigger_author"] = author
+    superseded_message_ids = [
+        str(item).strip()
+        for item in trigger.get("superseded_message_ids", [])
+        if str(item).strip()
+    ]
+    metadata["superseded_message_ids"] = superseded_message_ids
+    return metadata
+
+
+def merge_metadata(*payloads: dict[str, Any] | None) -> dict[str, Any]:
+    merged: dict[str, Any] = {}
+    for payload in payloads:
+        if not isinstance(payload, dict):
+            continue
+        for key, value in payload.items():
+            normalized_key = str(key).strip()
+            if not normalized_key:
+                continue
+            merged[normalized_key] = value
+    return merged
 
 
 def find_omx_exec() -> str:
@@ -820,6 +1131,8 @@ def is_forbidden_executor_path(path: str) -> bool:
     if any(normalized.startswith(prefix) for prefix in EXECUTOR_FORBIDDEN_PREFIXES):
         return True
     name = normalized.split("/")[-1]
+    if any(fnmatch(name, pattern) or fnmatch(normalized, pattern) for pattern in EXECUTOR_FORBIDDEN_GLOB_EXCEPTIONS):
+        return False
     return any(fnmatch(name, pattern) or fnmatch(normalized, pattern) for pattern in EXECUTOR_FORBIDDEN_GLOBS)
 
 
@@ -828,6 +1141,9 @@ def is_allowed_executor_path(path: str) -> bool:
     if is_ignored_executor_path(normalized) or is_forbidden_executor_path(normalized):
         return False
     if normalized in EXECUTOR_ALLOWED_FILES:
+        return True
+    name = normalized.split("/")[-1]
+    if any(fnmatch(name, pattern) or fnmatch(normalized, pattern) for pattern in EXECUTOR_ALLOWED_GLOBS):
         return True
     return any(normalized.startswith(prefix) for prefix in EXECUTOR_ALLOWED_PREFIXES)
 
@@ -1236,14 +1552,15 @@ def publish_issue_branch(
             "last_commit_message": commit_message,
         }
     )
-    write_github_automation_status(loop_state, f"PR #{pr_number} 를 만들고 develop 자동 병합을 걸었다.")
+    write_github_automation_status(loop_state, f"PR #{pr_number} 를 만들고 {ISSUE_BRANCH_BASE} 자동 병합을 걸었다.")
     return GitHubFlowResult(True, f"PR #{pr_number} 를 만들고 자동 병합을 설정했다.", issue_number=flow.get("issue_number"), issue_url=str(flow.get("issue_url", "")), branch=current_branch, pr_number=pr_number, pr_url=pr_url)
 
 
 def sync_release_pr(loop_state: dict[str, Any], contract: AgentsContract) -> GitHubFlowResult:
     flow = get_github_flow(loop_state)
-    if not contract.enable_github_automation or contract.release_to_main_policy != "auto-merge-if-green":
-        return GitHubFlowResult(True, "release 자동화 비활성")
+    if not contract.enable_github_automation or not release_policy_creates_pr(contract.release_to_main_policy):
+        return GitHubFlowResult(True, "release 자동화 비활성", status="release_disabled")
+    auto_merge_release = release_policy_auto_merges(contract.release_to_main_policy)
     existing_release_pr_number = int(flow.get("release_pr_number") or 0)
     if existing_release_pr_number > 0:
         release_view = gh_json("pr", "view", str(existing_release_pr_number), "--json", "state,mergedAt,url")
@@ -1251,27 +1568,48 @@ def sync_release_pr(loop_state: dict[str, Any], contract: AgentsContract) -> Git
             flow["status"] = "release_merged"
             write_github_automation_status(loop_state, f"Release PR #{existing_release_pr_number} 가 main에 병합되었다.")
             return GitHubFlowResult(
-                True,
+                False,
                 f"Release PR #{existing_release_pr_number} 가 main에 병합되었다.",
                 release_pr_number=existing_release_pr_number,
                 release_pr_url=str(release_view.get("url", flow.get("release_pr_url", ""))),
+                status="release_merged",
+                record_in_journal=True,
+            )
+        if isinstance(release_view, dict) and release_view.get("state") == "OPEN" and not auto_merge_release:
+            release_pr_url = str(release_view.get("url", flow.get("release_pr_url", "")))
+            flow.update(
+                {
+                    "release_pr_number": existing_release_pr_number,
+                    "release_pr_url": release_pr_url,
+                    "status": "release_pr_open",
+                }
+            )
+            waiting_message = f"Release PR #{existing_release_pr_number} 가 열려 있고 main 병합은 사용자 대기다."
+            write_github_automation_status(loop_state, waiting_message)
+            return GitHubFlowResult(
+                False,
+                waiting_message,
+                release_pr_number=existing_release_pr_number,
+                release_pr_url=release_pr_url,
+                status="release_pr_open",
+                record_in_journal=True,
             )
     pr_number = int(flow.get("pr_number") or 0)
     if pr_number <= 0:
-        return GitHubFlowResult(False, "issue branch PR이 없어 release PR을 만들지 않는다.")
+        return GitHubFlowResult(False, "issue branch PR이 없어 release PR을 만들지 않는다.", status="issue_pr_missing")
 
     pr_view = gh_json("pr", "view", str(pr_number), "--json", "state,mergedAt,url")
     if not isinstance(pr_view, dict) or pr_view.get("state") != "MERGED":
         flow["status"] = "issue_pr_pending"
         write_github_automation_status(loop_state, "issue branch PR 병합을 기다리는 중이다.")
-        return GitHubFlowResult(False, "issue branch PR 병합 대기 중")
+        return GitHubFlowResult(False, "issue branch PR 병합 대기 중", status="issue_pr_pending")
 
     git_command("fetch", "origin", "main", "develop")
     ahead_count = int(git_command("rev-list", "--count", "origin/main..origin/develop") or "0")
     if ahead_count <= 0:
         flow["status"] = "develop_synced_to_main"
         write_github_automation_status(loop_state, "develop와 main 사이에 release할 차이가 없다.")
-        return GitHubFlowResult(False, "release할 차이가 없다.")
+        return GitHubFlowResult(False, "release할 차이가 없다.", status="develop_synced_to_main")
 
     release_pr = find_open_pr("develop", "main")
     if release_pr is None:
@@ -1301,11 +1639,28 @@ def sync_release_pr(loop_state: dict[str, Any], contract: AgentsContract) -> Git
     else:
         release_pr_number = int(release_pr["number"])
         release_pr_url = str(release_pr["url"])
+        flow.update(
+            {
+                "release_pr_number": release_pr_number,
+                "release_pr_url": release_pr_url,
+                "status": "release_pr_open",
+            }
+        )
+        if not auto_merge_release:
+            waiting_message = f"Release PR #{release_pr_number} 가 이미 열려 있고 main 병합은 사용자 대기다."
+            write_github_automation_status(loop_state, waiting_message)
+            return GitHubFlowResult(
+                False,
+                waiting_message,
+                release_pr_number=release_pr_number,
+                release_pr_url=release_pr_url,
+                status="release_pr_open",
+                record_in_journal=True,
+            )
 
     if release_pr_number is None:
         raise RuntimeError("release PR 번호를 파싱하지 못했다.")
 
-    gh_command("pr", "merge", str(release_pr_number), "--auto", "--merge", timeout=300)
     flow.update(
         {
             "release_pr_number": release_pr_number,
@@ -1313,8 +1668,68 @@ def sync_release_pr(loop_state: dict[str, Any], contract: AgentsContract) -> Git
             "status": "release_pr_open",
         }
     )
-    write_github_automation_status(loop_state, f"Release PR #{release_pr_number} 를 만들고 main 자동 병합을 설정했다.")
-    return GitHubFlowResult(True, f"Release PR #{release_pr_number} 를 만들고 main 자동 병합을 설정했다.", release_pr_number=release_pr_number, release_pr_url=release_pr_url)
+    if auto_merge_release:
+        gh_command("pr", "merge", str(release_pr_number), "--auto", "--merge", timeout=300)
+        write_github_automation_status(loop_state, f"Release PR #{release_pr_number} 를 만들고 main 자동 병합을 설정했다.")
+        return GitHubFlowResult(
+            True,
+            f"Release PR #{release_pr_number} 를 만들고 main 자동 병합을 설정했다.",
+            release_pr_number=release_pr_number,
+            release_pr_url=release_pr_url,
+            status="release_pr_created",
+            report_to_discord=True,
+            record_in_journal=True,
+        )
+    write_github_automation_status(loop_state, f"Release PR #{release_pr_number} 를 만들었고 main 병합은 사용자 대기다.")
+    return GitHubFlowResult(
+        True,
+        f"Release PR #{release_pr_number} 를 만들었고 main 병합은 사용자 대기다.",
+        release_pr_number=release_pr_number,
+        release_pr_url=release_pr_url,
+        status="release_pr_created",
+        report_to_discord=True,
+        record_in_journal=True,
+    )
+
+
+def handle_release_pr_result(
+    release_result: GitHubFlowResult,
+    meeting_id: str,
+    trigger: dict[str, Any],
+    github_notes: list[str],
+) -> None:
+    if release_result.detail and release_result.record_in_journal:
+        github_notes.append(release_result.detail)
+    if release_result.report_to_discord and release_result.release_pr_number:
+        post_message(
+            "coordinator",
+            f"{release_result.detail} {release_result.release_pr_url}".strip(),
+            meeting_id,
+            "github_release_pr",
+            trigger["id"],
+            trigger.get("thread_id"),
+        )
+        return
+    if release_result.detail:
+        emit_console("github", trim(release_result.detail, 140))
+
+
+def sync_and_report_release_pr(
+    loop_state: dict[str, Any],
+    contract: AgentsContract,
+    *,
+    meeting_id: str,
+    trigger: dict[str, Any],
+    github_notes: list[str] | None = None,
+) -> GitHubFlowResult:
+    release_result = sync_release_pr(loop_state, contract)
+    handle_release_pr_result(
+        release_result,
+        meeting_id,
+        trigger,
+        github_notes if github_notes is not None else [],
+    )
+    return release_result
 
 
 def build_context_excerpt() -> str:
@@ -1450,8 +1865,10 @@ def build_role_prompt(
             - `.omx/` 밖 dirty 파일 중 허용 범위를 벗어나거나 민감 경로가 섞여 있으면 수정하지 말고 blocked로 응답한다.
             - 허용 경로: {', '.join(EXECUTOR_ALLOWED_PREFIXES)}
             - 허용 단일 파일: {', '.join(sorted(EXECUTOR_ALLOWED_FILES))}
+            - 허용 파일 패턴: {', '.join(EXECUTOR_ALLOWED_GLOBS)}
             - 금지 경로: {', '.join(EXECUTOR_FORBIDDEN_PREFIXES)}
             - 금지 파일 패턴: {', '.join(EXECUTOR_FORBIDDEN_GLOBS)}
+            - 금지 예외 패턴: {', '.join(EXECUTOR_FORBIDDEN_GLOB_EXCEPTIONS)}
             - 수정했다면 `changed_files`에는 실제 바꾼 파일만 적는다.
             - 기존 dirty 파일을 이어받더라도 범위를 넓히지 말고 이번 trigger에 필요한 최소 수정만 한다.
             - 구현을 했다면 즉시 끝내지 말고, 어떤 검증을 다음 게이트에 넘길지 분명히 적는다.
@@ -1749,14 +2166,34 @@ def build_verifier_output(executor_output: dict[str, Any] | None, verify_ok: boo
             "needs_human": False,
         }
     if verify_ok:
+        executor_scope = trim(str(executor_output.get("summary", "")).strip(), 220)
+        executor_proposed = trim(str(executor_output.get("proposed_action", "")).strip(), 220)
+        executor_followup = next(
+            (trim(str(item).strip(), 220) for item in executor_output.get("followups", []) if str(item).strip()),
+            "",
+        )
+        summary = "executor가 정리한 범위 기준으로 guard/verify gate를 통과했다."
+        rationale = "no secrets guard와 standard verify가 모두 성공했다."
+        team_message = "executor 이후 검증 게이트는 통과했습니다. 이제 같은 맥락에서 가치가 높은 후속 구현이나 QA로 이어가면 됩니다."
+        proposed_action = executor_followup or executor_proposed or "다음 가치 작업, 후속 구현, 또는 QA 범위로 진행한다."
+        question_for_next = "후속 구현과 QA 중 어디가 지금 더 가치가 큰가?"
+        if executor_scope:
+            summary = f"executor가 정리한 범위({executor_scope}) 기준으로 guard/verify gate를 통과했다."
+            rationale = f"{executor_scope} 범위에서 no secrets guard와 standard verify가 모두 성공했다."
+            team_message = f"이번 확인은 {executor_scope} 범위에서 닫혔고 guard/verify gate도 통과했습니다."
+            if executor_proposed:
+                team_message += f" {executor_proposed}"
+            elif executor_followup:
+                team_message += f" 다음에는 {executor_followup}로 이어가면 됩니다."
+            question_for_next = executor_followup or question_for_next
         return {
             "role": "verifier",
             "status": "pass",
-            "summary": "executor 이후 guard/verify gate를 통과했다.",
-            "rationale": "no secrets guard와 standard verify가 모두 성공했다.",
-            "proposed_action": "다음 가치 작업, 후속 구현, 또는 QA 범위로 진행한다.",
-            "team_message": "executor 이후 검증 게이트는 통과했습니다. 이제 같은 맥락에서 가치가 높은 후속 구현이나 QA로 이어가면 됩니다.",
-            "question_for_next": "후속 구현과 QA 중 어디가 지금 더 가치가 큰가?",
+            "summary": summary,
+            "rationale": rationale,
+            "proposed_action": proposed_action,
+            "team_message": team_message,
+            "question_for_next": question_for_next,
             "reply_to": ["executor"],
             "risks": [],
             "verification": ["python scripts/no_secrets_guard.py: pass", "python scripts/verify_minimal.py: pass"],
@@ -1856,6 +2293,37 @@ def write_iteration_journal(
 
 
 
+def write_ralph_progress(
+    contract: AgentsContract,
+    *,
+    iteration: int,
+    meeting_id: str,
+    trigger: dict[str, Any] | None,
+    next_action: str,
+    verify_ok: bool | None,
+) -> None:
+    lines = [
+        "# Ralph Progress",
+        "",
+        f"- project: {contract.project_name or 'stock'}",
+        f"- iteration: {iteration}",
+        f"- meeting_id: {meeting_id}",
+        f"- trigger: {trigger['label'] if trigger else 'idle'}",
+        f"- verify_result: {'pass' if verify_ok is True else 'fail' if verify_ok is False else 'skipped'}",
+        f"- next_action: {next_action or 'none'}",
+        "",
+        "## Goal",
+        contract.primary_task or "- none",
+        "",
+        "## Minimum Done",
+    ]
+    if contract.minimum_done:
+        lines.extend(f"- {item}" for item in contract.minimum_done)
+    else:
+        lines.append("- none")
+    write_text(RALPH_PROGRESS_FILE, "\n".join(lines).strip() + "\n")
+
+
 def clear_failure_streak(loop_state: dict[str, Any]) -> None:
     loop_state["last_failure_signature"] = ""
     loop_state["failure_streak"] = 0
@@ -1873,7 +2341,7 @@ def update_failure_streak(loop_state: dict[str, Any], trigger: dict[str, Any] | 
 
 def maybe_report_repeated_failure(loop_state: dict[str, Any], trigger: dict[str, Any]) -> None:
     streak = int(loop_state.get("failure_streak", 0))
-    if streak < 3:
+    if streak < REPEATED_FAILURE_THRESHOLD:
         return
     post_message("watchdog", f"같은 실패가 {streak}회 반복되었습니다. 같은 방법 반복을 중단하고 우회책을 먼저 고르겠습니다.", loop_state.get("last_meeting_id", "watchdog"), "failure_streak", trigger["id"], trigger.get("thread_id"))
 
@@ -1900,6 +2368,7 @@ def run_meeting(
     if trigger["kind"] == "discord_user":
         update_important_discord_notes()
 
+    trigger_metadata = build_trigger_metadata(trigger)
     emit_console("meeting", f"start id={meeting_id} trigger={trim(trigger['label'], 120)}")
     post_message(
         "coordinator",
@@ -1908,6 +2377,7 @@ def run_meeting(
         "meeting_start",
         trigger["id"],
         trigger.get("thread_id"),
+        metadata=trigger_metadata,
     )
 
     role_outputs: list[dict[str, Any]] = []
@@ -1924,7 +2394,7 @@ def run_meeting(
             role_name,
             trigger["id"],
             trigger.get("thread_id"),
-            metadata=output,
+            metadata=merge_metadata(trigger_metadata, output),
         )
         if role_name != "executor" and output.get("needs_human"):
             break
@@ -1947,7 +2417,7 @@ def run_meeting(
         "verifier",
         trigger["id"],
         trigger.get("thread_id"),
-        metadata=verifier_output,
+        metadata=merge_metadata(trigger_metadata, verifier_output),
     )
 
     next_action = compute_next_action(role_outputs, contract)
@@ -1965,6 +2435,7 @@ def run_meeting(
         "meeting_end",
         trigger["id"],
         trigger.get("thread_id"),
+        metadata=trigger_metadata,
     )
     emit_console("meeting", f"end id={meeting_id} roles={len(role_outputs)} next={trim(next_action, 120)}")
     return role_outputs, verify_ok, verify_log, meeting_id
@@ -1989,24 +2460,73 @@ def main() -> int:
     ensure_dirs()
     repair_state_logs()
     contract = parse_agents_contract()
+    apply_contract_runtime_overrides(contract)
+    sync_discord_replies()
+
+    control_state = load_control_state()
+    contract = apply_control_overrides(contract, control_state)
+    loop_state = load_loop_state()
+
+    command = str(control_state.get("command", "")).strip().lower()
+    if command == "stop":
+        write_runtime_status(status="stopped", detail="discord stop requested", trigger="control")
+        write_ralph_progress(
+            contract,
+            iteration=int(loop_state.get("iteration", 0)),
+            meeting_id=str(loop_state.get("last_meeting_id", "")),
+            trigger=None,
+            next_action="stopped by discord command",
+            verify_ok=None,
+        )
+        save_loop_state(loop_state)
+        return 2
+
+    if command == "pause":
+        write_runtime_status(status="paused", detail="discord pause requested", trigger="control")
+        write_ralph_progress(
+            contract,
+            iteration=int(loop_state.get("iteration", 0)),
+            meeting_id=str(loop_state.get("last_meeting_id", "")),
+            trigger=None,
+            next_action="paused by discord command",
+            verify_ok=None,
+        )
+        save_loop_state(loop_state)
+        return 0
+
+    if command == "resume":
+        control_state["command"] = ""
+        save_control_state(control_state)
+
+    nudge = str(control_state.get("nudge", "")).strip()
+    if nudge:
+        loop_state["pending_followup"] = {
+            "content": nudge,
+            "source_meeting_id": "discord-control",
+            "created_at": iso_now(),
+        }
+        control_state["nudge"] = ""
+        save_control_state(control_state)
+
     started_at = iso_now()
     emit_console("contract", f"primary={trim(contract.primary_task, 140)}")
     emit_console("contract", f"exit={trim(contract.min_exit_condition, 140)}")
     emit_console("contract", f"auto_continue={trim(contract.auto_continue_policy, 140)}")
-    sync_discord_replies()
-
-    loop_state = load_loop_state()
     if contract.enable_github_automation:
         try:
-            release_sync = sync_release_pr(loop_state, contract)
-            if release_sync.detail:
-                emit_console("github", trim(release_sync.detail, 140))
+            sync_and_report_release_pr(
+                loop_state,
+                contract,
+                meeting_id="github-release-sync",
+                trigger={"id": "loop-startup-release-sync", "thread_id": None},
+            )
         except Exception as exc:
             github_note = trim(str(exc), 600)
             write_github_automation_status(loop_state, f"release sync error: {github_note}")
             emit_console("github", f"release sync error: {github_note}")
     iteration = int(os.getenv("OMX_LOOP_ITERATION", "0") or "0") or int(loop_state.get("iteration", 0)) + 1
     loop_state["iteration"] = iteration
+    write_json(RALPH_STATE_FILE, {"enabled": True, "iteration": iteration, "updated_at": iso_now()})
     write_runtime_status(status="running", detail=f"iteration={iteration}", trigger="loop")
     emit_console("loop", f"iteration={iteration} workspace={OMX_WORKSPACE_ROOT}")
 
@@ -2014,6 +2534,7 @@ def main() -> int:
     if not trigger:
         emit_console("idle", "no trigger")
         write_idle_journal(iteration, started_at, loop_state, contract)
+        write_ralph_progress(contract, iteration=iteration, meeting_id=loop_state.get("last_meeting_id", ""), trigger=None, next_action=contract.primary_task or "idle", verify_ok=None)
         write_runtime_status(status="idle", detail="no trigger", trigger="idle")
         save_loop_state(loop_state)
         return 0
@@ -2050,7 +2571,7 @@ def main() -> int:
                     github_notes.append(publish_result.detail)
                     post_message(
                         "coordinator",
-                        f"PR #{publish_result.pr_number} 를 만들고 `develop` 자동 병합을 설정했습니다. {publish_result.pr_url}",
+                        f"PR #{publish_result.pr_number} 를 만들고 `{ISSUE_BRANCH_BASE}` 자동 병합을 설정했습니다. {publish_result.pr_url}",
                         meeting_id,
                         "github_pr_open",
                         trigger["id"],
@@ -2064,19 +2585,13 @@ def main() -> int:
                 write_github_automation_status(loop_state, f"publish error: {github_note}")
                 emit_console("github", f"publish error: {github_note}")
             try:
-                release_result = sync_release_pr(loop_state, contract)
-                if release_result.ok and release_result.release_pr_number:
-                    github_notes.append(release_result.detail)
-                    post_message(
-                        "coordinator",
-                        f"Release PR #{release_result.release_pr_number} 를 준비했고 `main` 자동 병합을 설정했습니다. {release_result.release_pr_url}",
-                        meeting_id,
-                        "github_release_pr",
-                        trigger["id"],
-                        trigger.get("thread_id"),
-                    )
-                elif release_result.detail:
-                    emit_console("github", trim(release_result.detail, 140))
+                sync_and_report_release_pr(
+                    loop_state,
+                    contract,
+                    meeting_id=meeting_id,
+                    trigger=trigger,
+                    github_notes=github_notes,
+                )
             except Exception as exc:
                 github_note = trim(str(exc), 600)
                 github_notes.append(f"GitHub release error: {github_note}")
@@ -2091,6 +2606,7 @@ def main() -> int:
         schedule_followup(loop_state, role_outputs, next_action, meeting_id)
         journal_note = note if not github_notes else f"{note} / {' / '.join(github_notes)}"
         write_iteration_journal(iteration, started_at, meeting_id, trigger, role_outputs, verify_ok, verify_log, next_action, journal_note)
+        write_ralph_progress(contract, iteration=iteration, meeting_id=meeting_id, trigger=trigger, next_action=next_action, verify_ok=verify_ok)
         loop_state["last_result"] = role_outputs[-1]["status"] if role_outputs else "idle"
         save_loop_state(loop_state)
         write_runtime_status(status="completed", detail=trim(next_action, 160), meeting_id=meeting_id, role="scribe", trigger=trigger["kind"])
@@ -2111,10 +2627,18 @@ def main() -> int:
             "OMX role 실행 오류를 먼저 복구한다.",
             "회의 실행 중 예외가 발생했다.",
         )
+        write_ralph_progress(
+            contract,
+            iteration=iteration,
+            meeting_id=loop_state.get("last_meeting_id", f"failed-{iteration:04d}"),
+            trigger=trigger,
+            next_action="복구 가능한 가장 작은 실패 단계부터 다시 실행한다.",
+            verify_ok=False,
+        )
         loop_state["last_result"] = "failed"
         update_failure_streak(loop_state, trigger)
         maybe_report_repeated_failure(loop_state, trigger)
-        if trigger["kind"] in {"discord_user", "followup"} and int(loop_state.get("failure_streak", 0)) >= 3:
+        if trigger["kind"] in {"discord_user", "followup"} and int(loop_state.get("failure_streak", 0)) >= REPEATED_FAILURE_THRESHOLD:
             mark_trigger_done(loop_state, trigger)
         save_loop_state(loop_state)
         write_runtime_status(status="failed", detail=failure_note, meeting_id=loop_state.get("last_meeting_id", ""), role="watchdog", trigger=trigger["kind"])

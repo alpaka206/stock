@@ -1,0 +1,31 @@
+{
+  "name": "stock-omx-loop",
+  "version": "0.1.0",
+  "description": "Repo-local plugin for operating the stock workspace Discord bridge and OMX autonomous loop from Codex.",
+  "license": "UNLICENSED",
+  "keywords": [
+    "discord",
+    "automation",
+    "omx",
+    "stock"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Stock OMX Loop",
+    "shortDescription": "Operate and repair the stock repo Discord-driven loop.",
+    "longDescription": "Repo-local plugin that points Codex at the stock workspace's Discord bridge, OMX loop, state files, and Windows launch scripts.",
+    "developerName": "Local Workspace",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use $stock-discord-loop to inspect the Discord bridge and repair the OMX loop in this repo.",
+      "Use $ralph-discord-loop to run this repository through .ralph-loop.yml with strict branch safety.",
+      "Use $stock-discord-loop to run the stock workspace loop in signal-only Discord mode.",
+      "Use $stock-discord-loop to verify the bridge, state files, and Windows launch scripts."
+    ],
+    "brandColor": "#0F766E"
+  }
+}
