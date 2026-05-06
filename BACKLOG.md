@@ -1,13 +1,12 @@
-- [x] API 스냅샷 Pydantic schema 추가
-- [x] 파일 기반 `ResearchSnapshotStore` 추가
-- [x] `/snapshots` GET/POST/DELETE 라우터 추가
-- [x] Next `/api/research-snapshots` 프록시 라우트 추가
-- [x] `useResearchSnapshots`를 API 동기화와 localStorage fallback 구조로 확장
-- [x] 종목 상세 스냅샷 입력/저장 test id 추가
-- [x] API smoke에 스냅샷 생성, 조회, 삭제 검증 추가
-- [x] E2E에 스냅샷 저장 후 히스토리 재확인 시나리오 추가
+- [x] SEC CIK 설정과 User-Agent 환경값 추가
+- [x] SEC submissions recent filings client 추가
+- [x] SEC client 파싱 smoke 테스트 추가
+- [x] real provider `/news`에 SEC filings 병합
+- [x] real provider `/calendar`에 SEC filing disclosure 이벤트 병합
+- [x] mock provider에 SEC filing 예시 추가
+- [x] API README와 `.env.example` 데이터 소스 문서 갱신
 - [x] `pnpm test:e2e -- --project=chromium` 통과
 - [x] `pnpm verify:automation` 통과
 - [x] `pnpm verify:standard` 통과
 - [ ] 커밋, push, `develop` 대상 PR 생성
-- [ ] 다음 이슈 브랜치에서 공시 데이터 소스 확장
+- [ ] 다음 이슈 브랜치에서 관심종목 알림과 조건 감지 워크플로 구현
