@@ -1,9 +1,15 @@
-import type { ChartGuide, ChartMarker, PricePoint } from "@/lib/research/types";
+import type {
+  ChartGuide,
+  ChartMarker,
+  ChartOverlay,
+  PricePoint,
+} from "@/lib/research/types";
 import { cn } from "@/lib/utils";
 
 type ResearchLineChartProps = {
   points: PricePoint[];
   guides?: ChartGuide[];
+  overlays?: ChartOverlay[];
   markers?: ChartMarker[];
   accent?: "primary" | "positive" | "negative";
   activePointKey?: string;
@@ -30,6 +36,7 @@ const guideToneMap = {
 export function ResearchLineChart({
   points,
   guides = [],
+  overlays = [],
   markers = [],
   accent = "primary",
   activePointKey,
@@ -57,7 +64,12 @@ export function ResearchLineChart({
   const chartHeight = 192;
   const volumeTop = 236;
   const volumeHeight = 48;
-  const values = points.map((point) => point.close);
+  const values = [
+    ...points.map((point) => point.close),
+    ...overlays.flatMap((overlay) =>
+      overlay.enabled === false ? [] : overlay.points.map((point) => point.value)
+    ),
+  ];
   const volumes = points.map((point) => point.volume);
   const minValue = Math.min(...values);
   const maxValue = Math.max(...values);
@@ -106,6 +118,44 @@ export function ResearchLineChart({
   const rangeEndPoint = linePoints.find(
     (point) => point.key === highlightRange?.endKey
   );
+  const overlayPaths = overlays
+    .filter((overlay) => overlay.enabled !== false)
+    .map((overlay) => {
+      const overlayPoints = overlay.points
+        .map((point) => {
+          const matchedPoint = linePoints.find(
+            (linePoint) => linePoint.key === getOverlayKey(point)
+          );
+          if (!matchedPoint) {
+            return null;
+          }
+
+          return {
+            ...point,
+            x: matchedPoint.x,
+            y:
+              chartTop +
+              chartHeight -
+              ((point.value - minValue) / valueRange) * chartHeight,
+          };
+        })
+        .filter((point): point is NonNullable<typeof point> => Boolean(point));
+
+      if (overlayPoints.length < 2) {
+        return null;
+      }
+
+      return {
+        id: overlay.id,
+        label: overlay.label,
+        tone: overlay.tone,
+        path: overlayPoints
+          .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+          .join(" "),
+        lastPoint: overlayPoints.at(-1),
+      };
+    })
+    .filter((overlay): overlay is NonNullable<typeof overlay> => Boolean(overlay));
 
   return (
     <div className={cn("space-y-3", className)}>
@@ -215,6 +265,31 @@ export function ResearchLineChart({
           ))}
 
           <path d={areaPath} fill={accentMap[accent]} fillOpacity="0.12" />
+          {overlayPaths.map((overlay) => (
+            <g key={overlay.id}>
+              <path
+                d={overlay.path}
+                fill="none"
+                stroke={guideToneMap[overlay.tone]}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                opacity="0.72"
+              />
+              {overlay.lastPoint ? (
+                <text
+                  x={overlay.lastPoint.x}
+                  y={overlay.lastPoint.y - 6}
+                  textAnchor="end"
+                  fill={guideToneMap[overlay.tone]}
+                  fontSize="10"
+                  fontWeight="700"
+                >
+                  {overlay.label}
+                </text>
+              ) : null}
+            </g>
+          ))}
           <path
             d={linePath}
             fill="none"
@@ -293,6 +368,10 @@ function getPointKey(point: PricePoint) {
 
 function getMarkerKey(marker: ChartMarker) {
   return marker.date ?? marker.pointLabel ?? marker.id;
+}
+
+function getOverlayKey(point: ChartOverlay["points"][number]) {
+  return point.date ?? point.label;
 }
 
 function Metric({ label, value }: { label: string; value: string }) {

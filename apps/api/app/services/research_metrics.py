@@ -39,6 +39,56 @@ def volatility(series: list[dict], days: int = 20) -> float:
     return round(pstdev(returns), 2)
 
 
+def moving_average(series: list[dict], days: int) -> float | None:
+    if len(series) < days:
+        return None
+    closes = [row["close"] for row in series[:days]]
+    return round(mean(closes), 2)
+
+
+def rsi(series: list[dict], days: int = 14) -> float | None:
+    if len(series) <= days:
+        return None
+
+    gains: list[float] = []
+    losses: list[float] = []
+    for index in range(days):
+        change = float(series[index]["close"]) - float(series[index + 1]["close"])
+        if change >= 0:
+            gains.append(change)
+            losses.append(0.0)
+        else:
+            gains.append(0.0)
+            losses.append(abs(change))
+
+    average_gain = mean(gains)
+    average_loss = mean(losses)
+    if average_loss == 0:
+        return 100.0
+
+    relative_strength = average_gain / average_loss
+    return round(100 - (100 / (1 + relative_strength)), 1)
+
+
+def macd(series: list[dict]) -> tuple[float, float] | None:
+    if len(series) < 35:
+        return None
+
+    closes = [float(row["close"]) for row in reversed(series)]
+    macd_line = [_ema(closes, 12)[index] - _ema(closes, 26)[index] for index in range(len(closes))]
+    signal_line = _ema(macd_line, 9)
+    return round(macd_line[-1], 2), round(signal_line[-1], 2)
+
+
+def gap_percent(series: list[dict]) -> float | None:
+    if len(series) < 2:
+        return None
+    previous_close = float(series[1]["close"])
+    if previous_close == 0:
+        return None
+    return round(((float(series[0]["open"]) - previous_close) / previous_close) * 100, 2)
+
+
 def compute_watchlist_score(series: list[dict], sentiment_score: float) -> float:
     score = 55.0
     score += simple_return(series, 5) * 0.55
@@ -85,3 +135,14 @@ def identify_turning_points(series: list[dict], limit: int = 3) -> list[dict]:
 
     sorted_candidates = sorted(candidates, key=lambda item: abs(item["move"]), reverse=True)
     return sorted_candidates[:limit]
+
+
+def _ema(values: list[float], period: int) -> list[float]:
+    if not values:
+        return []
+
+    multiplier = 2 / (period + 1)
+    output = [values[0]]
+    for value in values[1:]:
+        output.append((value - output[-1]) * multiplier + output[-1])
+    return output

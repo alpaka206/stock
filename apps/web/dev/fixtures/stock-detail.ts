@@ -1,5 +1,11 @@
 import { findInstrument } from "@/dev/fixtures/instruments";
-import type { PricePoint, StockFixture } from "@/lib/research/types";
+import type {
+  ChartOverlay,
+  PatternCard,
+  PricePoint,
+  StockFixture,
+  TechnicalMetric,
+} from "@/lib/research/types";
 
 const basePriceSeries: PricePoint[] = [
   { date: "2026-02-12", label: "02/12", close: 842, volume: 44 },
@@ -20,10 +26,118 @@ function scaleSeries(points: PricePoint[], multiplier: number) {
   }));
 }
 
+function buildFixtureChartOverlays(points: PricePoint[]): ChartOverlay[] {
+  return [5, 20].map((window) => ({
+    id: `ma${window}`,
+    label: `MA ${window}`,
+    tone: window === 5 ? "positive" : "neutral",
+    enabled: true,
+    points: points.flatMap((point, index) => {
+        const windowPoints = points.slice(Math.max(0, index - window + 1), index + 1);
+        if (windowPoints.length < Math.min(window, points.length)) {
+          return [];
+        }
+
+        return [
+          {
+            date: point.date ?? "",
+            label: point.label,
+            value: Number(
+              (
+                windowPoints.reduce((total, item) => total + item.close, 0) /
+                windowPoints.length
+              ).toFixed(2)
+            ),
+          },
+        ];
+      }),
+  }));
+}
+
+function buildFixtureTechnicalMetrics(points: PricePoint[]): TechnicalMetric[] {
+  const latest = points.at(-1);
+  const previous = points.at(-2);
+  const closes = points.map((point) => point.close);
+  const support = Math.min(...closes.slice(-6));
+  const resistance = Math.max(...closes.slice(-6));
+  const volumeAverage =
+    points.slice(-6).reduce((total, point) => total + point.volume, 0) /
+    Math.max(points.slice(-6).length, 1);
+  const volumeRatio = latest ? latest.volume / volumeAverage : 0;
+
+  return [
+    {
+      id: "ma-alignment",
+      label: "이동평균 배열",
+      value: latest && previous && latest.close >= previous.close ? "상승 우위" : "혼합",
+      detail: "개발 fixture 기준으로 단기 추세와 이동평균 흐름을 요약합니다.",
+      tone: latest && previous && latest.close >= previous.close ? "positive" : "neutral",
+    },
+    {
+      id: "volume-ratio",
+      label: "거래량 배수",
+      value: `${volumeRatio.toFixed(2)}x`,
+      detail: "최근 거래량을 fixture 평균과 비교한 값입니다.",
+      tone: volumeRatio >= 1.2 ? "positive" : "neutral",
+    },
+    {
+      id: "support-distance",
+      label: "지지선 거리",
+      value: latest ? `${(((latest.close - support) / support) * 100).toFixed(2)}%` : "-",
+      detail: `최근 지지선 ${support.toFixed(2)} 대비 현재 위치입니다.`,
+      tone: "positive",
+    },
+    {
+      id: "resistance-distance",
+      label: "저항선 거리",
+      value: latest
+        ? `${(((latest.close - resistance) / resistance) * 100).toFixed(2)}%`
+        : "-",
+      detail: `최근 저항선 ${resistance.toFixed(2)} 대비 현재 위치입니다.`,
+      tone: latest && latest.close >= resistance ? "positive" : "neutral",
+    },
+  ];
+}
+
+function buildFixturePatternCards(points: PricePoint[]): PatternCard[] {
+  const closes = points.map((point) => point.close);
+  const latest = closes.at(-1) ?? 0;
+  const low = Math.min(...closes);
+  const high = Math.max(...closes);
+  const range = latest > 0 ? (high - low) / latest : 0;
+
+  return [
+    {
+      id: "flat-base",
+      label: "Flat base",
+      similarity: Number(Math.max(0.45, Math.min(0.86, 0.82 - range)).toFixed(2)),
+      stage: latest >= high ? "상단 돌파 시도" : "박스 상단 확인",
+      invalidation: `저점 ${low.toFixed(2)} 이탈`,
+      summary: "좁아지는 가격 범위와 거래량 동반 여부를 함께 확인합니다.",
+      tone: range <= 0.12 ? "positive" : "neutral",
+    },
+    {
+      id: "ma-trend",
+      label: "MA trend",
+      similarity: 0.74,
+      stage: "추세 유지",
+      invalidation: "MA20 이탈",
+      summary: "현재가가 단기 평균 위에서 유지되는지 확인합니다.",
+      tone: "positive",
+    },
+  ];
+}
+
 function createStockFixture(
   symbol: string,
-  overrides: Omit<StockFixture, "instrument" | "dataSource"> & {
+  overrides: Omit<
+    StockFixture,
+    "instrument" | "dataSource" | "chartOverlays" | "technicalMetrics" | "patternCards"
+  > & {
     instrument: Partial<StockFixture["instrument"]>;
+    chartOverlays?: ChartOverlay[];
+    technicalMetrics?: TechnicalMetric[];
+    patternCards?: PatternCard[];
   }
 ): StockFixture {
   const catalog = findInstrument(symbol);
@@ -44,6 +158,10 @@ function createStockFixture(
     priceSeries: overrides.priceSeries,
     eventMarkers: overrides.eventMarkers,
     indicatorGuides: overrides.indicatorGuides,
+    chartOverlays: overrides.chartOverlays ?? buildFixtureChartOverlays(overrides.priceSeries),
+    technicalMetrics:
+      overrides.technicalMetrics ?? buildFixtureTechnicalMetrics(overrides.priceSeries),
+    patternCards: overrides.patternCards ?? buildFixturePatternCards(overrides.priceSeries),
     rulePresetDefinitions: overrides.rulePresetDefinitions,
     scoreSummary: overrides.scoreSummary,
     flowMetrics: overrides.flowMetrics,
