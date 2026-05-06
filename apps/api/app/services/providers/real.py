@@ -503,6 +503,8 @@ class RealResearchProvider(ResearchProvider):
         key_issues = self._build_radar_key_issues(news_items)
         top_picks = self._build_radar_top_picks(sector_cards)
         folder_tree = self._build_radar_folder_tree(watchlist_rows)
+        alert_rules = self._build_radar_alert_rules()
+        detected_alerts = self._build_radar_detected_alerts(watchlist_rows)
 
         payload = await self._summarize(
             page_key="radar",
@@ -513,6 +515,7 @@ class RealResearchProvider(ResearchProvider):
                 "sectorCards": sector_cards,
                 "keyIssues": key_issues,
                 "topPicks": top_picks,
+                "detectedAlerts": detected_alerts,
             },
             source_refs=source_refs,
             missing_data=missing_data,
@@ -529,6 +532,8 @@ class RealResearchProvider(ResearchProvider):
         payload["keySchedule"] = key_schedule
         payload["keyIssues"] = key_issues
         payload["topPicks"] = top_picks
+        payload["alertRules"] = alert_rules
+        payload["detectedAlerts"] = detected_alerts
         return self._finalize_payload(payload, source_refs, missing_data)
 
     async def _get_stock_detail_v2(
@@ -867,6 +872,81 @@ class RealResearchProvider(ResearchProvider):
             }
             for card in sector_cards[:3]
         ]
+
+    def _build_radar_alert_rules(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "id": "high-conviction-momentum",
+                "label": "고확신 모멘텀",
+                "description": "점수 80 이상이면서 당일 수익률이 양수인 관심종목을 표시합니다.",
+                "severity": "watch",
+                "enabledByDefault": True,
+            },
+            {
+                "id": "volume-spike",
+                "label": "거래량 급증",
+                "description": "최근 평균 대비 거래량 배수가 1.5배 이상인 종목을 표시합니다.",
+                "severity": "info",
+                "enabledByDefault": True,
+            },
+            {
+                "id": "risk-reversal",
+                "label": "리스크 반전",
+                "description": "점수 45 미만 또는 당일 -3% 이하 하락 종목을 표시합니다.",
+                "severity": "critical",
+                "enabledByDefault": True,
+            },
+        ]
+
+    def _build_radar_detected_alerts(self, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        triggered_at = datetime.now(timezone.utc).isoformat()
+        alerts: list[dict[str, Any]] = []
+        for row in rows:
+            source_ref_ids = row.get("sourceRefIds", [])
+            if row.get("score", 0) >= 80 and row.get("changePercent", 0) > 0:
+                alerts.append(
+                    {
+                        "id": f"{row['symbol'].lower()}-high-conviction-momentum",
+                        "ruleId": "high-conviction-momentum",
+                        "symbol": row["symbol"],
+                        "title": f"{row['symbol']} 고확신 모멘텀",
+                        "summary": f"점수 {row.get('score', 0):.0f}, 등락률 {row.get('changePercent', 0):+.2f}%로 우선 확인 대상입니다.",
+                        "severity": "watch",
+                        "tone": "positive",
+                        "triggeredAt": triggered_at,
+                        "sourceRefIds": source_ref_ids,
+                    }
+                )
+            if row.get("volumeRatio", 0) >= 1.5:
+                alerts.append(
+                    {
+                        "id": f"{row['symbol'].lower()}-volume-spike",
+                        "ruleId": "volume-spike",
+                        "symbol": row["symbol"],
+                        "title": f"{row['symbol']} 거래량 급증",
+                        "summary": f"거래량 배수가 {row.get('volumeRatio', 0):.2f}x로 평소보다 높습니다.",
+                        "severity": "info",
+                        "tone": "neutral",
+                        "triggeredAt": triggered_at,
+                        "sourceRefIds": source_ref_ids,
+                    }
+                )
+            if row.get("score", 0) < 45 or row.get("changePercent", 0) <= -3:
+                alerts.append(
+                    {
+                        "id": f"{row['symbol'].lower()}-risk-reversal",
+                        "ruleId": "risk-reversal",
+                        "symbol": row["symbol"],
+                        "title": f"{row['symbol']} 리스크 반전",
+                        "summary": f"점수 {row.get('score', 0):.0f}, 등락률 {row.get('changePercent', 0):+.2f}%로 방어 확인이 필요합니다.",
+                        "severity": "critical",
+                        "tone": "negative",
+                        "triggeredAt": triggered_at,
+                        "sourceRefIds": source_ref_ids,
+                    }
+                )
+
+        return alerts[:8]
 
     def _build_radar_folder_tree(self, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         grouped: dict[str, list[dict[str, Any]]] = {}

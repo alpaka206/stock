@@ -22,6 +22,9 @@ test.describe("core stock workspace pages", () => {
   test("radar search links into stock detail", async ({ page }) => {
     await page.goto("/radar");
 
+    await expect(page.getByTestId("radar-alert-panel")).toBeVisible();
+    await expect(page.getByTestId("radar-alert-card").first()).toBeVisible();
+
     await page.getByTestId("radar-search-input").fill("NVDA");
     await expect(page.getByTestId("radar-search-input")).toHaveValue("NVDA");
     await expect(page).toHaveURL(/q=NVDA/);
