@@ -28,6 +28,13 @@ DEFAULT_RADAR_SECTORS = {
     "MSFT": "소프트웨어",
     "CRWD": "사이버보안",
 }
+DEFAULT_SEC_CIKS = {
+    "NVDA": "0001045810",
+    "AMD": "0000002488",
+    "AVGO": "0001730168",
+    "MSFT": "0000789019",
+    "CRWD": "0001535527",
+}
 ALLOWED_PROVIDERS = {"mock", "real"}
 ALLOWED_LLM_PROVIDERS = {"auto", "openai", "gemini", "none"}
 
@@ -85,6 +92,20 @@ class Settings(BaseModel):
     opendart_base_url: str = Field(
         default_factory=lambda: os.getenv(
             "OPENDART_BASE_URL", "https://opendart.fss.or.kr/api"
+        )
+    )
+    sec_submissions_base_url: str = Field(
+        default_factory=lambda: os.getenv("SEC_SUBMISSIONS_BASE_URL", "https://data.sec.gov")
+    )
+    sec_user_agent: str = Field(
+        default_factory=lambda: os.getenv(
+            "SEC_USER_AGENT",
+            "stock-workspace/0.1 contact=research@example.com",
+        )
+    )
+    sec_symbol_cik_map: dict[str, str] = Field(
+        default_factory=lambda: _parse_symbol_map(
+            os.getenv("SEC_SYMBOL_CIKS"), DEFAULT_SEC_CIKS
         )
     )
     openai_api_key: str | None = Field(

@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from app.config import Settings
 from app.services.clients.open_dart import OpenDartClient
+from app.services.clients.sec_filings import SecFilingsClient
 from app.services.prompt_loader import PromptBundle
 from app.services.providers.real import RealResearchProvider
 from app.services.source_refs import build_source_ref
@@ -16,6 +17,12 @@ class ExtendedRealResearchProvider(RealResearchProvider):
             api_key=settings.opendart_api_key,
             base_url=settings.opendart_base_url,
             timeout_seconds=settings.request_timeout_seconds,
+        )
+        self.sec_filings = SecFilingsClient(
+            base_url=settings.sec_submissions_base_url,
+            user_agent=settings.sec_user_agent,
+            timeout_seconds=settings.request_timeout_seconds,
+            cik_by_symbol=settings.sec_symbol_cik_map,
         )
 
     async def get_news(self, *, prompt_bundle: PromptBundle) -> dict[str, object]:
@@ -43,14 +50,41 @@ class ExtendedRealResearchProvider(RealResearchProvider):
             page_count=12,
             corp_cls="Y",
         )
+        sec_filings = await self._safe_fetch(
+            field="news.secFilings",
+            expected_source="SEC submissions",
+            missing_data=missing_data,
+            fetcher=self.sec_filings.get_recent_filings,
+            symbols=self.settings.radar_symbols,
+            limit_per_symbol=2,
+        )
         domestic_disclosures = self._build_domestic_disclosure_items(disclosures or [], source_refs)
+        us_filings = self._build_sec_filing_news_items(sec_filings or [], source_refs)
         payload = {
             "marketSummary": {
-                "text": self._build_news_market_summary(featured_news, watchlist_news, domestic_disclosures),
-                "sourceRefIds": self._merge_ref_ids(featured_news, watchlist_news, domestic_disclosures),
+                "text": self._build_news_market_summary(
+                    featured_news,
+                    watchlist_news,
+                    domestic_disclosures,
+                    us_filings,
+                ),
+                "sourceRefIds": self._merge_ref_ids(
+                    featured_news,
+                    watchlist_news,
+                    domestic_disclosures,
+                    us_filings,
+                ),
             },
-            "newsDrivers": self._build_news_drivers(featured_news, watchlist_news, domestic_disclosures),
-            "featuredNews": self._build_news_feed_items(featured_news, market="global"),
+            "newsDrivers": self._build_news_drivers(
+                featured_news,
+                watchlist_news,
+                domestic_disclosures,
+                us_filings,
+            ),
+            "featuredNews": (
+                self._build_news_feed_items(featured_news, market="global")
+                + us_filings
+            )[:8],
             "watchlistNews": self._build_news_feed_items(watchlist_news, market="watchlist"),
             "domesticDisclosures": domestic_disclosures,
         }
@@ -94,35 +128,46 @@ class ExtendedRealResearchProvider(RealResearchProvider):
             page_count=10,
             corp_cls="Y",
         )
+        sec_filings = await self._safe_fetch(
+            field="calendar.secFilings",
+            expected_source="SEC submissions",
+            missing_data=missing_data,
+            fetcher=self.sec_filings.get_recent_filings,
+            symbols=self.settings.radar_symbols,
+            limit_per_symbol=2,
+        )
         watchlist_events = self._build_watchlist_earnings_events(earnings_rows or [], source_refs)
         news_events = self._build_watchlist_news_events(watchlist_news)
         market_events = self._build_ipo_events(ipo_rows or [], source_refs)
+        us_filing_events = self._build_sec_filing_calendar_events(sec_filings or [], source_refs)
         domestic_events = self._build_domestic_calendar_events(disclosures or [], source_refs)
+        global_events = (market_events + us_filing_events)[:8]
         payload = {
             "calendarSummary": {
-                "text": self._build_calendar_summary(watchlist_events, market_events, domestic_events, treasury),
-                "sourceRefIds": self._merge_ref_ids(watchlist_events, market_events, domestic_events),
+                "text": self._build_calendar_summary(watchlist_events, global_events, domestic_events, treasury),
+                "sourceRefIds": self._merge_ref_ids(watchlist_events, global_events, domestic_events),
             },
             "highlights": self._build_calendar_highlights(
                 watchlist_events=watchlist_events,
-                market_events=market_events,
+                market_events=global_events,
                 domestic_events=domestic_events,
                 treasury=treasury,
                 source_refs=source_refs,
             ),
             "watchlistEvents": (watchlist_events + news_events)[:8],
-            "marketEvents": market_events[:8],
+            "marketEvents": global_events,
             "domesticEvents": domestic_events[:8],
         }
         return self._finalize_payload(payload, source_refs, missing_data)
 
-    def _build_news_market_summary(self, featured_news, watchlist_news, domestic_disclosures) -> str:
+    def _build_news_market_summary(self, featured_news, watchlist_news, domestic_disclosures, us_filings) -> str:
         featured = featured_news[0]["title"] if featured_news else "해외 헤드라인이 아직 부족합니다"
         watchlist = watchlist_news[0]["title"] if watchlist_news else "관심종목 뉴스가 아직 적습니다"
         domestic = domestic_disclosures[0]["headline"] if domestic_disclosures else "OpenDART 연동 또는 최신 공시가 없습니다"
-        return f"해외 메인 헤드라인은 '{featured}' 중심으로 움직이고, 관심종목 흐름은 '{watchlist}'를 우선 확인할 구간입니다. 국내는 '{domestic}' 공시를 함께 봐야 합니다."
+        us = us_filings[0]["headline"] if us_filings else "SEC filings pending"
+        return f"해외 메인 헤드라인은 '{featured}' 중심으로 움직이고, 관심종목 흐름은 '{watchlist}'를 우선 확인할 구간입니다. 국내는 '{domestic}', 미국은 '{us}' 공시를 함께 봅니다."
 
-    def _build_news_drivers(self, featured_news, watchlist_news, domestic_disclosures):
+    def _build_news_drivers(self, featured_news, watchlist_news, domestic_disclosures, us_filings):
         items = []
         if featured_news:
             items.append({
@@ -139,6 +184,11 @@ class ExtendedRealResearchProvider(RealResearchProvider):
             items.append({
                 "text": f"국내는 {domestic_disclosures[0]['headline']} 공시를 체크 포인트로 둡니다.",
                 "sourceRefIds": domestic_disclosures[0].get("sourceRefIds", []),
+            })
+        if us_filings:
+            items.append({
+                "text": f"미국 SEC {us_filings[0]['headline']} filing을 함께 확인합니다.",
+                "sourceRefIds": us_filings[0].get("sourceRefIds", []),
             })
         return items or [{"text": "현재 연결된 뉴스/공시 데이터가 충분하지 않습니다.", "sourceRefIds": []}]
 
@@ -183,6 +233,36 @@ class ExtendedRealResearchProvider(RealResearchProvider):
                 "url": disclosure.get("url", ""),
                 "symbol": disclosure.get("stockCode", ""),
                 "market": "domestic",
+                "sourceRefIds": [ref["id"]],
+            })
+        return items
+
+    def _build_sec_filing_news_items(self, filings, source_refs):
+        items = []
+        for index, filing in enumerate(filings[:8]):
+            ref = build_source_ref(
+                title=f"{filing.get('symbol', '')} {filing.get('form', '')}",
+                kind="disclosure",
+                publisher="SEC EDGAR",
+                published_at=filing.get("filingDate", ""),
+                source_key="sec::submissions",
+                url=filing.get("url", ""),
+                symbol=filing.get("symbol", ""),
+            )
+            source_refs.append(ref)
+            form = filing.get("form", "")
+            symbol = filing.get("symbol", "")
+            description = filing.get("description", form)
+            items.append({
+                "id": f"sec-filing-{index + 1}",
+                "headline": f"{symbol} {form}",
+                "source": "SEC EDGAR",
+                "summary": f"{filing.get('companyName', symbol)} filed {description}.",
+                "impact": "공시",
+                "publishedAt": self._to_iso(filing.get("filingDate", "")),
+                "url": filing.get("url", ""),
+                "symbol": symbol,
+                "market": "global",
                 "sourceRefIds": [ref["id"]],
             })
         return items
@@ -296,6 +376,37 @@ class ExtendedRealResearchProvider(RealResearchProvider):
             })
         return events
 
+    def _build_sec_filing_calendar_events(self, filings, source_refs):
+        events = []
+        for index, filing in enumerate(filings[:8]):
+            ref = build_source_ref(
+                title=f"{filing.get('symbol', '')} {filing.get('form', '')}",
+                kind="disclosure",
+                publisher="SEC EDGAR",
+                published_at=filing.get("filingDate", ""),
+                source_key="sec::submissions",
+                url=filing.get("url", ""),
+                symbol=filing.get("symbol", ""),
+            )
+            source_refs.append(ref)
+            form = filing.get("form", "")
+            symbol = filing.get("symbol", "")
+            events.append({
+                "id": f"sec-calendar-{index + 1}",
+                "title": f"{symbol} {form}",
+                "category": "disclosure",
+                "market": "global",
+                "date": self._to_date(filing.get("filingDate", "")),
+                "time": "SEC",
+                "summary": f"{filing.get('companyName', symbol)} filed {filing.get('description', form)}.",
+                "source": "SEC EDGAR",
+                "symbol": symbol,
+                "url": filing.get("url", ""),
+                "tone": "neutral",
+                "sourceRefIds": [ref["id"]],
+            })
+        return events
+
     def _build_calendar_highlights(self, *, watchlist_events, market_events, domestic_events, treasury, source_refs):
         items = []
         if watchlist_events:
@@ -308,7 +419,7 @@ class ExtendedRealResearchProvider(RealResearchProvider):
             })
         if market_events:
             items.append({
-                "label": "IPO 캘린더",
+                "label": "미국 이벤트",
                 "value": f"{len(market_events)}건",
                 "detail": market_events[0]["title"],
                 "tone": "neutral",
@@ -342,7 +453,7 @@ class ExtendedRealResearchProvider(RealResearchProvider):
 
     def _build_calendar_summary(self, watchlist_events, market_events, domestic_events, treasury) -> str:
         watchlist = f"관심종목 실적은 {watchlist_events[0]['title']}부터 체크" if watchlist_events else "관심종목 실적 일정은 아직 부족합니다"
-        market = f"IPO는 {market_events[0]['title']}가 가장 가깝습니다" if market_events else "IPO 일정은 아직 부족합니다"
+        market = f"미국 이벤트는 {market_events[0]['title']}가 가장 가깝습니다" if market_events else "미국 이벤트 일정은 아직 부족합니다"
         domestic = f"국내 공시는 {domestic_events[0]['title']} 관련 공시를 우선 확인" if domestic_events else "OpenDART 연동 또는 최신 공시가 없습니다"
         macro = f"10년물 금리는 {treasury.get('value', 0):.2f}% 수준" if treasury else "매크로 금리 데이터가 없습니다"
         return f"{watchlist}. {market}. {domestic}. {macro}."
