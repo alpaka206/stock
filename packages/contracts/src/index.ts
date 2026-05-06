@@ -412,6 +412,19 @@ export type ResearchSnapshot = {
   presetName?: string;
 };
 
+export type ResearchSnapshotListResponse = {
+  snapshots: ResearchSnapshot[];
+};
+
+export type ResearchSnapshotMutationResponse = {
+  snapshot: ResearchSnapshot;
+};
+
+export type ResearchSnapshotDeleteResponse = {
+  deleted: boolean;
+  id: string;
+};
+
 export type StockFixture = {
   instrument: StockInstrument;
   price: number;
