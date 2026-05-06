@@ -5,7 +5,8 @@
 - [x] history replay builder를 별도 모듈로 분리
 - [x] `RealResearchProvider`의 unreachable v1 code 제거
 - [x] 표준 API 검증 단계에 radar/stock/history builder 테스트 포함
-- [ ] develop 대상 #160 PR 생성과 GitHub checks 확인
+- [x] PR #172 `refactor: stock history provider builder 분리` develop 병합
 - [ ] release 검증 후 `develop -> main` 수동 merge PR 생성
-- [ ] 배포 사이트 핵심 경로 직접 확인과 Discord 보고
+- [ ] `develop -> main` PR 생성 사실 Discord 보고
+- [ ] 배포 사이트 핵심 경로 직접 확인
 - [ ] provider TypedDict 또는 Pydantic DTO 범위를 overview/news/calendar로 확장
