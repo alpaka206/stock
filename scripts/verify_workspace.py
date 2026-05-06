@@ -38,6 +38,7 @@ PY_COMPILE_TARGETS = [
     "apps/api/app/services/research_snapshot_store.py",
     "apps/api/app/services/providers/mock.py",
     "apps/api/app/services/providers/real.py",
+    "apps/api/app/services/providers/radar_builders.py",
     "apps/api/app/services/providers/extended_mock.py",
     "apps/api/app/services/providers/extended_real.py",
 ]
@@ -73,6 +74,7 @@ STEP_GROUPS = {
         {"name": "contract parity", "command": python_command("scripts/check_contract_parity.py")},
         {"name": "alpha vantage cache key", "command": python_command("scripts/test_alpha_vantage_cache_key.py")},
         {"name": "sec filings client", "command": python_command("scripts/test_sec_filings_client.py")},
+        {"name": "radar builders", "command": python_command("scripts/test_radar_builders.py")},
         {
             "name": "api py_compile",
             "command": python_command("-m", "py_compile", *PY_COMPILE_TARGETS),

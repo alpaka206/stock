@@ -13,6 +13,18 @@ from app.services.deterministic_summary import build_deterministic_page_summary
 from app.services.errors import ExternalServiceError, ProviderConfigurationError
 from app.services.prompt_loader import PromptBundle
 from app.services.providers.base import ResearchProvider
+from app.services.providers.radar_builders import (
+    RadarRawRow,
+    build_radar_alert_rules,
+    build_radar_broker_reports,
+    build_radar_detected_alerts,
+    build_radar_folder_tree,
+    build_radar_key_issues,
+    build_radar_schedule,
+    build_radar_sector_cards,
+    build_radar_top_picks,
+    build_radar_watchlist_rows,
+)
 from app.services.research_metrics import (
     compute_stock_score,
     compute_watchlist_score,
@@ -460,7 +472,7 @@ class RealResearchProvider(ResearchProvider):
         )
         news_by_symbol = self._group_news_by_symbol(news_items)
 
-        raw_rows: list[dict[str, Any]] = []
+        raw_rows: list[RadarRawRow] = []
         for symbol, (series, series_publisher, series_source_key) in zip(
             self.settings.radar_symbols, series_results
         ):
@@ -496,15 +508,31 @@ class RealResearchProvider(ResearchProvider):
         if not raw_rows:
             raise ExternalServiceError("radar 화면을 구성할 watchlist 데이터를 만들지 못했습니다.")
 
-        watchlist_rows = self._build_radar_watchlist_rows(raw_rows, news_by_symbol)
-        sector_cards = self._build_radar_sector_cards(watchlist_rows)
-        broker_reports = self._build_radar_broker_reports(sector_cards)
-        key_schedule = self._build_radar_schedule(sector_cards)
-        key_issues = self._build_radar_key_issues(news_items)
-        top_picks = self._build_radar_top_picks(sector_cards)
-        folder_tree = self._build_radar_folder_tree(watchlist_rows)
-        alert_rules = self._build_radar_alert_rules()
-        detected_alerts = self._build_radar_detected_alerts(watchlist_rows)
+        watchlist_rows = build_radar_watchlist_rows(
+            raw_rows,
+            news_by_symbol,
+            instrument_name=self._instrument_name,
+            security_code=self._security_code,
+            folder_id=self._radar_folder_id,
+            tags=self._radar_tags,
+            next_event=self._radar_next_event,
+            relative_strength_score=self._relative_strength_score,
+        )
+        sector_cards = build_radar_sector_cards(
+            watchlist_rows,
+            sector_catalyst=self._radar_sector_catalyst,
+        )
+        broker_reports = build_radar_broker_reports(sector_cards)
+        key_schedule = build_radar_schedule(sector_cards)
+        key_issues = build_radar_key_issues(
+            news_items,
+            sector_by_symbol=self.settings.radar_sector_map,
+            impact_from_sentiment=self._impact_from_sentiment,
+        )
+        top_picks = build_radar_top_picks(sector_cards)
+        folder_tree = build_radar_folder_tree(watchlist_rows, slugify=self._slugify)
+        alert_rules = build_radar_alert_rules()
+        detected_alerts = build_radar_detected_alerts(watchlist_rows)
 
         payload = await self._summarize(
             page_key="radar",

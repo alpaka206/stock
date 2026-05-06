@@ -1,13 +1,11 @@
-- [x] Radar 알림 규칙/감지 결과 타입 계약 추가
-- [x] API Radar schema와 JSON schema 계약 갱신
-- [x] real provider에서 고확신 모멘텀, 거래량 급증, 리스크 반전 감지 생성
-- [x] mock provider와 web fixture에 알림 예시 추가
-- [x] `/radar` 우측 패널에 조건 감지 알림 카드 표시
-- [x] E2E에서 알림 패널 노출 검증 추가
+- [x] `issue/160-provider-module-types` 브랜치 생성
+- [x] Radar builder TypedDict와 순수 함수 모듈 추가
+- [x] `RealResearchProvider._get_radar_v2`에서 새 builder 함수 사용
+- [x] Radar builder 단위 smoke 테스트 추가
+- [x] `scripts/verify_workspace.py` API 검증 단계에 radar builders 테스트 포함
 - [x] `pnpm smoke:api` 통과
-- [x] `pnpm test:e2e -- --project=chromium` 통과
 - [x] `pnpm verify:standard` 통과
 - [x] `pnpm verify:automation` 통과
 - [ ] 변경사항 커밋
 - [ ] 원격 브랜치 push
-- [ ] `develop` 대상 PR 생성 및 체크 확인
+- [ ] `develop` 대상 PR 생성 및 checks 확인
