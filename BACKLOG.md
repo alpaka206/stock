@@ -1,11 +1,9 @@
-- [x] `issue/160-provider-module-types` 브랜치 생성
 - [x] Radar builder TypedDict와 순수 함수 모듈 추가
 - [x] `RealResearchProvider._get_radar_v2`에서 새 builder 함수 사용
 - [x] Radar builder 단위 smoke 테스트 추가
-- [x] `scripts/verify_workspace.py` API 검증 단계에 radar builders 테스트 포함
-- [x] `pnpm smoke:api` 통과
-- [x] `pnpm verify:standard` 통과
-- [x] `pnpm verify:automation` 통과
-- [ ] 변경사항 커밋
-- [ ] 원격 브랜치 push
-- [ ] `develop` 대상 PR 생성 및 checks 확인
+- [x] 표준 API 검증 단계에 radar builders 테스트 포함
+- [x] PR #170 `refactor: 레이더 provider builder 타입 경계 분리` develop 병합
+- [ ] stock detail builder를 별도 모듈로 분리
+- [ ] history replay builder를 별도 모듈로 분리
+- [ ] `RealResearchProvider`의 unreachable v1 code 제거
+- [ ] provider TypedDict 또는 Pydantic DTO 범위를 overview/news/calendar로 확장
