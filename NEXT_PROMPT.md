@@ -1,5 +1,5 @@
-1. `git status`로 작업트리를 확인하고 현재 변경사항을 커밋한다.
-2. `issue/163-alert-condition-workflow`를 원격에 push한다.
-3. `develop` 대상 PR을 만들고 검증 명령 결과를 PR 본문에 남긴다.
-4. PR checks를 확인한 뒤 통과 시 auto-merge를 설정한다.
-5. 병합 후 `develop`으로 돌아와 최신 상태를 pull한다.
+1. `git status`와 `git diff --check`로 작업트리를 확인한다.
+2. `refactor: 레이더 provider builder 타입 경계 분리` 커밋을 만든다.
+3. `issue/160-provider-module-types`를 원격에 push한다.
+4. `develop` 대상 PR을 생성하고 `Refs #160`을 남긴다.
+5. PR checks 통과 후 병합하고, #160 후속 범위로 stock detail/history builder 분리를 계속 진행한다.

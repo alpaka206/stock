@@ -1,9 +1,11 @@
 현재 라운드 목표
-- 이슈 #163 기준으로 레이더 관심종목 조건 감지 알림 워크플로를 구현한다.
-- 감지 규칙, API 계약, mock/dev fixture, `/radar` UI, E2E 검증을 하나의 PR로 `develop`에 올린다.
+- 이슈 #160의 첫 번째 리팩터링 단위로 `/radar` real provider 조립 책임을 별도 builder 모듈로 분리한다.
+- `dict[str, Any]` 중심 경계를 줄이기 위해 Radar 입력/출력 TypedDict를 추가한다.
+- 동작 변화 없이 표준 검증과 자동화 검증을 통과한 상태로 `develop` 대상 PR을 생성한다.
 
 완료 조건
-- `/radar` 응답에 `alertRules`, `detectedAlerts`가 포함되고 schema parity와 API smoke가 통과한다.
-- `/radar` 화면에서 조건 감지 알림 패널과 알림 카드가 표시된다.
-- `pnpm test:e2e -- --project=chromium`, `pnpm verify:automation`, `pnpm verify:standard`가 통과한다.
-- 변경사항을 커밋하고 `issue/163-alert-condition-workflow`에서 `develop` 대상 PR을 생성한다.
+- `apps/api/app/services/providers/radar_builders.py`가 Radar watchlist, sector card, issue, alert, folder tree 조립을 담당한다.
+- `RealResearchProvider._get_radar_v2`는 새 builder 모듈을 사용한다.
+- `scripts/test_radar_builders.py`가 표준 검증 API 단계에 포함된다.
+- `pnpm verify:standard`와 `pnpm verify:automation`이 통과한다.
+- PR 본문에는 이 작업이 #160의 부분 리팩터링임을 명시한다.
