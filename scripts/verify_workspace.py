@@ -12,6 +12,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 PNPM_BIN = "pnpm.cmd" if os.name == "nt" else "pnpm"
+PYTHON_BIN = sys.executable
 PY_COMPILE_TARGETS = [
     "apps/api/app/main.py",
     "apps/api/app/schemas/common.py",
@@ -37,22 +38,27 @@ PY_COMPILE_TARGETS = [
     "apps/api/app/services/providers/extended_real.py",
 ]
 
+
+def python_command(*args: str) -> list[str]:
+    return [PYTHON_BIN, *args]
+
+
 STEP_GROUPS = {
     "text": [
-        {"name": "text quality", "command": ["python", "scripts/text_quality_guard.py"]},
+        {"name": "text quality", "command": python_command("scripts/text_quality_guard.py")},
     ],
     "automation": [
-        {"name": "ralph setup", "command": ["python", "scripts/verify_ralph_setup.py"]},
-        {"name": "omx contract parsing", "command": ["python", "scripts/test_omx_contract_parsing.py"]},
-        {"name": "release PR manual merge policy", "command": ["python", "scripts/test_release_pr_policy.py"]},
-        {"name": "verifier output scope", "command": ["python", "scripts/test_verifier_output.py"]},
-        {"name": "discord signal-only mode", "command": ["python", "scripts/test_omx_discord_mode.py"]},
-        {"name": "discord control commands", "command": ["python", "scripts/test_discord_control_commands.py"]},
-        {"name": "ralph runtime", "command": ["python", "scripts/test_ralph_runtime.py"]},
-        {"name": "executor write gate rules", "command": ["python", "scripts/test_executor_write_gate_rules.py"]},
-        {"name": "no secrets guard", "command": ["python", "scripts/no_secrets_guard.py"]},
-        {"name": "discord bridge smoke", "command": ["python", "scripts/test_discord_bridge.py"]},
-        {"name": "discord latest-only helper", "command": ["python", "scripts/test_verify_discord_latest_only.py"]},
+        {"name": "ralph setup", "command": python_command("scripts/verify_ralph_setup.py")},
+        {"name": "omx contract parsing", "command": python_command("scripts/test_omx_contract_parsing.py")},
+        {"name": "release PR manual merge policy", "command": python_command("scripts/test_release_pr_policy.py")},
+        {"name": "verifier output scope", "command": python_command("scripts/test_verifier_output.py")},
+        {"name": "discord signal-only mode", "command": python_command("scripts/test_omx_discord_mode.py")},
+        {"name": "discord control commands", "command": python_command("scripts/test_discord_control_commands.py")},
+        {"name": "ralph runtime", "command": python_command("scripts/test_ralph_runtime.py")},
+        {"name": "executor write gate rules", "command": python_command("scripts/test_executor_write_gate_rules.py")},
+        {"name": "no secrets guard", "command": python_command("scripts/no_secrets_guard.py")},
+        {"name": "discord bridge smoke", "command": python_command("scripts/test_discord_bridge.py")},
+        {"name": "discord latest-only helper", "command": python_command("scripts/test_verify_discord_latest_only.py")},
     ],
     "web": [
         {"name": "web lint", "command": [PNPM_BIN, "lint:web"]},
@@ -60,18 +66,18 @@ STEP_GROUPS = {
         {"name": "web build", "command": [PNPM_BIN, "build:web"]},
     ],
     "api": [
-        {"name": "contract parity", "command": [PNPM_BIN, "check:contracts"]},
-        {"name": "alpha vantage cache key", "command": ["python", "scripts/test_alpha_vantage_cache_key.py"]},
+        {"name": "contract parity", "command": python_command("scripts/check_contract_parity.py")},
+        {"name": "alpha vantage cache key", "command": python_command("scripts/test_alpha_vantage_cache_key.py")},
         {
             "name": "api py_compile",
-            "command": ["python", "-m", "py_compile", *PY_COMPILE_TARGETS],
+            "command": python_command("-m", "py_compile", *PY_COMPILE_TARGETS),
         },
-        {"name": "api smoke", "command": ["python", "scripts/api_smoke.py"]},
+        {"name": "api smoke", "command": python_command("scripts/api_smoke.py")},
     ],
 }
 STEP_GROUPS["standard"] = [*STEP_GROUPS["text"], *STEP_GROUPS["automation"], *STEP_GROUPS["web"], *STEP_GROUPS["api"]]
 STEP_GROUPS["release"] = [
-    {"name": "release readiness", "command": ["python", "scripts/verify_release_readiness.py"]}
+    {"name": "release readiness", "command": python_command("scripts/verify_release_readiness.py")}
 ]
 
 

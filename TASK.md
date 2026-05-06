@@ -1,11 +1,10 @@
 현재 라운드 목표
-- PR #135까지 포함한 `develop_loop` 변경이 `develop`으로 들어갈 수 있는 상태를 만든다.
-- 실패하던 Dependabot PR들을 배치 반영 또는 보류 사유와 함께 정리한다.
-- 남은 차단 조건을 상태 문서에 관측 가능한 기준으로 남긴다.
+- `develop` 최신 기준에서 종목 상세 화면의 기술지표, 패턴 분석, 차트 보조선을 실제 시계열 기반으로 연결한다.
+- Windows 로컬에서도 `pnpm verify:automation`, `pnpm verify:standard`가 실행되도록 검증 러너를 복구한다.
+- 이슈 #158, #164 변경을 커밋하고 `develop` 대상 PR로 올린다.
 
 완료 조건
-- PR #135가 `develop_loop`에 병합되어 PR #155에 포함된다.
-- PR #155(`develop_loop -> develop`)의 GitHub checks가 통과하고 auto-merge가 설정된다.
-- Dependabot PR #138, #139, #140, #145, #148, #149, #150, #152, #153은 배치 반영 사실을 남기고 닫힌다.
-- ESLint 10 PR #151은 lint 호환성 보류 사유를 남기고 닫힌다.
-- 남은 차단 조건이 `STATE.md`와 `NEXT_PROMPT.md`에 한국어로 기록된다.
+- `/stocks/[symbol]` API 응답에 `chartOverlays`, `technicalMetrics`, `patternCards`가 포함된다.
+- 종목 상세 화면에서 이동평균선, 기술 지표 체크, 패턴 유사도 카드가 렌더링된다.
+- `pnpm verify:automation`과 `pnpm verify:standard`가 통과한다.
+- 브랜치 `issue/158-technical-indicators-patterns`가 원격에 push되고 `develop` 대상 PR이 생성된다.

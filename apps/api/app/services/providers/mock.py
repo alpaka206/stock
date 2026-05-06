@@ -464,6 +464,80 @@ class MockResearchProvider(ResearchProvider):
                         "enabled": True,
                     },
                 ],
+                "chartOverlays": [
+                    {
+                        "id": "ma5",
+                        "label": "MA 5",
+                        "tone": "positive",
+                        "enabled": True,
+                        "points": [
+                            {"date": "2026-02-26", "label": "02/26", "value": 852.7},
+                            {"date": "2026-03-05", "label": "03/05", "value": 854.0},
+                            {"date": "2026-03-13", "label": "03/13", "value": 870.7},
+                            {"date": "2026-03-21", "label": "03/21", "value": 890.0},
+                        ],
+                    },
+                    {
+                        "id": "ma20",
+                        "label": "MA 20",
+                        "tone": "neutral",
+                        "enabled": True,
+                        "points": [
+                            {"date": "2026-02-26", "label": "02/26", "value": 846.0},
+                            {"date": "2026-03-05", "label": "03/05", "value": 852.0},
+                            {"date": "2026-03-13", "label": "03/13", "value": 862.5},
+                            {"date": "2026-03-21", "label": "03/21", "value": 876.0},
+                        ],
+                    },
+                ],
+                "technicalMetrics": [
+                    {
+                        "id": "ma-alignment",
+                        "label": "이동평균 배열",
+                        "value": "정배열",
+                        "detail": "현재가가 MA5와 MA20 위에 있어 추세 지속 확인 구간입니다.",
+                        "tone": "positive",
+                        "sourceRefIds": ["mock-source"],
+                    },
+                    {
+                        "id": "rsi14",
+                        "label": "RSI 14",
+                        "value": "63.8",
+                        "detail": "중립 상단에서 추세와 거래량을 함께 확인합니다.",
+                        "tone": "neutral",
+                        "sourceRefIds": ["mock-source"],
+                    },
+                    {
+                        "id": "volume-ratio",
+                        "label": "거래량 배수",
+                        "value": "1.36x",
+                        "detail": "최근 거래량이 평균보다 높아 돌파 신뢰도를 보강합니다.",
+                        "tone": "positive",
+                        "sourceRefIds": ["mock-source"],
+                    },
+                ],
+                "patternCards": [
+                    {
+                        "id": "flat-base",
+                        "label": "Flat base",
+                        "similarity": 0.78,
+                        "stage": "상단 돌파 시도",
+                        "invalidation": "20일 저점 858 이탈",
+                        "summary": "최근 변동폭이 줄어든 뒤 이벤트와 함께 상단 확인 구간에 있습니다.",
+                        "tone": "positive",
+                        "sourceRefIds": ["mock-source"],
+                    },
+                    {
+                        "id": "ma-trend",
+                        "label": "MA trend",
+                        "similarity": 0.72,
+                        "stage": "추세 유지",
+                        "invalidation": "MA20 876 이탈",
+                        "summary": "현재가가 주요 이동평균 위에서 유지되는지 확인합니다.",
+                        "tone": "positive",
+                        "sourceRefIds": ["mock-source"],
+                    },
+                ],
                 "rulePresetDefinitions": [
                     {
                         "id": "support-hold",
@@ -558,6 +632,15 @@ class MockResearchProvider(ResearchProvider):
             }
         )
         payload["rulePresetDefinitions"] = [
+            {
+                "id": "ma-trend",
+                "label": "이동평균 추세",
+                "description": "MA 5/20/60/120 배열과 현재가 위치를 확인합니다.",
+                "enabledByDefault": True,
+                "tone": "positive",
+                "guideIds": ["ma5", "ma20", "ma60", "ma120"],
+                "controlsEventMarkers": False,
+            },
             {
                 "id": "support-hold",
                 "label": "지지선 유지",

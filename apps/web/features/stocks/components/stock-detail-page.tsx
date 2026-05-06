@@ -129,6 +129,9 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
   const visibleGuides = stock.indicatorGuides.filter(
     (guide) => guide.enabled !== false && visibleGuideIds.has(guide.id)
   );
+  const visibleOverlays = stock.chartOverlays.filter(
+    (overlay) => overlay.enabled !== false && visibleGuideIds.has(overlay.id)
+  );
   const direction =
     stock.changePercent > 0 ? "up" : stock.changePercent < 0 ? "down" : "flat";
   const symbolSnapshots = React.useMemo(
@@ -198,6 +201,7 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
             <ResearchLineChart
               points={stock.priceSeries}
               guides={visibleGuides}
+              overlays={visibleOverlays}
               markers={showEventMarkers ? stock.eventMarkers : []}
               activePointKey={showEventMarkers ? selectedMarker?.date : undefined}
               onPointSelect={(pointKey) => {
@@ -235,6 +239,55 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
                   </p>
                 </button>
               ))}
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+              <ResearchPanel
+                title="기술 지표 체크"
+                description="이동평균, 모멘텀, 거래량, 지지/저항을 실제 시계열로 계산합니다."
+                size="sm"
+              >
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {stock.technicalMetrics.map((metric) => (
+                    <Metric
+                      key={metric.id}
+                      label={metric.label}
+                      value={metric.value}
+                      detail={metric.detail}
+                    />
+                  ))}
+                </div>
+              </ResearchPanel>
+
+              <ResearchPanel
+                title="패턴 유사도"
+                description="현재 차트 구조와 가까운 패턴, 진행 단계, 무효화 조건입니다."
+                size="sm"
+              >
+                <div className="space-y-2">
+                  {stock.patternCards.slice(0, 3).map((pattern) => (
+                    <div
+                      key={pattern.id}
+                      className="rounded-[calc(var(--radius)*1.05)] border border-border/55 bg-background/25 px-3 py-3"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold tracking-tight">
+                          {pattern.label}
+                        </p>
+                        <span className="numeric text-xs font-semibold text-muted-foreground">
+                          {Math.round(pattern.similarity * 100)}%
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {pattern.stage} · 무효화: {pattern.invalidation}
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        {pattern.summary}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </ResearchPanel>
             </div>
           </div>
         </ResearchPanel>
@@ -593,6 +646,8 @@ function resolveRuleGuideIds(
   }
 
   switch (definition.id) {
+    case "ma-trend":
+      return ["ma5", "ma20", "ma60", "ma120"];
     case "support-hold":
       return ["support"];
     case "trend-base":
@@ -621,11 +676,22 @@ function parseIndicatorIds(value: string | null, fallback: string[]) {
   return parsed.length > 0 ? parsed : fallback;
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+}) {
   return (
     <div className="rounded-[calc(var(--radius)*1.05)] border border-border/55 bg-background/30 p-4">
       <p className={typographyTokens.eyebrow}>{label}</p>
       <p className="numeric mt-2 text-2xl font-semibold">{value}</p>
+      {detail ? (
+        <p className="mt-2 text-xs leading-5 text-muted-foreground">{detail}</p>
+      ) : null}
     </div>
   );
 }

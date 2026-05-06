@@ -16,8 +16,12 @@ from app.services.providers.base import ResearchProvider
 from app.services.research_metrics import (
     compute_stock_score,
     compute_watchlist_score,
+    gap_percent,
     identify_turning_points,
+    macd,
+    moving_average,
     percent_change,
+    rsi,
     simple_return,
     volatility,
     volume_ratio,
@@ -541,7 +545,7 @@ class RealResearchProvider(ResearchProvider):
             self._get_daily_series_with_backup(
                 field=f"stocks.series.{symbol}",
                 symbol=symbol,
-                limit=90,
+                limit=140,
                 missing_data=missing_data,
                 soft_timeout_seconds=self._provider_soft_timeout_seconds(),
             ),
@@ -585,6 +589,9 @@ class RealResearchProvider(ResearchProvider):
         price_series = self._build_price_series(series, limit=60)
         event_markers = self._build_stock_event_markers(symbol, news_items)
         indicator_guides = self._build_stock_indicator_guides(series)
+        chart_overlays = self._build_stock_chart_overlays(series, limit=60)
+        technical_metrics = self._build_stock_technical_metrics(series, series_ref["id"])
+        pattern_cards = self._build_stock_pattern_cards(series, series_ref["id"])
         rule_preset_definitions = self._build_stock_rule_preset_definitions()
         score_summary = self._build_stock_score_summary(score_model)
         issue_cards = self._build_stock_issue_cards(symbol, overview, news_items)
@@ -601,6 +608,8 @@ class RealResearchProvider(ResearchProvider):
                 "scoreSummary": score_summary,
                 "issueCards": issue_cards,
                 "indicatorGuides": indicator_guides,
+                "technicalMetrics": technical_metrics,
+                "patternCards": pattern_cards,
                 "relatedSymbols": related_symbols,
             },
             source_refs=source_refs,
@@ -617,6 +626,9 @@ class RealResearchProvider(ResearchProvider):
         payload["priceSeries"] = price_series
         payload["eventMarkers"] = event_markers
         payload["indicatorGuides"] = indicator_guides
+        payload["chartOverlays"] = chart_overlays
+        payload["technicalMetrics"] = technical_metrics
+        payload["patternCards"] = pattern_cards
         payload["rulePresetDefinitions"] = rule_preset_definitions
         payload["scoreSummary"] = score_summary
         payload["flowMetrics"] = []
@@ -981,8 +993,298 @@ class RealResearchProvider(ResearchProvider):
             },
         ]
 
+    def _build_stock_chart_overlays(
+        self, series: list[dict[str, Any]], limit: int
+    ) -> list[dict[str, Any]]:
+        chronological = list(reversed(series))
+        visible = chronological[-limit:]
+        visible_dates = {row["date"] for row in visible}
+        overlay_specs = [
+            (5, "MA 5", "positive"),
+            (10, "MA 10", "positive"),
+            (20, "MA 20", "neutral"),
+            (60, "MA 60", "neutral"),
+            (120, "MA 120", "negative"),
+        ]
+        overlays: list[dict[str, Any]] = []
+
+        for window, label, tone in overlay_specs:
+            if len(chronological) < window:
+                continue
+
+            points: list[dict[str, Any]] = []
+            for index, row in enumerate(chronological):
+                if index + 1 < window or row["date"] not in visible_dates:
+                    continue
+
+                window_rows = chronological[index - window + 1 : index + 1]
+                points.append(
+                    {
+                        "date": row["date"],
+                        "label": row["date"][5:].replace("-", "/"),
+                        "value": round(
+                            sum(float(item["close"]) for item in window_rows) / window,
+                            2,
+                        ),
+                    }
+                )
+
+            if len(points) >= 2:
+                overlays.append(
+                    {
+                        "id": f"ma{window}",
+                        "label": label,
+                        "tone": tone,
+                        "points": points,
+                        "enabled": window in {5, 20},
+                    }
+                )
+
+        return overlays
+
+    def _build_stock_technical_metrics(
+        self, series: list[dict[str, Any]], source_ref_id: str
+    ) -> list[dict[str, Any]]:
+        latest_close = float(series[0]["close"])
+        support = min(float(row["low"]) for row in series[:20])
+        resistance = max(float(row["high"]) for row in series[:20])
+        ma5 = moving_average(series, 5)
+        ma20 = moving_average(series, 20)
+        ma60 = moving_average(series, 60)
+        ma120 = moving_average(series, 120)
+        rsi14 = rsi(series, 14)
+        macd_pair = macd(series)
+        latest_gap = gap_percent(series)
+        volume_multiple = volume_ratio(series)
+
+        trend_detail = self._trend_alignment_detail(latest_close, ma5, ma20, ma60, ma120)
+        metrics = [
+            {
+                "id": "ma-alignment",
+                "label": "이동평균 배열",
+                "value": trend_detail["value"],
+                "detail": trend_detail["detail"],
+                "tone": trend_detail["tone"],
+                "sourceRefIds": [source_ref_id],
+            },
+            {
+                "id": "rsi14",
+                "label": "RSI 14",
+                "value": self._format_optional_number(rsi14, suffix=""),
+                "detail": self._rsi_detail(rsi14),
+                "tone": self._rsi_tone(rsi14),
+                "sourceRefIds": [source_ref_id],
+            },
+            {
+                "id": "macd",
+                "label": "MACD",
+                "value": (
+                    f"{macd_pair[0]:.2f} / {macd_pair[1]:.2f}"
+                    if macd_pair
+                    else "데이터 부족"
+                ),
+                "detail": self._macd_detail(macd_pair),
+                "tone": self._macd_tone(macd_pair),
+                "sourceRefIds": [source_ref_id],
+            },
+            {
+                "id": "volume-ratio",
+                "label": "거래량 배수",
+                "value": f"{volume_multiple:.2f}x",
+                "detail": "최근 거래량을 직전 20거래일 평균과 비교한 값입니다.",
+                "tone": "positive" if volume_multiple >= 1.4 else "neutral",
+                "sourceRefIds": [source_ref_id],
+            },
+            {
+                "id": "support-distance",
+                "label": "지지선 거리",
+                "value": f"{percent_change(latest_close, support):+.2f}%",
+                "detail": f"최근 20거래일 저점 {support:.2f} 대비 현재 종가 위치입니다.",
+                "tone": "positive" if latest_close >= support else "negative",
+                "sourceRefIds": [source_ref_id],
+            },
+            {
+                "id": "resistance-distance",
+                "label": "저항선 거리",
+                "value": f"{percent_change(latest_close, resistance):+.2f}%",
+                "detail": f"최근 20거래일 고점 {resistance:.2f} 대비 돌파 여지를 봅니다.",
+                "tone": "positive" if latest_close >= resistance else "neutral",
+                "sourceRefIds": [source_ref_id],
+            },
+        ]
+
+        if latest_gap is not None:
+            metrics.append(
+                {
+                    "id": "gap",
+                    "label": "갭",
+                    "value": f"{latest_gap:+.2f}%",
+                    "detail": "당일 시가와 전일 종가 사이의 갭입니다.",
+                    "tone": "positive" if latest_gap > 1 else "negative" if latest_gap < -1 else "neutral",
+                    "sourceRefIds": [source_ref_id],
+                }
+            )
+
+        return metrics
+
+    def _build_stock_pattern_cards(
+        self, series: list[dict[str, Any]], source_ref_id: str
+    ) -> list[dict[str, Any]]:
+        latest_close = float(series[0]["close"])
+        recent20 = series[:20]
+        recent60 = series[:60] if len(series) >= 60 else series
+        high20 = max(float(row["high"]) for row in recent20)
+        low20 = min(float(row["low"]) for row in recent20)
+        high60 = max(float(row["high"]) for row in recent60)
+        low60 = min(float(row["low"]) for row in recent60)
+        range20 = (high20 - low20) / latest_close if latest_close else 0
+        recovery_from_low60 = percent_change(latest_close, low60)
+        distance_from_high60 = percent_change(latest_close, high60)
+        ma20 = moving_average(series, 20)
+        ma60 = moving_average(series, 60)
+
+        cards = [
+            {
+                "id": "flat-base",
+                "label": "Flat base",
+                "similarity": round(max(0.35, min(0.92, 0.88 - range20 * 2)), 2),
+                "stage": "박스 상단 확인" if latest_close < high20 else "상단 돌파 시도",
+                "invalidation": f"20일 저점 {low20:.2f} 이탈",
+                "summary": "최근 20거래일 변동폭이 제한되며 박스권 압축이 진행되는지 확인합니다.",
+                "tone": "positive" if range20 <= 0.1 and (ma20 is None or latest_close >= ma20) else "neutral",
+                "sourceRefIds": [source_ref_id],
+            },
+            {
+                "id": "double-bottom",
+                "label": "Double bottom",
+                "similarity": round(max(0.25, min(0.86, recovery_from_low60 / 35)), 2),
+                "stage": "넥라인 회복 확인" if latest_close < high60 else "넥라인 돌파",
+                "invalidation": f"60일 저점 {low60:.2f} 재이탈",
+                "summary": "중기 저점 이후 회복 폭과 이전 고점 회복 여부를 함께 봅니다.",
+                "tone": "positive" if recovery_from_low60 >= 8 and distance_from_high60 > -8 else "neutral",
+                "sourceRefIds": [source_ref_id],
+            },
+            {
+                "id": "ma-trend",
+                "label": "MA trend",
+                "similarity": self._ma_trend_similarity(latest_close, ma20, ma60),
+                "stage": "추세 유지" if ma20 and latest_close >= ma20 else "추세 회복 확인",
+                "invalidation": f"MA20 {ma20:.2f} 이탈" if ma20 else "MA20 산출 데이터 부족",
+                "summary": "현재가가 중기 이동평균 위에서 유지되는지와 MA20/MA60 배열을 함께 확인합니다.",
+                "tone": "positive" if ma20 and latest_close >= ma20 and (not ma60 or ma20 >= ma60) else "neutral",
+                "sourceRefIds": [source_ref_id],
+            },
+        ]
+
+        return sorted(cards, key=lambda item: item["similarity"], reverse=True)
+
+    def _trend_alignment_detail(
+        self,
+        latest_close: float,
+        ma5: float | None,
+        ma20: float | None,
+        ma60: float | None,
+        ma120: float | None,
+    ) -> dict[str, str]:
+        available = [value for value in [ma5, ma20, ma60, ma120] if value is not None]
+        if len(available) < 2:
+            return {
+                "value": "데이터 부족",
+                "detail": "이동평균 배열을 판단할 만큼 긴 시계열이 아직 부족합니다.",
+                "tone": "neutral",
+            }
+
+        bullish = (
+            ma5 is not None
+            and ma20 is not None
+            and ma60 is not None
+            and latest_close >= ma5 >= ma20 >= ma60
+        )
+        bearish = (
+            ma5 is not None
+            and ma20 is not None
+            and ma60 is not None
+            and latest_close <= ma5 <= ma20 <= ma60
+        )
+
+        if bullish:
+            return {
+                "value": "정배열",
+                "detail": "현재가가 단기/중기 이동평균 위에 있어 추세 지속 확인 구간입니다.",
+                "tone": "positive",
+            }
+        if bearish:
+            return {
+                "value": "역배열",
+                "detail": "현재가가 주요 이동평균 아래에 있어 회복 확인이 먼저 필요합니다.",
+                "tone": "negative",
+            }
+
+        return {
+            "value": "혼합",
+            "detail": "이동평균 배열이 섞여 있어 지지선과 거래량 확인이 필요합니다.",
+            "tone": "neutral",
+        }
+
+    def _format_optional_number(self, value: float | None, *, suffix: str) -> str:
+        if value is None:
+            return "데이터 부족"
+        return f"{value:.1f}{suffix}"
+
+    def _rsi_detail(self, value: float | None) -> str:
+        if value is None:
+            return "RSI 계산에 필요한 14거래일 이상의 데이터가 부족합니다."
+        if value >= 70:
+            return "과열권에 가까워 추격보다 눌림 확인이 유리합니다."
+        if value <= 30:
+            return "침체권에 가까워 반등 시 거래량 동반 여부를 확인합니다."
+        return "중립권에서 추세 방향과 거래량을 함께 확인합니다."
+
+    def _rsi_tone(self, value: float | None) -> str:
+        if value is None:
+            return "neutral"
+        if value >= 70:
+            return "negative"
+        if value <= 30:
+            return "positive"
+        return "neutral"
+
+    def _macd_detail(self, value: tuple[float, float] | None) -> str:
+        if value is None:
+            return "MACD 계산에 필요한 35거래일 이상의 데이터가 부족합니다."
+        macd_line, signal_line = value
+        if macd_line >= signal_line:
+            return "MACD가 signal 위에 있어 단기 모멘텀은 우호적입니다."
+        return "MACD가 signal 아래에 있어 단기 모멘텀 회복 확인이 필요합니다."
+
+    def _macd_tone(self, value: tuple[float, float] | None) -> str:
+        if value is None:
+            return "neutral"
+        return "positive" if value[0] >= value[1] else "negative"
+
+    def _ma_trend_similarity(
+        self, latest_close: float, ma20: float | None, ma60: float | None
+    ) -> float:
+        if ma20 is None:
+            return 0.35
+        score = 0.55
+        if latest_close >= ma20:
+            score += 0.2
+        if ma60 is not None and ma20 >= ma60:
+            score += 0.15
+        return round(max(0.2, min(score, 0.92)), 2)
+
     def _build_stock_rule_preset_definitions(self) -> list[dict[str, Any]]:
         return [
+            {
+                "id": "ma-trend",
+                "label": "이동평균 추세",
+                "description": "MA 5/20/60/120 배열과 현재가 위치를 확인합니다.",
+                "enabledByDefault": True,
+                "tone": "positive",
+                "guideIds": ["ma5", "ma20", "ma60", "ma120"],
+                "controlsEventMarkers": False,
+            },
             {
                 "id": "support-hold",
                 "label": "지지선 유지",
@@ -1017,6 +1319,33 @@ class RealResearchProvider(ResearchProvider):
                 "enabledByDefault": True,
                 "tone": "positive",
                 "guideIds": ["relative-strength"],
+                "controlsEventMarkers": False,
+            },
+            {
+                "id": "momentum-rsi",
+                "label": "RSI 모멘텀",
+                "description": "RSI 14 기준 과열/침체와 추세 지속 여부를 확인합니다.",
+                "enabledByDefault": True,
+                "tone": "neutral",
+                "guideIds": [],
+                "controlsEventMarkers": False,
+            },
+            {
+                "id": "macd-cross",
+                "label": "MACD 교차",
+                "description": "MACD와 signal 간 위치로 단기 모멘텀 전환을 확인합니다.",
+                "enabledByDefault": False,
+                "tone": "neutral",
+                "guideIds": [],
+                "controlsEventMarkers": False,
+            },
+            {
+                "id": "pattern-similarity",
+                "label": "패턴 유사도",
+                "description": "Flat base, double bottom 등 현재 차트 구조와의 유사도를 확인합니다.",
+                "enabledByDefault": True,
+                "tone": "positive",
+                "guideIds": [],
                 "controlsEventMarkers": False,
             },
             {

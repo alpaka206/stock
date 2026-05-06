@@ -283,6 +283,20 @@ export type ChartGuide = {
   enabled?: boolean;
 };
 
+export type ChartOverlayPoint = {
+  label: string;
+  value: number;
+  date?: string;
+};
+
+export type ChartOverlay = {
+  id: string;
+  label: string;
+  tone: Tone;
+  points: ChartOverlayPoint[];
+  enabled?: boolean;
+};
+
 export type ChartMarker = {
   id: string;
   label: string;
@@ -349,6 +363,26 @@ export type StockScoreSummary = {
   breakdown: ScoreBreakdownItem[];
 };
 
+export type TechnicalMetric = {
+  id: string;
+  label: string;
+  value: string;
+  detail: string;
+  tone: Tone;
+  sourceRefIds?: string[];
+};
+
+export type PatternCard = {
+  id: string;
+  label: string;
+  similarity: number;
+  stage: string;
+  invalidation: string;
+  summary: string;
+  tone: Tone;
+  sourceRefIds?: string[];
+};
+
 export type StockRulePresetState = {
   presetId: string;
   indicatorIds: string[];
@@ -386,6 +420,9 @@ export type StockFixture = {
   priceSeries: PricePoint[];
   eventMarkers: ChartMarker[];
   indicatorGuides: ChartGuide[];
+  chartOverlays: ChartOverlay[];
+  technicalMetrics: TechnicalMetric[];
+  patternCards: PatternCard[];
   rulePresetDefinitions: IndicatorRuleDefinition[];
   scoreSummary: StockScoreSummary;
   flowMetrics: FlowItem[];
@@ -504,6 +541,9 @@ export type StockApiResponse = AnalysisEnvelope & {
   priceSeries: PricePoint[];
   eventMarkers: ChartMarker[];
   indicatorGuides: ChartGuide[];
+  chartOverlays: ChartOverlay[];
+  technicalMetrics: TechnicalMetric[];
+  patternCards: PatternCard[];
   rulePresetDefinitions: IndicatorRuleDefinition[];
   scoreSummary: StockScoreSummary;
   flowMetrics: FlowItem[];
