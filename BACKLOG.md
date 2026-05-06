@@ -3,12 +3,12 @@
 - [x] `RealResearchProvider`의 unreachable v1 code 제거
 - [x] PR #172 `refactor: stock history provider builder 분리` develop 병합
 - [x] PR #173 `docs: provider release 상태 정리` develop 병합
-- [x] `pnpm verify:release` 통과
 - [x] `develop -> main` 수동 merge PR #174 생성
 - [x] `develop -> main` PR 생성 사실 Discord 보고
-- [x] 배포 API 핵심 경로 release readiness 확인
 - [x] #175 종목 상세 API 버전 차이 fallback 보강
-- [ ] #175 PR checks 확인 후 develop 병합
-- [ ] release PR #174 최신화 후 checks 재확인
-- [ ] main 수동 merge 이후 배포 프런트 핵심 경로 재확인
+- [x] PR #176 `fix: 종목 상세 API fallback 보강` develop 병합
+- [x] release PR #174 최신화 후 checks 재확인
+- [x] `pnpm verify:release` 재통과
+- [ ] 사용자가 #174를 main에 수동 merge
+- [ ] main merge 이후 production 프런트 핵심 경로 재확인
 - [ ] provider TypedDict 또는 Pydantic DTO 범위를 overview/news/calendar로 확장
