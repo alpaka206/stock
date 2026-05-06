@@ -32,7 +32,7 @@ export function OverviewPage({ data }: OverviewPageProps) {
   const dataState = getDataState(data);
 
   return (
-    <div className={layoutTokens.page}>
+    <div className={layoutTokens.page} data-testid="overview-page">
       <section className={cn(surfaceStyles.panel, "overflow-hidden p-[var(--card-padding)]")}>
         <div className="grid gap-6 xl:grid-cols-[1.18fr_0.82fr]">
           <div className="min-w-0">

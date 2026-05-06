@@ -150,7 +150,7 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
   } as const;
 
   return (
-    <div className={layoutTokens.page}>
+    <div className={layoutTokens.page} data-testid="stock-detail-page">
       <div className="space-y-3">
         <p className={typographyTokens.eyebrow}>{stockMessages.eyebrow}</p>
         <DataSourceNotice source={stock.dataSource} className="max-w-2xl" />
@@ -199,6 +199,7 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
             <p className="text-sm leading-6 text-muted-foreground">{stock.thesis}</p>
 
             <ResearchLineChart
+              testId="stock-price-chart"
               points={stock.priceSeries}
               guides={visibleGuides}
               overlays={visibleOverlays}
@@ -247,14 +248,18 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
                 description="이동평균, 모멘텀, 거래량, 지지/저항을 실제 시계열로 계산합니다."
                 size="sm"
               >
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div
+                  className="grid gap-2 sm:grid-cols-2"
+                  data-testid="stock-technical-metrics"
+                >
                   {stock.technicalMetrics.map((metric) => (
-                    <Metric
-                      key={metric.id}
-                      label={metric.label}
-                      value={metric.value}
-                      detail={metric.detail}
-                    />
+                    <div key={metric.id} data-testid="stock-technical-metric">
+                      <Metric
+                        label={metric.label}
+                        value={metric.value}
+                        detail={metric.detail}
+                      />
+                    </div>
                   ))}
                 </div>
               </ResearchPanel>
@@ -264,10 +269,11 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
                 description="현재 차트 구조와 가까운 패턴, 진행 단계, 무효화 조건입니다."
                 size="sm"
               >
-                <div className="space-y-2">
+                <div className="space-y-2" data-testid="stock-pattern-cards">
                   {stock.patternCards.slice(0, 3).map((pattern) => (
                     <div
                       key={pattern.id}
+                      data-testid="stock-pattern-card"
                       className="rounded-[calc(var(--radius)*1.05)] border border-border/55 bg-background/25 px-3 py-3"
                     >
                       <div className="flex items-center justify-between gap-3">
