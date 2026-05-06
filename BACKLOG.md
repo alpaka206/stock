@@ -1,9 +1,11 @@
 - [x] Radar builder TypedDict와 순수 함수 모듈 추가
 - [x] `RealResearchProvider._get_radar_v2`에서 새 builder 함수 사용
 - [x] Radar builder 단위 smoke 테스트 추가
-- [x] 표준 API 검증 단계에 radar builders 테스트 포함
-- [x] PR #170 `refactor: 레이더 provider builder 타입 경계 분리` develop 병합
-- [ ] stock detail builder를 별도 모듈로 분리
-- [ ] history replay builder를 별도 모듈로 분리
-- [ ] `RealResearchProvider`의 unreachable v1 code 제거
+- [x] stock detail builder를 별도 모듈로 분리
+- [x] history replay builder를 별도 모듈로 분리
+- [x] `RealResearchProvider`의 unreachable v1 code 제거
+- [x] 표준 API 검증 단계에 radar/stock/history builder 테스트 포함
+- [ ] develop 대상 #160 PR 생성과 GitHub checks 확인
+- [ ] release 검증 후 `develop -> main` 수동 merge PR 생성
+- [ ] 배포 사이트 핵심 경로 직접 확인과 Discord 보고
 - [ ] provider TypedDict 또는 Pydantic DTO 범위를 overview/news/calendar로 확장

@@ -1,9 +1,10 @@
 현재 라운드 목표
-- #160 provider 리팩터링 진행 상태를 최신 `develop` 기준으로 정리한다.
-- 다음 구현 단위가 바로 이어질 수 있도록 문서의 완료/미완료 항목을 현재 사실과 맞춘다.
+- #160 provider 리팩터링 후속으로 stock detail/history replay builder를 별도 모듈로 분리한다.
+- `RealResearchProvider`에 남아 있던 도달 불가능한 v1 본문과 중복 fallback을 제거한다.
+- develop 반영 전 필수 검증 게이트를 통과시킨다.
 
 완료 조건
-- PR #170 병합과 GitHub checks 성공 사실이 `STATE.md`에 기록된다.
-- `BACKLOG.md`에는 바로 다음에 실행할 #160 후속 작업만 남는다.
-- `NEXT_PROMPT.md`에는 다음 세션에서 실행할 3~5개 액션만 남는다.
-- 한글 문서 품질 가드가 통과한다.
+- `stock_builders.py`, `history_builders.py`와 전용 smoke 테스트가 추가된다.
+- `RealResearchProvider`는 stock/history 화면 조립을 새 builder 함수로 위임한다.
+- `pnpm verify:automation`과 `pnpm verify:standard`가 통과한다.
+- develop 대상 PR을 생성하고 checks를 확인한다.
