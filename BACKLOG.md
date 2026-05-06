@@ -1,12 +1,13 @@
-- [x] Playwright 의존성과 `test:e2e` 스크립트 추가
-- [x] 핵심 화면별 안정적인 `data-testid` 추가
-- [x] `/overview`, `/radar`, `/stocks/NVDA`, `/history?symbol=NVDA` 렌더링 검증 작성
-- [x] Radar 검색 후 종목 상세 이동 시나리오 작성
-- [x] 종목 상세 차트, 기술지표, 패턴 카드 검증 작성
-- [x] 히스토리 차트와 이벤트 선택 검증 작성
-- [x] Radar preset 날짜 hydration mismatch 해결
+- [x] API 스냅샷 Pydantic schema 추가
+- [x] 파일 기반 `ResearchSnapshotStore` 추가
+- [x] `/snapshots` GET/POST/DELETE 라우터 추가
+- [x] Next `/api/research-snapshots` 프록시 라우트 추가
+- [x] `useResearchSnapshots`를 API 동기화와 localStorage fallback 구조로 확장
+- [x] 종목 상세 스냅샷 입력/저장 test id 추가
+- [x] API smoke에 스냅샷 생성, 조회, 삭제 검증 추가
+- [x] E2E에 스냅샷 저장 후 히스토리 재확인 시나리오 추가
 - [x] `pnpm test:e2e -- --project=chromium` 통과
 - [x] `pnpm verify:automation` 통과
 - [x] `pnpm verify:standard` 통과
 - [ ] 커밋, push, `develop` 대상 PR 생성
-- [ ] 다음 이슈 브랜치에서 리서치 스냅샷 영속 저장소 구현
+- [ ] 다음 이슈 브랜치에서 공시 데이터 소스 확장

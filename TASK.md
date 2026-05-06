@@ -1,10 +1,10 @@
 현재 라운드 목표
-- 이슈 #159 기준으로 핵심 화면 `/overview`, `/radar`, `/stocks/[symbol]`, `/history`의 브라우저 E2E 검증을 추가한다.
-- E2E 실행 중 발견된 hydration mismatch를 같은 브랜치에서 복구한다.
+- 이슈 #161 기준으로 리서치 스냅샷을 localStorage 전용에서 API 동기화 가능한 영속 저장 흐름으로 확장한다.
+- 저장, 조회, 삭제가 API smoke와 브라우저 E2E에서 관측되도록 검증을 추가한다.
 - 변경사항을 커밋하고 `develop` 대상 PR로 올린다.
 
 완료 조건
-- `pnpm test:e2e -- --project=chromium`이 7개 시나리오 모두 통과한다.
-- `pnpm verify:automation`과 `pnpm verify:standard`가 통과한다.
-- Radar preset 날짜가 서버와 브라우저에서 같은 문자열로 렌더링된다.
-- 브랜치 `issue/159-core-pages-e2e`가 원격에 push되고 `develop` 대상 PR이 생성된다.
+- API `/snapshots` GET/POST/DELETE가 동작한다.
+- 웹 `/api/research-snapshots` 프록시가 backend snapshots API와 연결된다.
+- 종목 상세에서 저장한 스냅샷이 히스토리 화면에서 다시 보인다.
+- `pnpm test:e2e -- --project=chromium`, `pnpm verify:automation`, `pnpm verify:standard`가 통과한다.

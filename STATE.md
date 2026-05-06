@@ -1,23 +1,24 @@
 현재 사실
-- `develop` 최신 커밋 `97f9f87` 기준으로 브랜치 `issue/159-core-pages-e2e`에서 작업 중이다.
-- 루트에 Playwright 설정과 `tests/e2e/core-pages.spec.ts`가 추가되었다.
-- E2E는 API가 없어도 fixture fallback으로 핵심 화면을 검증하도록 `STOCK_API_BASE_URL`을 비우고 `RESEARCH_ALLOW_FIXTURE_FALLBACK=true`로 dev server를 띄운다.
-- `/overview`, `/radar`, `/stocks/NVDA`, `/history?symbol=NVDA`에 안정적인 E2E 테스트 훅을 추가했다.
-- Radar preset 날짜 포맷은 `Intl.DateTimeFormat` 대신 ISO 문자열 기반 고정 포맷을 사용해 서버/브라우저 hydration mismatch를 제거했다.
+- `develop` 최신 커밋 `4d68325` 기준으로 브랜치 `issue/161-research-snapshot-persistence`에서 작업 중이다.
+- API에 `/snapshots` GET/POST/DELETE가 추가되었고 기본 저장 위치는 `.omx/runtime/research_snapshots.json`이다.
+- `RESEARCH_SNAPSHOT_STORE_PATH`로 저장 파일 경로를 바꿀 수 있어 smoke 검증은 `.omx/tmp/api_smoke_snapshots.json`을 사용한다.
+- 웹은 `/api/research-snapshots` 프록시를 통해 backend snapshots API와 동기화하고, API가 없거나 실패해도 기존 localStorage 저장 흐름을 유지한다.
+- 종목 상세에서 저장한 스냅샷은 같은 브라우저 세션의 히스토리 화면에서 재확인된다.
 
 최근 검증 결과
-- `pnpm test:e2e -- --project=chromium`: 7개 시나리오 통과.
+- `pnpm smoke:api`: `/snapshots` GET, POST, symbol filter GET, DELETE 통과.
+- `pnpm test:e2e -- --project=chromium`: 8개 시나리오 통과.
 - `pnpm verify:automation`: 통과.
 - `pnpm verify:standard`: 통과.
-- 표준 검증 안에서 text quality, automation, web lint, web typecheck, web build, contract parity, API py_compile, API smoke가 모두 통과했다.
+- 표준 검증 안에서 web lint, typecheck, build, contract parity, API py_compile, API smoke가 모두 통과했다.
 
 남은 리스크
-- E2E는 현재 Chromium desktop 단일 프로젝트이며 모바일 viewport와 접근성 검증은 아직 없다.
-- Playwright 테스트는 fixture fallback 흐름을 사용하므로 실제 배포 API 연결 검증은 release 검증에서 별도로 수행해야 한다.
-- Next dev server가 route transition 중 `scroll-behavior: smooth` 경고를 출력하지만 테스트 실패 조건은 아니다.
+- 현재 API 저장소는 단일 JSON 파일 기반이라 다중 사용자 동시 편집과 장기 백업 전략은 제한적이다.
+- 인증이 없으므로 배포 공개 환경에서는 사용자별 스냅샷 분리나 보호가 필요하다.
+- 실제 배포 API 저장 경로는 호스팅 환경의 쓰기 가능 파일시스템 여부를 확인해야 한다.
 
 다음 우선순위
-- 현재 변경사항을 `test: 핵심 화면 E2E 검증 추가` 커밋으로 정리한다.
+- 현재 변경사항을 `feat: 리서치 스냅샷 영속 저장소 구현` 커밋으로 정리한다.
 - 브랜치를 원격에 push하고 `develop` 대상 PR을 생성한다.
 - PR checks 통과 후 auto-merge를 설정한다.
-- 다음 브랜치에서는 이슈 #161 리서치 스냅샷 영속 저장소를 구현한다.
+- 다음 브랜치에서는 이슈 #162 한국/미국 공시 데이터 소스 확장을 진행한다.
