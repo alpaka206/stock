@@ -29,6 +29,7 @@ PY_COMPILE_TARGETS = [
     "apps/api/app/services/clients/alpha_vantage.py",
     "apps/api/app/services/clients/open_dart.py",
     "apps/api/app/services/clients/openai_responses.py",
+    "apps/api/app/services/clients/sec_filings.py",
     "apps/api/app/services/clients/gemini_responses.py",
     "apps/api/app/services/clients/summary_router.py",
     "apps/api/app/services/clients/yahoo_market.py",
@@ -71,6 +72,7 @@ STEP_GROUPS = {
     "api": [
         {"name": "contract parity", "command": python_command("scripts/check_contract_parity.py")},
         {"name": "alpha vantage cache key", "command": python_command("scripts/test_alpha_vantage_cache_key.py")},
+        {"name": "sec filings client", "command": python_command("scripts/test_sec_filings_client.py")},
         {
             "name": "api py_compile",
             "command": python_command("-m", "py_compile", *PY_COMPILE_TARGETS),
