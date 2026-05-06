@@ -45,6 +45,20 @@ test.describe("core stock workspace pages", () => {
     expect(patternCardCount).toBeGreaterThan(0);
   });
 
+  test("research snapshot can be saved and reviewed from history", async ({
+    page,
+  }) => {
+    const note = "E2E snapshot note for NVDA";
+
+    await page.goto("/stocks/NVDA");
+    await page.getByTestId("stock-snapshot-note").fill(note);
+    await page.getByTestId("stock-save-snapshot").click();
+    await expect(page.getByText(note)).toBeVisible();
+
+    await page.goto("/history?symbol=NVDA");
+    await expect(page.getByText(note)).toBeVisible();
+  });
+
   test("history replay shows chart and selectable events", async ({ page }) => {
     await page.goto("/history?symbol=NVDA");
 
