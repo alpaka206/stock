@@ -469,6 +469,7 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
               </div>
 
               <textarea
+                data-testid="stock-snapshot-note"
                 value={snapshotNote}
                 onChange={(event) => setSnapshotNote(event.target.value)}
                 placeholder={stockMessages.snapshotNotePlaceholder}
@@ -491,6 +492,7 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
                   <Button
                     type="button"
                     size="sm"
+                    data-testid="stock-save-snapshot"
                     disabled={!canSaveSnapshot}
                     onClick={() => {
                       const trimmedNote = snapshotNote.trim();
