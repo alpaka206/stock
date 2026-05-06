@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from app.schemas.common import AnalysisEnvelope, SourcedText
@@ -74,6 +76,26 @@ class TopPickItem(BaseModel):
     sourceRefIds: list[str] = Field(default_factory=list)
 
 
+class RadarAlertRule(BaseModel):
+    id: str
+    label: str
+    description: str
+    severity: Literal["info", "watch", "critical"]
+    enabledByDefault: bool
+
+
+class RadarDetectedAlert(BaseModel):
+    id: str
+    ruleId: str
+    symbol: str
+    title: str
+    summary: str
+    severity: Literal["info", "watch", "critical"]
+    tone: Literal["positive", "negative", "neutral"]
+    triggeredAt: str
+    sourceRefIds: list[str] = Field(default_factory=list)
+
+
 class RadarResponse(AnalysisEnvelope):
     selectedSectorSummary: SourcedText
     folderTree: list[FolderNode]
@@ -83,3 +105,5 @@ class RadarResponse(AnalysisEnvelope):
     keySchedule: list[KeyScheduleItem]
     keyIssues: list[KeyIssueItem]
     topPicks: list[TopPickItem]
+    alertRules: list[RadarAlertRule]
+    detectedAlerts: list[RadarDetectedAlert]

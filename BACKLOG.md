@@ -1,12 +1,13 @@
-- [x] SEC CIK 설정과 User-Agent 환경값 추가
-- [x] SEC submissions recent filings client 추가
-- [x] SEC client 파싱 smoke 테스트 추가
-- [x] real provider `/news`에 SEC filings 병합
-- [x] real provider `/calendar`에 SEC filing disclosure 이벤트 병합
-- [x] mock provider에 SEC filing 예시 추가
-- [x] API README와 `.env.example` 데이터 소스 문서 갱신
+- [x] Radar 알림 규칙/감지 결과 타입 계약 추가
+- [x] API Radar schema와 JSON schema 계약 갱신
+- [x] real provider에서 고확신 모멘텀, 거래량 급증, 리스크 반전 감지 생성
+- [x] mock provider와 web fixture에 알림 예시 추가
+- [x] `/radar` 우측 패널에 조건 감지 알림 카드 표시
+- [x] E2E에서 알림 패널 노출 검증 추가
+- [x] `pnpm smoke:api` 통과
 - [x] `pnpm test:e2e -- --project=chromium` 통과
-- [x] `pnpm verify:automation` 통과
 - [x] `pnpm verify:standard` 통과
-- [ ] 커밋, push, `develop` 대상 PR 생성
-- [ ] 다음 이슈 브랜치에서 관심종목 알림과 조건 감지 워크플로 구현
+- [x] `pnpm verify:automation` 통과
+- [ ] 변경사항 커밋
+- [ ] 원격 브랜치 push
+- [ ] `develop` 대상 PR 생성 및 체크 확인

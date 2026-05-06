@@ -1,4 +1,5 @@
-1. PR checks가 모두 통과했는지 확인하고 실패가 있으면 같은 브랜치와 같은 PR에 수정 커밋을 올린다.
-2. PR이 `develop`에 병합되면 `develop`을 최신화한 뒤 이슈 #163용 새 브랜치를 만든다.
-3. 관심종목 알림 조건 모델과 조건 감지 API를 설계한다.
-4. 기술지표, 이벤트, 공시 기반 조건 감지 결과를 `/radar`와 `/stocks/[symbol]`에 노출한다.
+1. `git status`로 작업트리를 확인하고 현재 변경사항을 커밋한다.
+2. `issue/163-alert-condition-workflow`를 원격에 push한다.
+3. `develop` 대상 PR을 만들고 검증 명령 결과를 PR 본문에 남긴다.
+4. PR checks를 확인한 뒤 통과 시 auto-merge를 설정한다.
+5. 병합 후 `develop`으로 돌아와 최신 상태를 pull한다.

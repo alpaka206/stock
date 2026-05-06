@@ -28,6 +28,7 @@ import { formatPrice, formatSignedPercent } from "@/lib/format";
 import { useStoredPresets } from "@/lib/client/use-stored-presets";
 import { useDebouncedValue, useUrlState } from "@/lib/client/use-url-state";
 import type {
+  RadarDetectedAlert,
   RadarColumnKey,
   RadarFixture,
   RadarGroupMode,
@@ -198,6 +199,17 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
     (issue) => !issue.sector || issue.sector === activeSector
   );
   const selectedTopPicks = filterBySector(workspace.topPicks, activeSector);
+  const activeAlertRuleCount = workspace.alertRules.filter(
+    (rule) => rule.enabledByDefault
+  ).length;
+  const selectedAlertSymbol = selectedRow?.symbol;
+  const symbolAlerts = selectedAlertSymbol
+    ? workspace.detectedAlerts.filter((alert) => alert.symbol === selectedAlertSymbol)
+    : [];
+  const visibleAlerts = (symbolAlerts.length > 0
+    ? symbolAlerts
+    : workspace.detectedAlerts
+  ).slice(0, 4);
   const selectedPreset = presets.find(
     (preset) => preset.id === searchParams.get("preset")
   );
@@ -643,6 +655,27 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
             </ResearchPanel>
           ) : null}
 
+          <ResearchPanel
+            title="조건 감지 알림"
+            description={`${activeAlertRuleCount}개 활성 규칙으로 우선 확인 신호를 정리합니다.`}
+          >
+            <div className="space-y-3" data-testid="radar-alert-panel">
+              {visibleAlerts.length > 0 ? (
+                visibleAlerts.map((alert) => (
+                  <AlertCard
+                    key={alert.id}
+                    alert={alert}
+                    ruleLabel={getAlertRuleLabel(workspace, alert.ruleId)}
+                  />
+                ))
+              ) : (
+                <p className="text-sm leading-6 text-muted-foreground">
+                  현재 조건에 걸린 관심종목 알림이 없습니다.
+                </p>
+              )}
+            </div>
+          </ResearchPanel>
+
           <SectorSummaryPanel
             title="선택 섹터 요약"
             description={`${activeSector || "섹터 미선택"} 기준으로 우측 컨텍스트를 갱신한다.`}
@@ -883,6 +916,93 @@ function filterBySector<TItem extends { sector?: string }>(
 ) {
   const filtered = items.filter((item) => !item.sector || item.sector === sector);
   return filtered.length > 0 ? filtered : items;
+}
+
+function getAlertRuleLabel(workspace: RadarFixture, ruleId: string) {
+  return workspace.alertRules.find((rule) => rule.id === ruleId)?.label;
+}
+
+function AlertCard({
+  alert,
+  ruleLabel,
+}: {
+  alert: RadarDetectedAlert;
+  ruleLabel?: string;
+}) {
+  return (
+    <Link
+      href={`/stocks/${alert.symbol}`}
+      data-testid="radar-alert-card"
+      className={cn(
+        "block rounded-[calc(var(--radius)*1.05)] border bg-background/30 p-3 transition-colors hover:bg-muted/60",
+        getAlertBorderClassName(alert.severity)
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold tracking-tight">{alert.title}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {ruleLabel ?? alert.ruleId} · {formatAlertTriggeredAt(alert.triggeredAt)}
+          </p>
+        </div>
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-2 py-0.5 text-[0.68rem] font-semibold",
+            getAlertPillClassName(alert.severity)
+          )}
+        >
+          {getAlertSeverityLabel(alert.severity)}
+        </span>
+      </div>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{alert.summary}</p>
+    </Link>
+  );
+}
+
+function getAlertSeverityLabel(severity: RadarDetectedAlert["severity"]) {
+  if (severity === "critical") {
+    return "주의";
+  }
+
+  if (severity === "watch") {
+    return "관찰";
+  }
+
+  return "정보";
+}
+
+function getAlertBorderClassName(severity: RadarDetectedAlert["severity"]) {
+  if (severity === "critical") {
+    return "border-[color:color-mix(in_oklch,var(--negative)_28%,var(--border))]";
+  }
+
+  if (severity === "watch") {
+    return "border-[color:color-mix(in_oklch,var(--primary)_28%,var(--border))]";
+  }
+
+  return "border-border/55";
+}
+
+function getAlertPillClassName(severity: RadarDetectedAlert["severity"]) {
+  if (severity === "critical") {
+    return "bg-[color:color-mix(in_oklch,var(--negative)_16%,transparent)] text-[var(--negative)]";
+  }
+
+  if (severity === "watch") {
+    return "bg-primary/10 text-primary";
+  }
+
+  return "bg-muted text-muted-foreground";
+}
+
+function formatAlertTriggeredAt(value: string) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+
+  if (!match) {
+    return value;
+  }
+
+  return `${match[2]}. ${match[3]}. ${match[4]}:${match[5]}`;
 }
 
 function applyPreset({

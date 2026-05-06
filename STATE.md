@@ -1,26 +1,26 @@
 현재 사실
-- `develop` 최신 커밋 `019b4e4` 기준으로 브랜치 `issue/162-disclosure-sources`에서 작업 중이다.
-- `SecFilingsClient`가 `https://data.sec.gov/submissions/CIK##########.json`에서 최근 filings를 읽고 주요 form만 추린다.
-- 기본 CIK 매핑은 NVDA, AMD, AVGO, MSFT, CRWD를 포함하며 `SEC_SYMBOL_CIKS`로 바꿀 수 있다.
-- SEC 요청 User-Agent는 `SEC_USER_AGENT`로 설정하며 기본값은 개발용 contact 문자열이다.
-- `/news`는 기존 해외 뉴스 뒤에 SEC filing 카드를 글로벌 feed로 병합한다.
-- `/calendar`는 IPO 이벤트와 SEC filing 이벤트를 함께 market events로 제공한다.
+- 현재 브랜치는 `issue/163-alert-condition-workflow`이며 기준 브랜치는 최신 `develop`이다.
+- Radar 계약에 `alertRules`, `detectedAlerts`를 추가했다.
+- real provider는 관심종목 row의 점수, 당일 등락률, 거래량 배수를 기준으로 세 가지 조건 감지 알림을 생성한다.
+- mock provider와 web fixture에도 같은 알림 규칙과 예시 감지 결과를 추가했다.
+- `/radar` 우측 컨텍스트에 조건 감지 알림 패널을 추가했고, 선택 종목 알림이 있으면 해당 종목 기준으로 먼저 표시한다.
+- JSON schema 계약을 `packages/contracts/schemas/radar.schema.json`과 `apps/api/prompts/radar/output.schema.json`에 함께 반영했다.
 
 최근 검증 결과
-- `node scripts/run-python.mjs scripts/test_sec_filings_client.py`: 통과.
-- `pnpm smoke:api`: 통과.
+- `pnpm --dir apps/web typecheck`: 통과.
+- `pnpm smoke:api`: 최초 1회는 JSON schema에 신규 필드가 없어 `/radar` 502 실패, schema 갱신 후 통과.
 - `pnpm test:e2e -- --project=chromium`: 8개 시나리오 통과.
-- `pnpm verify:automation`: 통과.
+- `pnpm lint:web`: React Compiler memoization lint 수정 후 통과.
 - `pnpm verify:standard`: 통과.
-- 표준 검증 안에서 SEC filings client, API py_compile, API smoke가 모두 통과했다.
+- `pnpm verify:automation`: 통과.
 
 남은 리스크
-- SEC CIK 매핑은 현재 watchlist 기본 종목 중심의 정적 매핑이다.
-- SEC API는 User-Agent 정책을 요구하므로 배포 환경에서는 실제 연락 가능한 값을 설정해야 한다.
-- `/stocks/[symbol]` 상세 화면의 개별 filing 카드까지는 아직 확장하지 않았다.
+- 현재 감지 규칙은 서버 계산 기반의 기본 규칙이며 사용자별 임계값 저장 UI는 아직 없다.
+- 알림 결과는 `/radar` 표시까지 연결됐지만 별도 알림 히스토리 저장소나 Discord/브라우저 알림 전송은 아직 없다.
+- 조건 감지 기준은 종가 기반 일별 데이터에 의존하므로 실시간 장중 알림으로 보려면 별도 quote/streaming 데이터 소스가 필요하다.
 
 다음 우선순위
-- 현재 변경사항을 `feat: 미국 SEC 공시 데이터 소스 추가` 커밋으로 정리한다.
-- 브랜치를 원격에 push하고 `develop` 대상 PR을 생성한다.
-- PR checks 통과 후 auto-merge를 설정한다.
-- 다음 브랜치에서는 이슈 #163 관심종목 알림과 조건 감지 워크플로를 구현한다.
+- 현재 변경사항을 `feat: 관심종목 조건 감지 알림 구현` 커밋으로 정리한다.
+- 원격 브랜치에 push하고 `develop` 대상 PR을 생성한다.
+- PR checks가 통과하면 auto-merge를 설정한다.
+- 병합 후 `develop` 최신화를 거쳐 다음 기능 이슈로 진행한다.

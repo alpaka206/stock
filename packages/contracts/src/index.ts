@@ -251,6 +251,28 @@ export type TopPickItem = {
   sourceRefIds?: string[];
 };
 
+export type RadarAlertSeverity = "info" | "watch" | "critical";
+
+export type RadarAlertRule = {
+  id: string;
+  label: string;
+  description: string;
+  severity: RadarAlertSeverity;
+  enabledByDefault: boolean;
+};
+
+export type RadarDetectedAlert = {
+  id: string;
+  ruleId: string;
+  symbol: string;
+  title: string;
+  summary: string;
+  severity: RadarAlertSeverity;
+  tone: Tone;
+  triggeredAt: string;
+  sourceRefIds?: string[];
+};
+
 export type RadarFixture = {
   folders: WatchlistFolderNode[];
   rows: WatchlistRow[];
@@ -259,6 +281,8 @@ export type RadarFixture = {
   issues: NewsItem[];
   reports: BrokerReportItem[];
   topPicks: TopPickItem[];
+  alertRules: RadarAlertRule[];
+  detectedAlerts: RadarDetectedAlert[];
   defaultVisibleColumns: RadarColumnKey[];
   defaultViewMode: RadarViewMode;
   defaultGroupMode: RadarGroupMode;
@@ -544,6 +568,8 @@ export type RadarApiResponse = AnalysisEnvelope & {
     sourceRefIds: string[];
   }>;
   topPicks: Array<TopPickItem & { sector: string; sourceRefIds: string[] }>;
+  alertRules: RadarAlertRule[];
+  detectedAlerts: Array<RadarDetectedAlert & { sourceRefIds: string[] }>;
 };
 
 export type StockApiResponse = AnalysisEnvelope & {
