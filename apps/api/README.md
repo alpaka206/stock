@@ -12,6 +12,7 @@ Main routes:
 Auxiliary routes:
 - `/news`
 - `/calendar`
+- `/instruments/search?q=<query>`
 
 Operational routes:
 - `/health`

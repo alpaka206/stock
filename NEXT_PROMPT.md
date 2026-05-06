@@ -1,4 +1,5 @@
-﻿1. `apps/web/lib/server/research-api.ts`에서 `[::1]` 을 local hostname 으로 인식하도록 최소 수정한다.
-2. `[::1]` 케이스를 재현하는 회귀 테스트 1건을 추가하고 기존 검증 명령에 연결한다.
-3. `pnpm lint:web` 와 관련 테스트/타입체크를 실행해 #134 범위만 회귀 여부를 확인한다.
-4. 검증이 끝나면 `issue/134-research-api-ipv6-loopback -> develop_loop` PR을 만든다.
+1. 이슈 브랜치를 push하고 `develop_loop` 대상 PR을 생성한다.
+2. PR 체크가 끝나면 실패 여부를 확인하고 필요한 수정은 같은 브랜치에 반영한다.
+3. Dependabot PR들은 배치 반영 또는 ESLint 10 보류 사유를 코멘트한 뒤 정리한다.
+4. `develop_loop -> develop` PR 생성 또는 기존 흐름 정리까지 진행한다.
+5. `develop` 반영 후 release PR 필요 여부를 확인한다.

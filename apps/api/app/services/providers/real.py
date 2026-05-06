@@ -59,6 +59,50 @@ class RealResearchProvider(ResearchProvider):
             timeout_seconds=settings.request_timeout_seconds,
         )
 
+    async def search_instruments(
+        self, *, query: str, limit: int = 6
+    ) -> list[dict[str, Any]]:
+        normalized_query = query.strip()
+        if not normalized_query:
+            return []
+
+        items = await self.yahoo_market.search_instruments(normalized_query, limit=limit)
+        if items:
+            return items[:limit]
+
+        if normalized_query.isdigit() and len(normalized_query) == 6:
+            fallback_items: list[dict[str, Any]] = []
+            for suffix, exchange in ((".KS", "KRX"), (".KQ", "KOSDAQ")):
+                candidate_symbol = f"{normalized_query}{suffix}"
+                try:
+                    overview = await self.yahoo_market.get_company_overview(candidate_symbol)
+                except ExternalServiceError:
+                    continue
+
+                fallback_items.append(
+                    {
+                        "symbol": candidate_symbol,
+                        "name": overview.get("name", candidate_symbol),
+                        "securityCode": normalized_query,
+                        "aliases": [overview.get("name", candidate_symbol)],
+                        "sector": overview.get("sector", "미분류"),
+                        "exchange": overview.get("exchange", exchange) or exchange,
+                    }
+                )
+
+            deduped: list[dict[str, Any]] = []
+            seen_symbols: set[str] = set()
+            for item in fallback_items:
+                symbol = str(item.get("symbol", "")).upper()
+                if not symbol or symbol in seen_symbols:
+                    continue
+                seen_symbols.add(symbol)
+                deduped.append(item)
+
+            return deduped[:limit]
+
+        return []
+
     async def get_overview(self, *, prompt_bundle: PromptBundle) -> dict[str, Any]:
         source_refs: list[dict[str, Any]] = []
         missing_data: list[dict[str, str]] = []

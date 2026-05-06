@@ -21,6 +21,8 @@ PY_COMPILE_TARGETS = [
     "apps/api/app/schemas/history.py",
     "apps/api/app/schemas/news.py",
     "apps/api/app/schemas/calendar.py",
+    "apps/api/app/schemas/search.py",
+    "apps/api/app/routers/instruments.py",
     "apps/api/app/services/clients/alpha_vantage.py",
     "apps/api/app/services/clients/open_dart.py",
     "apps/api/app/services/clients/openai_responses.py",

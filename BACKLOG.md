@@ -1,5 +1,10 @@
-﻿- [x] `origin/develop_loop@33ba7b8` 기준 #134 전용 issue 브랜치 생성
-- [ ] `isLocalResearchApiUrl` 에 bracketed IPv6 loopback (`[::1]`) local 판정 추가
-- [ ] `[::1]` 케이스 회귀 테스트 1건 추가
-- [ ] 최소 검증 실행 및 결과 기록
-- [ ] `issue/134-research-api-ipv6-loopback -> develop_loop` PR 생성
+- [x] 현재 브랜치와 원격 `develop_loop`, `develop` 상태 확인
+- [x] Dependabot 실패 PR 목록과 공통 실패 원인 확인
+- [x] 웹 의존성 업데이트와 `pnpm-lock.yaml` 갱신
+- [x] `postcss`, `ip-address` 보안 경고 override 적용
+- [x] 검색 API와 i18n 문자열 깨짐 수정
+- [x] 웹 lint / typecheck / build / npm audit 실행
+- [x] 변경사항 커밋 후 `origin/develop_loop` 기준으로 rebase
+- [ ] 이슈 브랜치 PR을 `develop_loop` 대상으로 생성
+- [ ] `develop_loop -> develop` PR 또는 병합 경로 정리
+- [ ] 호환 불가 Dependabot PR #151을 보류/종료 사유와 함께 정리
