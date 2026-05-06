@@ -70,7 +70,7 @@ export function HistoryPage({ history }: HistoryPageProps) {
   );
 
   return (
-    <div className={layoutTokens.page}>
+    <div className={layoutTokens.page} data-testid="history-page">
       <ResearchPanel
         title="히스토리 / 이벤트 리플레이"
         description="종목과 날짜 범위를 바꾸면서 과거 급등·급락 이유를 차트 중심으로 다시 읽습니다."
@@ -192,6 +192,7 @@ export function HistoryPage({ history }: HistoryPageProps) {
             </div>
 
             <ResearchLineChart
+              testId="history-price-chart"
               points={history.priceSeries}
               markers={history.eventMarkers}
               activePointKey={selectedEvent?.date}

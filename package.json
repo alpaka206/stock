@@ -8,6 +8,7 @@
     "build:web": "pnpm --dir apps/web build",
     "lint:web": "pnpm --dir apps/web lint",
     "typecheck:web": "pnpm --dir apps/web typecheck",
+    "test:e2e": "playwright test",
     "dev:api": "node scripts/run-python.mjs -m uvicorn app.main:app --reload --app-dir apps/api",
     "check:contracts": "node scripts/run-python.mjs scripts/check_contract_parity.py",
     "smoke:api": "node scripts/run-python.mjs scripts/api_smoke.py",
@@ -29,5 +30,8 @@
       "postcss": "8.5.14",
       "ip-address": "10.2.0"
     }
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
   }
 }

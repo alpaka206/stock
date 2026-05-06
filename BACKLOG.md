@@ -1,9 +1,12 @@
-- [x] `develop` 최신화와 기능/품질 이슈 생성
-- [x] 기술지표, 패턴 분석, 차트 보조선 계약 추가
-- [x] API real/mock provider에 기술지표와 패턴 분석 payload 연결
-- [x] 종목 상세 화면에 이동평균선, 기술 지표, 패턴 카드 UI 연결
-- [x] Windows 표준 검증 Python 실행 경로 복구
+- [x] Playwright 의존성과 `test:e2e` 스크립트 추가
+- [x] 핵심 화면별 안정적인 `data-testid` 추가
+- [x] `/overview`, `/radar`, `/stocks/NVDA`, `/history?symbol=NVDA` 렌더링 검증 작성
+- [x] Radar 검색 후 종목 상세 이동 시나리오 작성
+- [x] 종목 상세 차트, 기술지표, 패턴 카드 검증 작성
+- [x] 히스토리 차트와 이벤트 선택 검증 작성
+- [x] Radar preset 날짜 hydration mismatch 해결
+- [x] `pnpm test:e2e -- --project=chromium` 통과
 - [x] `pnpm verify:automation` 통과
 - [x] `pnpm verify:standard` 통과
 - [ ] 커밋, push, `develop` 대상 PR 생성
-- [ ] 다음 이슈 브랜치에서 핵심 화면 E2E 검증 추가
+- [ ] 다음 이슈 브랜치에서 리서치 스냅샷 영속 저장소 구현

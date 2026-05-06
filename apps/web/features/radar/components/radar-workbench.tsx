@@ -311,7 +311,7 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
   };
 
   return (
-    <div className={layoutTokens.page}>
+    <div className={layoutTokens.page} data-testid="radar-page">
       <div className="space-y-3">
         <p className={typographyTokens.eyebrow}>Radar Workspace</p>
         <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
@@ -328,6 +328,7 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Input
+              data-testid="radar-search-input"
               value={draftQuery}
               onChange={(event) => setDraftQuery(event.target.value)}
               placeholder="티커, 종목명, 종목번호, 태그 검색"
@@ -625,7 +626,10 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
                 </div>
                 <div className="grid gap-2">
                   <Button asChild className="w-full">
-                    <Link href={`/stocks/${selectedRow.symbol}`}>
+                    <Link
+                      href={`/stocks/${selectedRow.symbol}`}
+                      data-testid="radar-open-selected-stock"
+                    >
                       종목 워크스테이션 열기
                     </Link>
                   </Button>
@@ -989,12 +993,7 @@ function PresetRow({
         <div>
           <p className="text-sm font-semibold tracking-tight">{preset.name}</p>
           <p className="text-xs text-muted-foreground">
-            {new Intl.DateTimeFormat("ko-KR", {
-              month: "2-digit",
-              day: "2-digit",
-              hour: "2-digit",
-              minute: "2-digit",
-            }).format(new Date(preset.updatedAt))}
+            {formatPresetUpdatedAt(preset.updatedAt)}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -1008,4 +1007,14 @@ function PresetRow({
       </div>
     </div>
   );
+}
+
+function formatPresetUpdatedAt(value: string) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+
+  if (!match) {
+    return value;
+  }
+
+  return `${match[2]}. ${match[3]}. ${match[4]}:${match[5]}`;
 }
