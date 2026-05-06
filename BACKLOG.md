@@ -5,8 +5,10 @@
 - [x] lint, typecheck, build, npm audit, API smoke, release readiness 검증
 - [x] PR #154 생성 및 `develop_loop` 병합
 - [x] PR #135 리베이스 충돌 정리
-- [x] PR #135 로컬 검증 실행
-- [ ] PR #135 `develop_loop` 병합
-- [ ] PR #155(`develop_loop -> develop`) 최신화 및 병합 가능 상태 확인
-- [ ] Dependabot PR #138, #139, #140, #145, #148, #149, #150, #152, #153 정리
-- [ ] ESLint 10 PR #151 호환성 보류 사유 기록
+- [x] PR #135 로컬 검증과 GitHub checks 확인
+- [x] PR #135 `develop_loop` 병합
+- [x] PR #155(`develop_loop -> develop`) 최신화와 GitHub checks 통과 확인
+- [x] PR #155 auto-merge(REBASE) 설정
+- [x] Dependabot PR #138, #139, #140, #145, #148, #149, #150, #152, #153 정리
+- [x] ESLint 10 PR #151 호환성 보류 사유 기록
+- [ ] PR #155 리뷰 요구 조건 충족 후 자동 병합 확인
