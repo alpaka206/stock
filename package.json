@@ -23,5 +23,11 @@
     "verify:standard:json": "python scripts/verify_workspace.py --group standard --json",
     "verify:release": "python scripts/verify_workspace.py --group release",
     "verify:release:json": "python scripts/verify_workspace.py --group release --json"
+  },
+  "pnpm": {
+    "overrides": {
+      "postcss": "8.5.14",
+      "ip-address": "10.2.0"
+    }
   }
 }

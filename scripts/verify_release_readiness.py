@@ -26,6 +26,7 @@ REQUIRED_WEB_API_ENV = (
     "HISTORY_API_URL",
     "NEWS_API_URL",
     "CALENDAR_API_URL",
+    "INSTRUMENT_SEARCH_API_URL",
 )
 
 
@@ -180,6 +181,7 @@ def run_release_probe() -> list[dict[str, Any]]:
         "/history",
         "/news",
         "/calendar",
+        "/instruments/search?q=nvda",
     ):
         response = client.get(path)
         results.append(

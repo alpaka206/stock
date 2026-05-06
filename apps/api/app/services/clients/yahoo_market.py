@@ -92,6 +92,53 @@ class YahooMarketClient:
             "exchange": quote.get("exchDisp") or quote.get("exchange") or "",
         }
 
+    async def search_instruments(self, query: str, limit: int = 6) -> list[dict[str, Any]]:
+        payload = await self._request_json(
+            "https://query1.finance.yahoo.com/v1/finance/search",
+            params={
+                "q": query,
+                "quotesCount": str(max(limit * 4, 12)),
+                "newsCount": "0",
+                "enableFuzzyQuery": "true",
+            },
+        )
+        quotes = payload.get("quotes") or []
+
+        items: list[dict[str, Any]] = []
+        seen_symbols: set[str] = set()
+
+        for quote in quotes:
+            symbol = str(quote.get("symbol", "")).strip().upper()
+            quote_type = str(quote.get("quoteType", "")).strip().upper()
+
+            if not symbol or quote_type != "EQUITY" or symbol in seen_symbols:
+                continue
+
+            seen_symbols.add(symbol)
+            items.append(
+                {
+                    "symbol": symbol,
+                    "name": quote.get("longname") or quote.get("shortname") or symbol,
+                    "securityCode": self._extract_security_code(symbol),
+                    "aliases": self._build_aliases(quote),
+                    "sector": self._map_sector(
+                        str(
+                            quote.get("industryDisp")
+                            or quote.get("industry")
+                            or quote.get("sectorDisp")
+                            or quote.get("sector")
+                            or ""
+                        )
+                    ),
+                    "exchange": quote.get("exchDisp") or quote.get("exchange") or "",
+                }
+            )
+
+            if len(items) >= limit:
+                break
+
+        return items
+
     async def _request_json(self, url: str, *, params: dict[str, str]) -> dict[str, Any]:
         try:
             async with httpx.AsyncClient(timeout=self.timeout_seconds, headers=self.base_headers) as client:
@@ -124,3 +171,21 @@ class YahooMarketClient:
         if "technology" in normalized:
             return "기술주"
         return value.strip() or "미분류"
+
+    def _extract_security_code(self, symbol: str) -> str:
+        head = symbol.split(".", 1)[0].strip().upper()
+        return head or symbol.strip().upper()
+
+    def _build_aliases(self, quote: dict[str, Any]) -> list[str]:
+        aliases: list[str] = []
+        for candidate in (
+            quote.get("shortname"),
+            quote.get("longname"),
+            quote.get("symbol"),
+            quote.get("exchange"),
+            quote.get("exchDisp"),
+        ):
+            text = str(candidate or "").strip()
+            if text and text not in aliases:
+                aliases.append(text)
+        return aliases

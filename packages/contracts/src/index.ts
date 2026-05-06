@@ -354,6 +354,30 @@ export type StockRulePresetState = {
   indicatorIds: string[];
 };
 
+export type ResearchSnapshotStance = "bullish" | "neutral" | "bearish";
+export type ResearchSnapshotConviction = "low" | "medium" | "high";
+
+export type ResearchSnapshot = {
+  id: string;
+  symbol: string;
+  name: string;
+  exchange: string;
+  securityCode: string;
+  sector: string;
+  createdAt: string;
+  note: string;
+  stance: ResearchSnapshotStance;
+  conviction: ResearchSnapshotConviction;
+  price: number;
+  changePercent: number;
+  score: number;
+  thesis: string;
+  selectedEventTitle?: string;
+  selectedEventDate?: string;
+  activeRuleLabels: string[];
+  presetName?: string;
+};
+
 export type StockFixture = {
   instrument: StockInstrument;
   price: number;
