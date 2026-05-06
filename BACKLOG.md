@@ -1,0 +1,14 @@
+- [x] 현재 변경사항과 Dependabot 실패 PR 목록 확인
+- [x] 호환 가능한 의존성 업데이트와 `pnpm-lock.yaml` 갱신
+- [x] `postcss`, `ip-address` 보안 경고 override 적용
+- [x] 검색 API, i18n, 문서 깨짐 정리
+- [x] lint, typecheck, build, npm audit, API smoke, release readiness 검증
+- [x] PR #154 생성 및 `develop_loop` 병합
+- [x] PR #135 리베이스 충돌 정리
+- [x] PR #135 로컬 검증과 GitHub checks 확인
+- [x] PR #135 `develop_loop` 병합
+- [x] PR #155(`develop_loop -> develop`) 최신화와 GitHub checks 통과 확인
+- [x] PR #155 auto-merge(REBASE) 설정
+- [x] Dependabot PR #138, #139, #140, #145, #148, #149, #150, #152, #153 정리
+- [x] ESLint 10 PR #151 호환성 보류 사유 기록
+- [ ] PR #155 리뷰 요구 조건 충족 후 자동 병합 확인

@@ -7,6 +7,66 @@ from app.services.prompt_loader import PromptBundle
 from app.services.providers.base import ResearchProvider
 
 
+MOCK_INSTRUMENT_CATALOG: list[dict[str, Any]] = [
+    {
+        "symbol": "NVDA",
+        "name": "NVIDIA",
+        "securityCode": "NVDA",
+        "aliases": ["엔비디아", "GPU", "AI leader"],
+        "sector": "반도체",
+        "exchange": "NASDAQ",
+    },
+    {
+        "symbol": "AVGO",
+        "name": "Broadcom",
+        "securityCode": "AVGO",
+        "aliases": ["브로드컴", "custom AI", "network"],
+        "sector": "반도체",
+        "exchange": "NASDAQ",
+    },
+    {
+        "symbol": "AMD",
+        "name": "AMD",
+        "securityCode": "AMD",
+        "aliases": ["에이엠디", "MI300", "반도체"],
+        "sector": "반도체",
+        "exchange": "NASDAQ",
+    },
+    {
+        "symbol": "MSFT",
+        "name": "Microsoft",
+        "securityCode": "MSFT",
+        "aliases": ["마이크로소프트", "Azure", "소프트웨어"],
+        "sector": "소프트웨어",
+        "exchange": "NASDAQ",
+    },
+    {
+        "symbol": "CRWD",
+        "name": "CrowdStrike",
+        "securityCode": "CRWD",
+        "aliases": ["크라우드스트라이크", "보안", "CrowdStrike"],
+        "sector": "사이버보안",
+        "exchange": "NASDAQ",
+    },
+    {
+        "symbol": "005930.KS",
+        "name": "삼성전자",
+        "securityCode": "005930",
+        "aliases": ["Samsung Electronics", "삼성", "반도체"],
+        "sector": "반도체",
+        "exchange": "KRX",
+    },
+    {
+        "symbol": "000660.KS",
+        "name": "SK하이닉스",
+        "securityCode": "000660",
+        "aliases": ["SK hynix", "하이닉스", "메모리"],
+        "sector": "반도체",
+        "exchange": "KRX",
+    },
+]
+
+
 def _base_source_ref() -> dict[str, str]:
     return {
         "id": "mock-source",
@@ -38,6 +98,30 @@ def _base_envelope() -> dict[str, Any]:
 
 
 class MockResearchProvider(ResearchProvider):
+    async def search_instruments(
+        self, *, query: str, limit: int = 6
+    ) -> list[dict[str, Any]]:
+        normalized_query = query.strip().lower()
+        if not normalized_query:
+            return []
+
+        matches = [
+            item
+            for item in MOCK_INSTRUMENT_CATALOG
+            if normalized_query
+            in " ".join(
+                [
+                    item["symbol"],
+                    item["name"],
+                    item["securityCode"],
+                    *item["aliases"],
+                    item["sector"],
+                    item["exchange"],
+                ]
+            ).lower()
+        ]
+        return matches[:limit]
+
     async def get_overview(self, *, prompt_bundle: PromptBundle) -> dict[str, Any]:
         payload = _base_envelope()
         payload.update(

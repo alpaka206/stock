@@ -20,6 +20,7 @@ from app.schemas.history import HistoryResponse  # noqa: E402
 from app.schemas.news import NewsResponse  # noqa: E402
 from app.schemas.overview import OverviewResponse  # noqa: E402
 from app.schemas.radar import RadarResponse  # noqa: E402
+from app.schemas.search import InstrumentSearchResponse  # noqa: E402
 from app.schemas.stocks import StockDetailResponse  # noqa: E402
 
 
@@ -36,6 +37,7 @@ ROUTES = (
     RouteCheck("/history", HistoryResponse),
     RouteCheck("/news", NewsResponse),
     RouteCheck("/calendar", CalendarResponse),
+    RouteCheck("/instruments/search?q=nvda", InstrumentSearchResponse),
 )
 
 

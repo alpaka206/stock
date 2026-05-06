@@ -4,7 +4,9 @@ import * as React from "react";
 import { Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 
+import { useAppLanguage } from "@/components/providers/language-provider";
 import { AppNavigation } from "@/components/shell/app-navigation";
+import { LanguageSelect } from "@/components/shell/language-select";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,12 +22,13 @@ import { getCurrentRouteContext } from "@/lib/navigation";
 
 export function AppTopbar() {
   const pathname = usePathname();
-  const routeContext = getCurrentRouteContext(pathname);
+  const { language, messages } = useAppLanguage();
+  const routeContext = getCurrentRouteContext(pathname, language);
   const [open, setOpen] = React.useState(false);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 w-full max-w-[1600px] items-center justify-between gap-4 px-[var(--space-page)] lg:px-[var(--space-page-lg)]">
+    <header className="sticky top-0 z-30 border-b border-border/80 bg-background/94">
+      <div className="mx-auto flex min-h-[4.5rem] w-full max-w-[1760px] items-center justify-between gap-4 px-[var(--space-page)] py-3 lg:px-[var(--space-page-lg)]">
         <div className="flex min-w-0 items-center gap-3">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
@@ -36,41 +39,52 @@ export function AppTopbar() {
                 className="lg:hidden"
               >
                 <Menu />
-                <span className="sr-only">메뉴 열기</span>
+                <span className="sr-only">{messages.topbar.mobileMenuSr}</span>
               </Button>
             </SheetTrigger>
             <SheetContent
               side="left"
-              className="w-[min(88vw,340px)] border-r border-border/60 bg-background/95 p-0"
+              className="w-[min(88vw,340px)] border-r border-border/80 bg-background p-0"
             >
               <SheetHeader className="border-b border-border/60 pb-4">
-                <SheetTitle>리서치 워크스페이스</SheetTitle>
-                <SheetDescription>
-                  메인 4개 화면을 빠르게 오가며 리서치 흐름을 이어갑니다.
-                </SheetDescription>
+                <SheetTitle>{messages.topbar.mobileSheetTitle}</SheetTitle>
+                <SheetDescription>{messages.topbar.mobileSheetDescription}</SheetDescription>
               </SheetHeader>
               <div className="p-4">
+                <div className="mb-4 sm:hidden">
+                  <LanguageSelect />
+                </div>
                 <AppNavigation onNavigate={() => setOpen(false)} />
               </div>
             </SheetContent>
           </Sheet>
 
           <div className="min-w-0">
-            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              {routeContext.eyebrow}
-            </p>
-            <h1 className="truncate text-lg font-semibold tracking-tight">
-              {routeContext.label}
-            </h1>
+            <div className="flex items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              <span>{routeContext.eyebrow}</span>
+              <span className="inline-block size-1 rounded-full bg-border" />
+              <span className="hidden md:inline">{messages.topbar.workflowLabel}</span>
+            </div>
+            <div className="mt-1 flex min-w-0 items-center gap-3">
+              <h1 className="truncate text-lg font-semibold tracking-[-0.03em]">
+                {routeContext.label}
+              </h1>
+              <p className="hidden truncate text-sm text-muted-foreground xl:block">
+                {routeContext.description}
+              </p>
+            </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          <div className="hidden sm:block">
+            <LanguageSelect />
+          </div>
           <Badge
             variant="secondary"
-            className="hidden rounded-full border border-border/60 bg-background/75 px-3 py-1 text-[0.72rem] font-medium text-muted-foreground sm:inline-flex"
+            className="hidden rounded-[0.45rem] border border-border/80 bg-muted/15 px-3 py-1.5 text-[0.72rem] font-medium text-muted-foreground sm:inline-flex"
           >
-            리서치 워크스페이스
+            {messages.topbar.workspaceBadge}
           </Badge>
           <ThemeToggle />
         </div>

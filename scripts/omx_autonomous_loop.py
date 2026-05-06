@@ -82,7 +82,7 @@ EXECUTOR_ALLOWED_FILES = {
     item.strip()
     for item in os.getenv(
         "OMX_EXECUTOR_ALLOWED_FILES",
-        ".gitignore,AGENTS.md,README.md,package.json,pnpm-lock.yaml,pnpm-workspace.yaml",
+        ".gitignore,AGENTS.md,README.md,BACKLOG.md,NEXT_PROMPT.md,STATE.md,package.json,pnpm-lock.yaml,pnpm-workspace.yaml",
     ).split(",")
     if item.strip()
 }

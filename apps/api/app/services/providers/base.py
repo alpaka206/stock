@@ -8,6 +8,12 @@ from app.services.prompt_loader import PromptBundle
 
 class ResearchProvider(ABC):
     @abstractmethod
+    async def search_instruments(
+        self, *, query: str, limit: int = 6
+    ) -> list[dict[str, Any]]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def get_overview(self, *, prompt_bundle: PromptBundle) -> dict[str, Any]:
         raise NotImplementedError
 
