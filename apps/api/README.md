@@ -12,6 +12,7 @@ Main routes:
 Auxiliary routes:
 - `/news`
 - `/calendar`
+- `/instruments/search?q=<query>`
 
 Operational routes:
 - `/health`
@@ -35,6 +36,7 @@ python -m uvicorn app.main:app --reload
 ## Data Sources
 - Alpha Vantage: prices, news, rates, earnings calendar, IPO calendar
 - OpenDART: domestic disclosures
+- SEC EDGAR submissions: US watchlist filings such as 10-K, 10-Q, 8-K, 6-K, S-1, DEF 14A
 - OpenAI / Gemini: optional structured summaries for the main four pages
 
 ## Verification

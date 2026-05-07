@@ -3,7 +3,16 @@ from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.dependencies import get_prompt_loader
-from app.routers import calendar, history, news, overview, radar, stocks
+from app.routers import (
+    calendar,
+    history,
+    instruments,
+    news,
+    overview,
+    radar,
+    snapshots,
+    stocks,
+)
 from app.services.readiness import ProbeMode, build_readiness_report
 
 settings = get_settings()
@@ -38,3 +47,5 @@ app.include_router(stocks.router)
 app.include_router(history.router)
 app.include_router(news.router)
 app.include_router(calendar.router)
+app.include_router(instruments.router)
+app.include_router(snapshots.router)

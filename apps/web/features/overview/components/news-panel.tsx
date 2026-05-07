@@ -13,61 +13,76 @@ type NewsPanelProps = {
 export function NewsPanel({ items }: NewsPanelProps) {
   return (
     <ResearchPanel
-      title="뉴스 패널"
-      description="시장 해석을 바꿀 headline만 먼저 읽는다"
+      eyebrow="Headline Flow"
+      title="헤드라인 플로우"
+      description="시장 해석을 바꿀 수 있는 기사만 시간순으로 압축해 읽습니다."
       action={
         <Link
           href="/news"
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+          className={cn(
+            buttonVariants({ variant: "outline", size: "sm" }),
+            "rounded-[calc(var(--radius)*0.72)]"
+          )}
         >
-          뉴스 피드
+          전체 뉴스
         </Link>
       }
+      variant="feed"
     >
       <div className="space-y-3">
         {items.length === 0 ? (
-          <div className="rounded-[calc(var(--radius)*1.05)] border border-dashed border-border/70 bg-background/20 p-4 text-sm leading-6 text-muted-foreground">
-            현재 연결된 뉴스 요약이 없습니다. 뉴스 피드와 히스토리 화면에서 출처와 누락 데이터를 함께 확인해 주세요.
+          <div className="rounded-[calc(var(--radius)*0.82)] border border-dashed border-border/80 bg-muted/10 p-4 text-sm leading-6 text-muted-foreground">
+            현재 헤드라인 플로우를 구성할 기사 요약이 없습니다. 뉴스 원문과
+            히스토리에서 직접 확인해 주세요.
           </div>
         ) : null}
-        {items.map((item) => (
-          <Link
-            key={item.id}
-            href={item.href ?? "/history"}
-            className="block rounded-[calc(var(--radius)*1.05)] border border-border/55 bg-background/25 p-4 transition hover:border-primary/30 hover:bg-background/45"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>{item.source}</span>
-                  <span className="numeric">{item.publishedAt}</span>
-                </div>
-                <p className="mt-2 text-sm font-semibold leading-6 tracking-tight">
-                  {item.headline}
-                </p>
-              </div>
-              <span
-                className={cn(
-                  "shrink-0 rounded-full px-2.5 py-1 text-[0.68rem] font-semibold",
-                  getToneBadge(item.tone)
-                )}
+
+        {items.length > 0 ? (
+          <div className="divide-y divide-border/80">
+            {items.map((item) => (
+              <Link
+                key={item.id}
+                href={item.href ?? "/history"}
+                className="group block py-4 first:pt-0 last:pb-0"
               >
-                {item.impactLabel}
-              </span>
-            </div>
+                <div className="grid gap-3 md:grid-cols-[88px_minmax(0,1fr)_108px] md:items-start">
+                  <div className="text-xs text-muted-foreground">
+                    <p className="font-semibold uppercase tracking-[0.18em] text-muted-foreground/75">
+                      {item.source}
+                    </p>
+                    <p className="numeric mt-1">{item.publishedAt}</p>
+                  </div>
 
-            {item.summary ? (
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                {item.summary}
-              </p>
-            ) : null}
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold leading-6 tracking-tight text-foreground">
+                      {item.headline}
+                    </p>
+                    {item.summary ? (
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        {item.summary}
+                      </p>
+                    ) : null}
+                  </div>
 
-            <p className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary">
-              전체 피드에서 계속 보기
-              <ArrowUpRight className="size-3.5" />
-            </p>
-          </Link>
-        ))}
+                  <div className="flex items-center justify-between gap-3 md:block md:text-right">
+                    <span
+                      className={cn(
+                        "inline-flex rounded-[0.42rem] border px-2.5 py-1 text-[0.68rem] font-semibold",
+                        getToneBadge(item.tone)
+                      )}
+                    >
+                      {item.impactLabel}
+                    </span>
+                    <p className="mt-0 text-xs font-semibold text-primary md:mt-3">
+                      이어서 읽기
+                      <ArrowUpRight className="ml-1 inline size-3.5 align-middle" />
+                    </p>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : null}
       </div>
     </ResearchPanel>
   );
@@ -75,12 +90,12 @@ export function NewsPanel({ items }: NewsPanelProps) {
 
 function getToneBadge(tone: Tone) {
   if (tone === "positive") {
-    return "bg-[color:color-mix(in_oklch,var(--positive)_14%,transparent)] text-[color:var(--positive)]";
+    return "border-[color:color-mix(in_oklch,var(--positive)_20%,transparent)] bg-[color:color-mix(in_oklch,var(--positive)_10%,transparent)] text-[color:var(--positive)]";
   }
 
   if (tone === "negative") {
-    return "bg-[color:color-mix(in_oklch,var(--negative)_14%,transparent)] text-[color:var(--negative)]";
+    return "border-[color:color-mix(in_oklch,var(--negative)_20%,transparent)] bg-[color:color-mix(in_oklch,var(--negative)_10%,transparent)] text-[color:var(--negative)]";
   }
 
-  return "bg-muted text-muted-foreground";
+  return "border-border/80 bg-muted/15 text-muted-foreground";
 }

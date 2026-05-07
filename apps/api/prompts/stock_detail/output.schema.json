@@ -127,6 +127,67 @@
         "additionalProperties": false
       }
     },
+    "chartOverlays": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "tone": { "type": "string", "enum": ["positive", "negative", "neutral"] },
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": { "type": "string" },
+                "value": { "type": "number" },
+                "date": { "type": "string" }
+              },
+              "required": ["label", "value", "date"],
+              "additionalProperties": false
+            }
+          },
+          "enabled": { "type": "boolean" }
+        },
+        "required": ["id", "label", "tone", "points", "enabled"],
+        "additionalProperties": false
+      }
+    },
+    "technicalMetrics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "value": { "type": "string" },
+          "detail": { "type": "string" },
+          "tone": { "type": "string", "enum": ["positive", "negative", "neutral"] },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["id", "label", "value", "detail", "tone", "sourceRefIds"],
+        "additionalProperties": false
+      }
+    },
+    "patternCards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "similarity": { "type": "number", "minimum": 0, "maximum": 1 },
+          "stage": { "type": "string" },
+          "invalidation": { "type": "string" },
+          "summary": { "type": "string" },
+          "tone": { "type": "string", "enum": ["positive", "negative", "neutral"] },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["id", "label", "similarity", "stage", "invalidation", "summary", "tone", "sourceRefIds"],
+        "additionalProperties": false
+      }
+    },
     "rulePresetDefinitions": {
       "type": "array",
       "items": {
@@ -260,6 +321,9 @@
     "priceSeries",
     "eventMarkers",
     "indicatorGuides",
+    "chartOverlays",
+    "technicalMetrics",
+    "patternCards",
     "rulePresetDefinitions",
     "scoreSummary",
     "flowMetrics",

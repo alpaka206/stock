@@ -14,7 +14,13 @@ export default async function StockRoute({ params }: StockRouteProps) {
   const stockData = await getStockWorkstation(symbol);
 
   return (
-    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">종목 워크스테이션을 불러오는 중입니다.</div>}>
+    <Suspense
+      fallback={
+        <div className="p-6 text-sm text-muted-foreground">
+          종목 워크스테이션을 불러오는 중입니다.
+        </div>
+      }
+    >
       <StockDetailPage stock={stockData} />
     </Suspense>
   );

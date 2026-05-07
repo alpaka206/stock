@@ -4,10 +4,12 @@ import * as React from "react";
 import { MoonStar, SunMedium } from "lucide-react";
 import { useTheme } from "next-themes";
 
+import { useAppLanguage } from "@/components/providers/language-provider";
 import { Button } from "@/components/ui/button";
 
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
+  const { messages } = useAppLanguage();
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
@@ -17,9 +19,9 @@ export function ThemeToggle() {
   const isDark = mounted ? resolvedTheme === "dark" : true;
   const ariaLabel = mounted
     ? isDark
-      ? "라이트 모드로 전환"
-      : "다크 모드로 전환"
-    : "테마 전환";
+      ? messages.theme.toLight
+      : messages.theme.toDark
+    : messages.theme.pending;
 
   return (
     <Button

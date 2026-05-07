@@ -205,6 +205,50 @@
         "required": ["sector", "symbol", "reason", "score", "sourceRefIds"],
         "additionalProperties": false
       }
+    },
+    "alertRules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "description": { "type": "string" },
+          "severity": { "type": "string", "enum": ["info", "watch", "critical"] },
+          "enabledByDefault": { "type": "boolean" }
+        },
+        "required": ["id", "label", "description", "severity", "enabledByDefault"],
+        "additionalProperties": false
+      }
+    },
+    "detectedAlerts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "ruleId": { "type": "string" },
+          "symbol": { "type": "string" },
+          "title": { "type": "string" },
+          "summary": { "type": "string" },
+          "severity": { "type": "string", "enum": ["info", "watch", "critical"] },
+          "tone": { "type": "string", "enum": ["positive", "negative", "neutral"] },
+          "triggeredAt": { "type": "string" },
+          "sourceRefIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": [
+          "id",
+          "ruleId",
+          "symbol",
+          "title",
+          "summary",
+          "severity",
+          "tone",
+          "triggeredAt",
+          "sourceRefIds"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "required": [
@@ -219,7 +263,9 @@
     "brokerReports",
     "keySchedule",
     "keyIssues",
-    "topPicks"
+    "topPicks",
+    "alertRules",
+    "detectedAlerts"
   ],
   "additionalProperties": false
 }

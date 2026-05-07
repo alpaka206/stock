@@ -7,6 +7,66 @@ from app.services.prompt_loader import PromptBundle
 from app.services.providers.base import ResearchProvider
 
 
+MOCK_INSTRUMENT_CATALOG: list[dict[str, Any]] = [
+    {
+        "symbol": "NVDA",
+        "name": "NVIDIA",
+        "securityCode": "NVDA",
+        "aliases": ["엔비디아", "GPU", "AI leader"],
+        "sector": "반도체",
+        "exchange": "NASDAQ",
+    },
+    {
+        "symbol": "AVGO",
+        "name": "Broadcom",
+        "securityCode": "AVGO",
+        "aliases": ["브로드컴", "custom AI", "network"],
+        "sector": "반도체",
+        "exchange": "NASDAQ",
+    },
+    {
+        "symbol": "AMD",
+        "name": "AMD",
+        "securityCode": "AMD",
+        "aliases": ["에이엠디", "MI300", "반도체"],
+        "sector": "반도체",
+        "exchange": "NASDAQ",
+    },
+    {
+        "symbol": "MSFT",
+        "name": "Microsoft",
+        "securityCode": "MSFT",
+        "aliases": ["마이크로소프트", "Azure", "소프트웨어"],
+        "sector": "소프트웨어",
+        "exchange": "NASDAQ",
+    },
+    {
+        "symbol": "CRWD",
+        "name": "CrowdStrike",
+        "securityCode": "CRWD",
+        "aliases": ["크라우드스트라이크", "보안", "CrowdStrike"],
+        "sector": "사이버보안",
+        "exchange": "NASDAQ",
+    },
+    {
+        "symbol": "005930.KS",
+        "name": "삼성전자",
+        "securityCode": "005930",
+        "aliases": ["Samsung Electronics", "삼성", "반도체"],
+        "sector": "반도체",
+        "exchange": "KRX",
+    },
+    {
+        "symbol": "000660.KS",
+        "name": "SK하이닉스",
+        "securityCode": "000660",
+        "aliases": ["SK hynix", "하이닉스", "메모리"],
+        "sector": "반도체",
+        "exchange": "KRX",
+    },
+]
+
+
 def _base_source_ref() -> dict[str, str]:
     return {
         "id": "mock-source",
@@ -38,6 +98,30 @@ def _base_envelope() -> dict[str, Any]:
 
 
 class MockResearchProvider(ResearchProvider):
+    async def search_instruments(
+        self, *, query: str, limit: int = 6
+    ) -> list[dict[str, Any]]:
+        normalized_query = query.strip().lower()
+        if not normalized_query:
+            return []
+
+        matches = [
+            item
+            for item in MOCK_INSTRUMENT_CATALOG
+            if normalized_query
+            in " ".join(
+                [
+                    item["symbol"],
+                    item["name"],
+                    item["securityCode"],
+                    *item["aliases"],
+                    item["sector"],
+                    item["exchange"],
+                ]
+            ).lower()
+        ]
+        return matches[:limit]
+
     async def get_overview(self, *, prompt_bundle: PromptBundle) -> dict[str, Any]:
         payload = _base_envelope()
         payload.update(
@@ -320,6 +404,53 @@ class MockResearchProvider(ResearchProvider):
                         "sourceRefIds": ["mock-source"],
                     },
                 ],
+                "alertRules": [
+                    {
+                        "id": "high-conviction-momentum",
+                        "label": "고확신 모멘텀",
+                        "description": "점수와 당일 흐름이 동시에 강한 종목을 표시합니다.",
+                        "severity": "watch",
+                        "enabledByDefault": True,
+                    },
+                    {
+                        "id": "volume-spike",
+                        "label": "거래량 급증",
+                        "description": "거래량 배수가 높은 종목을 표시합니다.",
+                        "severity": "info",
+                        "enabledByDefault": True,
+                    },
+                    {
+                        "id": "risk-reversal",
+                        "label": "리스크 반전",
+                        "description": "급락 또는 낮은 점수 종목을 표시합니다.",
+                        "severity": "critical",
+                        "enabledByDefault": True,
+                    },
+                ],
+                "detectedAlerts": [
+                    {
+                        "id": "nvda-high-conviction-momentum",
+                        "ruleId": "high-conviction-momentum",
+                        "symbol": "NVDA",
+                        "title": "NVDA 고확신 모멘텀",
+                        "summary": "점수 92, 등락률 +2.16%로 우선 확인 대상입니다.",
+                        "severity": "watch",
+                        "tone": "positive",
+                        "triggeredAt": "2026-05-06T00:00:00+00:00",
+                        "sourceRefIds": ["mock-source"],
+                    },
+                    {
+                        "id": "vrt-volume-spike",
+                        "ruleId": "volume-spike",
+                        "symbol": "VRT",
+                        "title": "VRT 거래량 급증",
+                        "summary": "거래량 배수가 1.67x로 평소보다 높습니다.",
+                        "severity": "info",
+                        "tone": "neutral",
+                        "triggeredAt": "2026-05-06T00:00:00+00:00",
+                        "sourceRefIds": ["mock-source"],
+                    },
+                ],
             }
         )
         return payload
@@ -378,6 +509,80 @@ class MockResearchProvider(ResearchProvider):
                         "tone": "neutral",
                         "description": "추세 유지 판단 기준선입니다.",
                         "enabled": True,
+                    },
+                ],
+                "chartOverlays": [
+                    {
+                        "id": "ma5",
+                        "label": "MA 5",
+                        "tone": "positive",
+                        "enabled": True,
+                        "points": [
+                            {"date": "2026-02-26", "label": "02/26", "value": 852.7},
+                            {"date": "2026-03-05", "label": "03/05", "value": 854.0},
+                            {"date": "2026-03-13", "label": "03/13", "value": 870.7},
+                            {"date": "2026-03-21", "label": "03/21", "value": 890.0},
+                        ],
+                    },
+                    {
+                        "id": "ma20",
+                        "label": "MA 20",
+                        "tone": "neutral",
+                        "enabled": True,
+                        "points": [
+                            {"date": "2026-02-26", "label": "02/26", "value": 846.0},
+                            {"date": "2026-03-05", "label": "03/05", "value": 852.0},
+                            {"date": "2026-03-13", "label": "03/13", "value": 862.5},
+                            {"date": "2026-03-21", "label": "03/21", "value": 876.0},
+                        ],
+                    },
+                ],
+                "technicalMetrics": [
+                    {
+                        "id": "ma-alignment",
+                        "label": "이동평균 배열",
+                        "value": "정배열",
+                        "detail": "현재가가 MA5와 MA20 위에 있어 추세 지속 확인 구간입니다.",
+                        "tone": "positive",
+                        "sourceRefIds": ["mock-source"],
+                    },
+                    {
+                        "id": "rsi14",
+                        "label": "RSI 14",
+                        "value": "63.8",
+                        "detail": "중립 상단에서 추세와 거래량을 함께 확인합니다.",
+                        "tone": "neutral",
+                        "sourceRefIds": ["mock-source"],
+                    },
+                    {
+                        "id": "volume-ratio",
+                        "label": "거래량 배수",
+                        "value": "1.36x",
+                        "detail": "최근 거래량이 평균보다 높아 돌파 신뢰도를 보강합니다.",
+                        "tone": "positive",
+                        "sourceRefIds": ["mock-source"],
+                    },
+                ],
+                "patternCards": [
+                    {
+                        "id": "flat-base",
+                        "label": "Flat base",
+                        "similarity": 0.78,
+                        "stage": "상단 돌파 시도",
+                        "invalidation": "20일 저점 858 이탈",
+                        "summary": "최근 변동폭이 줄어든 뒤 이벤트와 함께 상단 확인 구간에 있습니다.",
+                        "tone": "positive",
+                        "sourceRefIds": ["mock-source"],
+                    },
+                    {
+                        "id": "ma-trend",
+                        "label": "MA trend",
+                        "similarity": 0.72,
+                        "stage": "추세 유지",
+                        "invalidation": "MA20 876 이탈",
+                        "summary": "현재가가 주요 이동평균 위에서 유지되는지 확인합니다.",
+                        "tone": "positive",
+                        "sourceRefIds": ["mock-source"],
                     },
                 ],
                 "rulePresetDefinitions": [
@@ -474,6 +679,15 @@ class MockResearchProvider(ResearchProvider):
             }
         )
         payload["rulePresetDefinitions"] = [
+            {
+                "id": "ma-trend",
+                "label": "이동평균 추세",
+                "description": "MA 5/20/60/120 배열과 현재가 위치를 확인합니다.",
+                "enabledByDefault": True,
+                "tone": "positive",
+                "guideIds": ["ma5", "ma20", "ma60", "ma120"],
+                "controlsEventMarkers": False,
+            },
             {
                 "id": "support-hold",
                 "label": "지지선 유지",

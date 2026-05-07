@@ -2,11 +2,13 @@
 
 import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { DataSourceNotice } from "@/components/research/data-source-notice";
 import { InstrumentSearch } from "@/components/research/instrument-search";
 import { ResearchPanel } from "@/components/research/research-panel";
+import { ResearchSnapshotCard } from "@/components/research/research-snapshot-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,6 +21,7 @@ import {
 import { ResearchLineChart } from "@/features/chart/components/research-line-chart";
 import { EventTimeline } from "@/features/history/components/event-timeline";
 import { useRecentSymbols } from "@/lib/client/use-recent-symbols";
+import { useResearchSnapshots } from "@/lib/client/use-research-snapshots";
 import { useUrlState } from "@/lib/client/use-url-state";
 import type { HistoryFixture } from "@/lib/research/types";
 import { layoutTokens } from "@/lib/tokens";
@@ -35,6 +38,7 @@ export function HistoryPage({ history }: HistoryPageProps) {
     "stock-workspace:history-recent-symbols",
     [history.symbol]
   );
+  const { snapshots, removeSnapshot } = useResearchSnapshots();
 
   React.useEffect(() => {
     pushSymbol(history.symbol);
@@ -60,19 +64,23 @@ export function HistoryPage({ history }: HistoryPageProps) {
     history.availableRanges.find((range) => range.value === searchParams.get("range"))
       ?.value ??
     (hasCustomRange ? "custom" : history.availableRanges[0]?.value ?? "3m");
+  const symbolSnapshots = React.useMemo(
+    () => snapshots.filter((snapshot) => snapshot.symbol === history.symbol),
+    [history.symbol, snapshots]
+  );
 
   return (
-    <div className={layoutTokens.page}>
+    <div className={layoutTokens.page} data-testid="history-page">
       <ResearchPanel
         title="히스토리 / 이벤트 리플레이"
-        description="종목과 날짜 범위를 바꾸면서 과거 급등·급락 이유를 다시 읽는다."
+        description="종목과 날짜 범위를 바꾸면서 과거 급등·급락 이유를 차트 중심으로 다시 읽습니다."
       >
         <div className="space-y-4">
           <DataSourceNotice source={history.dataSource} />
           <InstrumentSearch
             selectedSymbol={history.symbol}
             label="기록 다시 보기"
-            helperText="종목을 바꾸면 해당 심볼의 이벤트 리플레이로 이동한다."
+            helperText="종목을 바꾸면 해당 종목의 이벤트 리플레이로 바로 이동합니다."
             quickSymbols={recentSymbols}
             onSelect={(instrument) => {
               const nextQuery = new URLSearchParams(searchParams.toString());
@@ -96,9 +104,7 @@ export function HistoryPage({ history }: HistoryPageProps) {
                 <SelectValue placeholder="구간" />
               </SelectTrigger>
               <SelectContent>
-                {hasCustomRange ? (
-                  <SelectItem value="custom">직접 선택</SelectItem>
-                ) : null}
+                {hasCustomRange ? <SelectItem value="custom">직접 선택</SelectItem> : null}
                 {history.availableRanges.map((range) => (
                   <SelectItem key={range.value} value={range.value}>
                     {range.label}
@@ -154,7 +160,7 @@ export function HistoryPage({ history }: HistoryPageProps) {
                 <p className="text-sm leading-6 text-muted-foreground">
                   {selectedEvent
                     ? selectedEvent.summary
-                    : "과거 변곡점을 선택하면 차트와 타임라인이 동시에 이동한다."}
+                    : "과거 변곡점을 선택하면 차트와 타임라인이 동시에 이동합니다."}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -164,9 +170,7 @@ export function HistoryPage({ history }: HistoryPageProps) {
                   variant="outline"
                   disabled={!previousEvent}
                   onClick={() =>
-                    previousEvent
-                      ? replaceParams({ event: previousEvent.id })
-                      : undefined
+                    previousEvent ? replaceParams({ event: previousEvent.id }) : undefined
                   }
                 >
                   <ChevronLeft />
@@ -188,6 +192,7 @@ export function HistoryPage({ history }: HistoryPageProps) {
             </div>
 
             <ResearchLineChart
+              testId="history-price-chart"
               points={history.priceSeries}
               markers={history.eventMarkers}
               activePointKey={selectedEvent?.date}
@@ -210,7 +215,7 @@ export function HistoryPage({ history }: HistoryPageProps) {
 
         <ResearchPanel
           title="이벤트 / 뉴스 타임라인"
-          description="특정 이벤트를 누르면 차트 포커스가 바로 이동한다."
+          description="특정 이벤트를 누르면 차트 시점이 바로 이동합니다."
         >
           <EventTimeline
             events={history.events}
@@ -221,7 +226,10 @@ export function HistoryPage({ history }: HistoryPageProps) {
       </div>
 
       <div className="grid gap-[var(--space-grid)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <ResearchPanel title="급등 / 급락 이유 요약" description="과거 움직임 이유를 카드로 다시 읽는다.">
+        <ResearchPanel
+          title="급등 / 급락 이유 요약"
+          description="과거 움직임 이유를 카드로 다시 읽습니다."
+        >
           <div className="space-y-3">
             {history.moveReasons.map((reason, index) => (
               <div
@@ -244,7 +252,10 @@ export function HistoryPage({ history }: HistoryPageProps) {
           </div>
         </ResearchPanel>
 
-        <ResearchPanel title="중복 지표 설명 카드" description="변곡점에서 겹친 보조지표 신호를 함께 본다.">
+        <ResearchPanel
+          title="중복 지표 설명 카드"
+          description="변곡점에서 겹친 보조지표 신호를 함께 봅니다."
+        >
           <div className="space-y-3">
             {history.overlaps.map((overlap, index) => (
               <div
@@ -283,6 +294,49 @@ export function HistoryPage({ history }: HistoryPageProps) {
           </div>
         </ResearchPanel>
       </div>
+
+      <ResearchPanel
+        title="리서치 저널"
+        description={`${history.symbol} 기준 저장된 판단 스냅샷을 시점 순으로 다시 읽습니다.`}
+      >
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              저장된 기록 {symbolSnapshots.length}건
+            </p>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/stocks/${history.symbol}`}>상세 화면으로 이동</Link>
+            </Button>
+          </div>
+
+          {symbolSnapshots.length > 0 ? (
+            <div className="grid gap-3 xl:grid-cols-2">
+              {symbolSnapshots.map((snapshot) => (
+                <ResearchSnapshotCard
+                  key={snapshot.id}
+                  snapshot={snapshot}
+                  actions={
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => removeSnapshot(snapshot.id)}
+                    >
+                      삭제
+                    </Button>
+                  }
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-[calc(var(--radius)*1.05)] border border-dashed border-border/60 px-4 py-5 text-sm leading-6 text-muted-foreground">
+              아직 이 종목에 저장된 판단 기록이 없습니다. `/stocks/[symbol]`
+              화면에서 스냅샷을 저장하면 과거 이벤트 리플레이와 함께 회고할 수
+              있습니다.
+            </div>
+          )}
+        </div>
+      </ResearchPanel>
     </div>
   );
 }

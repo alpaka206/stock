@@ -15,7 +15,7 @@ export function EventTimeline({
   onSelect,
 }: EventTimelineProps) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-testid="history-event-timeline">
       {events.map((event) => {
         const active = event.id === selectedId;
 
@@ -23,6 +23,7 @@ export function EventTimeline({
           <button
             key={event.id}
             type="button"
+            data-testid="history-event"
             onClick={() => onSelect?.(event.id)}
             className={cn(
               "flex w-full flex-col gap-2 rounded-[calc(var(--radius)*1.05)] border px-4 py-3 text-left transition-colors",

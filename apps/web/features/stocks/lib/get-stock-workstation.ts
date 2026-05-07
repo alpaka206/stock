@@ -41,7 +41,7 @@ export async function getStockWorkstation(symbol: string) {
     };
   }
 
-  const payload = result.payload;
+  const payload = result.payload as Partial<StockApiResponse>;
 
   if (!payload.priceSeries?.length) {
     return {
@@ -54,21 +54,24 @@ export async function getStockWorkstation(symbol: string) {
   }
 
   return {
-    instrument: payload.instrument,
-    price: payload.latestPrice,
-    changePercent: payload.changePercent,
-    thesis: payload.thesis,
+    instrument: payload.instrument ?? fallback.instrument,
+    price: payload.latestPrice ?? fallback.price,
+    changePercent: payload.changePercent ?? fallback.changePercent,
+    thesis: payload.thesis ?? fallback.thesis,
     priceSeries: payload.priceSeries,
-    eventMarkers: payload.eventMarkers,
-    indicatorGuides: payload.indicatorGuides,
-    rulePresetDefinitions: payload.rulePresetDefinitions,
-    scoreSummary: payload.scoreSummary,
-    flowMetrics: payload.flowMetrics,
-    flowUnavailable: payload.flowUnavailable,
-    optionsShortMetrics: payload.optionsShortMetrics,
-    optionsUnavailable: payload.optionsUnavailable,
-    issues: payload.issueCards,
-    relatedSymbols: payload.relatedSymbols,
-    dataSource: buildPayloadDataSource(payload.sourceRefs),
+    eventMarkers: payload.eventMarkers ?? fallback.eventMarkers,
+    indicatorGuides: payload.indicatorGuides ?? fallback.indicatorGuides,
+    chartOverlays: payload.chartOverlays ?? fallback.chartOverlays,
+    technicalMetrics: payload.technicalMetrics ?? fallback.technicalMetrics,
+    patternCards: payload.patternCards ?? fallback.patternCards,
+    rulePresetDefinitions: payload.rulePresetDefinitions ?? fallback.rulePresetDefinitions,
+    scoreSummary: payload.scoreSummary ?? fallback.scoreSummary,
+    flowMetrics: payload.flowMetrics ?? fallback.flowMetrics,
+    flowUnavailable: payload.flowUnavailable ?? fallback.flowUnavailable,
+    optionsShortMetrics: payload.optionsShortMetrics ?? fallback.optionsShortMetrics,
+    optionsUnavailable: payload.optionsUnavailable ?? fallback.optionsUnavailable,
+    issues: payload.issueCards ?? fallback.issues,
+    relatedSymbols: payload.relatedSymbols ?? fallback.relatedSymbols,
+    dataSource: buildPayloadDataSource(payload.sourceRefs ?? []),
   } satisfies StockFixture;
 }

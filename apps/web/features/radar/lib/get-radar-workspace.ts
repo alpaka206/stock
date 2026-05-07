@@ -89,6 +89,8 @@ export async function getRadarWorkspace() {
       })),
     reports: payload.brokerReports,
     topPicks: payload.topPicks,
+    alertRules: payload.alertRules ?? radarFixture.alertRules,
+    detectedAlerts: payload.detectedAlerts ?? radarFixture.detectedAlerts,
     defaultVisibleColumns: radarFixture.defaultVisibleColumns,
     defaultViewMode: radarFixture.defaultViewMode,
     defaultGroupMode: radarFixture.defaultGroupMode,

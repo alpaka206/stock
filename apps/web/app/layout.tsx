@@ -7,7 +7,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Stock Research Workspace",
-  description: "뉴스, 차트, 섹터, 수급, 점수를 한 흐름으로 보는 금융 리서치 워크스페이스",
+  description:
+    "뉴스, 차트, 섹터, 수급, 점수를 한 흐름으로 읽는 주식 리서치 워크스페이스",
 };
 
 export default function RootLayout({

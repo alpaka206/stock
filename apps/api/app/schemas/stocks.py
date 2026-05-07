@@ -45,6 +45,20 @@ class IndicatorGuide(BaseModel):
     enabled: bool = True
 
 
+class ChartOverlayPoint(BaseModel):
+    date: str
+    label: str
+    value: float
+
+
+class ChartOverlay(BaseModel):
+    id: str
+    label: str
+    tone: Tone
+    points: list[ChartOverlayPoint]
+    enabled: bool = True
+
+
 class RulePresetDefinition(BaseModel):
     id: str
     label: str
@@ -65,6 +79,26 @@ class ScoreSummary(BaseModel):
     total: float
     confidence: Confidence
     breakdown: list[ScoreBreakdownItem] = Field(default_factory=list)
+
+
+class TechnicalMetric(BaseModel):
+    id: str
+    label: str
+    value: str
+    detail: str
+    tone: Tone
+    sourceRefIds: list[str] = Field(default_factory=list)
+
+
+class PatternCard(BaseModel):
+    id: str
+    label: str
+    similarity: float = Field(ge=0, le=1)
+    stage: str
+    invalidation: str
+    summary: str
+    tone: Tone
+    sourceRefIds: list[str] = Field(default_factory=list)
 
 
 class MetricCard(BaseModel):
@@ -98,6 +132,9 @@ class StockDetailResponse(AnalysisEnvelope):
     priceSeries: list[PriceSeriesPoint]
     eventMarkers: list[ChartMarker]
     indicatorGuides: list[IndicatorGuide]
+    chartOverlays: list[ChartOverlay]
+    technicalMetrics: list[TechnicalMetric]
+    patternCards: list[PatternCard]
     rulePresetDefinitions: list[RulePresetDefinition]
     scoreSummary: ScoreSummary
     flowMetrics: list[MetricCard]

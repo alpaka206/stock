@@ -251,6 +251,28 @@ export type TopPickItem = {
   sourceRefIds?: string[];
 };
 
+export type RadarAlertSeverity = "info" | "watch" | "critical";
+
+export type RadarAlertRule = {
+  id: string;
+  label: string;
+  description: string;
+  severity: RadarAlertSeverity;
+  enabledByDefault: boolean;
+};
+
+export type RadarDetectedAlert = {
+  id: string;
+  ruleId: string;
+  symbol: string;
+  title: string;
+  summary: string;
+  severity: RadarAlertSeverity;
+  tone: Tone;
+  triggeredAt: string;
+  sourceRefIds?: string[];
+};
+
 export type RadarFixture = {
   folders: WatchlistFolderNode[];
   rows: WatchlistRow[];
@@ -259,6 +281,8 @@ export type RadarFixture = {
   issues: NewsItem[];
   reports: BrokerReportItem[];
   topPicks: TopPickItem[];
+  alertRules: RadarAlertRule[];
+  detectedAlerts: RadarDetectedAlert[];
   defaultVisibleColumns: RadarColumnKey[];
   defaultViewMode: RadarViewMode;
   defaultGroupMode: RadarGroupMode;
@@ -280,6 +304,20 @@ export type ChartGuide = {
   value: number;
   tone: Tone;
   description?: string;
+  enabled?: boolean;
+};
+
+export type ChartOverlayPoint = {
+  label: string;
+  value: number;
+  date?: string;
+};
+
+export type ChartOverlay = {
+  id: string;
+  label: string;
+  tone: Tone;
+  points: ChartOverlayPoint[];
   enabled?: boolean;
 };
 
@@ -349,9 +387,66 @@ export type StockScoreSummary = {
   breakdown: ScoreBreakdownItem[];
 };
 
+export type TechnicalMetric = {
+  id: string;
+  label: string;
+  value: string;
+  detail: string;
+  tone: Tone;
+  sourceRefIds?: string[];
+};
+
+export type PatternCard = {
+  id: string;
+  label: string;
+  similarity: number;
+  stage: string;
+  invalidation: string;
+  summary: string;
+  tone: Tone;
+  sourceRefIds?: string[];
+};
+
 export type StockRulePresetState = {
   presetId: string;
   indicatorIds: string[];
+};
+
+export type ResearchSnapshotStance = "bullish" | "neutral" | "bearish";
+export type ResearchSnapshotConviction = "low" | "medium" | "high";
+
+export type ResearchSnapshot = {
+  id: string;
+  symbol: string;
+  name: string;
+  exchange: string;
+  securityCode: string;
+  sector: string;
+  createdAt: string;
+  note: string;
+  stance: ResearchSnapshotStance;
+  conviction: ResearchSnapshotConviction;
+  price: number;
+  changePercent: number;
+  score: number;
+  thesis: string;
+  selectedEventTitle?: string;
+  selectedEventDate?: string;
+  activeRuleLabels: string[];
+  presetName?: string;
+};
+
+export type ResearchSnapshotListResponse = {
+  snapshots: ResearchSnapshot[];
+};
+
+export type ResearchSnapshotMutationResponse = {
+  snapshot: ResearchSnapshot;
+};
+
+export type ResearchSnapshotDeleteResponse = {
+  deleted: boolean;
+  id: string;
 };
 
 export type StockFixture = {
@@ -362,6 +457,9 @@ export type StockFixture = {
   priceSeries: PricePoint[];
   eventMarkers: ChartMarker[];
   indicatorGuides: ChartGuide[];
+  chartOverlays: ChartOverlay[];
+  technicalMetrics: TechnicalMetric[];
+  patternCards: PatternCard[];
   rulePresetDefinitions: IndicatorRuleDefinition[];
   scoreSummary: StockScoreSummary;
   flowMetrics: FlowItem[];
@@ -470,6 +568,8 @@ export type RadarApiResponse = AnalysisEnvelope & {
     sourceRefIds: string[];
   }>;
   topPicks: Array<TopPickItem & { sector: string; sourceRefIds: string[] }>;
+  alertRules: RadarAlertRule[];
+  detectedAlerts: Array<RadarDetectedAlert & { sourceRefIds: string[] }>;
 };
 
 export type StockApiResponse = AnalysisEnvelope & {
@@ -480,6 +580,9 @@ export type StockApiResponse = AnalysisEnvelope & {
   priceSeries: PricePoint[];
   eventMarkers: ChartMarker[];
   indicatorGuides: ChartGuide[];
+  chartOverlays: ChartOverlay[];
+  technicalMetrics: TechnicalMetric[];
+  patternCards: PatternCard[];
   rulePresetDefinitions: IndicatorRuleDefinition[];
   scoreSummary: StockScoreSummary;
   flowMetrics: FlowItem[];
