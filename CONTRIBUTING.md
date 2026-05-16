@@ -16,6 +16,8 @@
 - 커밋과 PR 제목에 `[codex]`를 붙이지 않습니다.
 - squash merge는 사용하지 않습니다. 여러 커밋의 의미를 유지할 수 있도록 merge commit 또는 rebase merge만 허용합니다.
 - `main` 브랜치는 보호 규칙으로 force push와 삭제가 금지되어야 하며, 필수 체크가 통과한 PR만 병합합니다.
+- `develop` 브랜치도 보호 규칙으로 force push와 삭제가 금지되어야 합니다.
+- merge 후 branch 자동 삭제는 사용하지 않습니다. 영구 브랜치가 release PR 병합 후 삭제될 수 있기 때문입니다.
 
 ## 제목 규칙
 

@@ -31,9 +31,12 @@ docker compose up --build
 ## GitHub 보호 규칙
 
 - squash merge는 사용하지 않는다.
+- merge 후 branch 자동 삭제는 꺼둔다. `develop` 같은 영구 브랜치가 release PR 병합 후 삭제되는 것을 막기 위함이다.
 - `main` 브랜치는 force push와 branch deletion을 금지한다.
+- `develop` 브랜치도 force push와 branch deletion을 금지한다.
 - `main` 병합은 PR을 통해서만 진행한다.
 - `main` PR에는 `verify`, `release-guard`, `dependency-review`, `codeql (javascript-typescript)`, `codeql (python)` 통과가 필요하다.
+- `develop` PR에는 `verify`, `dependency-review`, `codeql (javascript-typescript)`, `codeql (python)` 통과가 필요하다.
 - Dependabot security updates, vulnerability alerts, secret scanning, push protection을 켠 상태로 유지한다.
 
 ## 남은 리스크
