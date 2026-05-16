@@ -3,7 +3,7 @@ approval_policy = "never"
 sandbox_mode = "danger-full-access"
 
 [features]
-codex_hooks = true
+codex_hooks = false
 
 [agents]
 max_threads = 6

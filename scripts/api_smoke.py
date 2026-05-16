@@ -12,11 +12,14 @@ from pydantic import BaseModel, ValidationError
 
 ROOT = Path(__file__).resolve().parents[1]
 API_ROOT = ROOT / "apps" / "api"
-SNAPSHOT_SMOKE_STORE = ROOT / ".omx" / "tmp" / "api_smoke_snapshots.json"
+SNAPSHOT_SMOKE_STORE = ROOT / "data" / "runtime" / "api_smoke_snapshots.json"
 os.environ["RESEARCH_SNAPSHOT_STORE_PATH"] = str(SNAPSHOT_SMOKE_STORE)
 SNAPSHOT_SMOKE_STORE.unlink(missing_ok=True)
 if str(API_ROOT) not in sys.path:
     sys.path.insert(0, str(API_ROOT))
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from app.main import app  # noqa: E402
 from app.schemas.calendar import CalendarResponse  # noqa: E402

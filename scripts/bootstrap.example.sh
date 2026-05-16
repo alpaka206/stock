@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="${1:-stock-ai-workspace}"
+PROJECT_ROOT="${1:-stock-desk}"
 
 mkdir -p "$PROJECT_ROOT"
 cd "$PROJECT_ROOT"
@@ -14,7 +14,6 @@ pnpm create next-app@latest apps/web \
   --ts --tailwind --eslint --app --use-pnpm --import-alias "@/*" --yes
 
 pnpm add -C apps/web \
-  ag-grid-community ag-grid-react @ag-grid-community/locale \
   @tanstack/react-query \
   zod react-hook-form @hookform/resolvers \
   next-themes \

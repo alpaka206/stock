@@ -54,19 +54,6 @@ STEP_GROUPS = {
     "text": [
         {"name": "text quality", "command": python_command("scripts/text_quality_guard.py")},
     ],
-    "automation": [
-        {"name": "ralph setup", "command": python_command("scripts/verify_ralph_setup.py")},
-        {"name": "omx contract parsing", "command": python_command("scripts/test_omx_contract_parsing.py")},
-        {"name": "release PR manual merge policy", "command": python_command("scripts/test_release_pr_policy.py")},
-        {"name": "verifier output scope", "command": python_command("scripts/test_verifier_output.py")},
-        {"name": "discord signal-only mode", "command": python_command("scripts/test_omx_discord_mode.py")},
-        {"name": "discord control commands", "command": python_command("scripts/test_discord_control_commands.py")},
-        {"name": "ralph runtime", "command": python_command("scripts/test_ralph_runtime.py")},
-        {"name": "executor write gate rules", "command": python_command("scripts/test_executor_write_gate_rules.py")},
-        {"name": "no secrets guard", "command": python_command("scripts/no_secrets_guard.py")},
-        {"name": "discord bridge smoke", "command": python_command("scripts/test_discord_bridge.py")},
-        {"name": "discord latest-only helper", "command": python_command("scripts/test_verify_discord_latest_only.py")},
-    ],
     "web": [
         {"name": "web lint", "command": [PNPM_BIN, "lint:web"]},
         {"name": "web typecheck", "command": [PNPM_BIN, "typecheck:web"]},
@@ -85,7 +72,12 @@ STEP_GROUPS = {
         {"name": "api smoke", "command": python_command("scripts/api_smoke.py")},
     ],
 }
-STEP_GROUPS["standard"] = [*STEP_GROUPS["text"], *STEP_GROUPS["automation"], *STEP_GROUPS["web"], *STEP_GROUPS["api"]]
+STEP_GROUPS["standard"] = [
+    *STEP_GROUPS["text"],
+    {"name": "no secrets guard", "command": python_command("scripts/no_secrets_guard.py")},
+    *STEP_GROUPS["web"],
+    *STEP_GROUPS["api"],
+]
 STEP_GROUPS["release"] = [
     {"name": "release readiness", "command": python_command("scripts/verify_release_readiness.py")}
 ]

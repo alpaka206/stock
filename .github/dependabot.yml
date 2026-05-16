@@ -2,12 +2,18 @@ version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/apps/web"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "09:00"
       timezone: "Asia/Seoul"
     open-pull-requests-limit: 10
+    groups:
+      web-runtime:
+        dependency-type: "production"
+      web-tooling:
+        dependency-type: "development"
     labels:
       - "dependencies"
       - "web"
@@ -17,12 +23,17 @@ updates:
 
   - package-ecosystem: "pip"
     directory: "/apps/api"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "09:15"
       timezone: "Asia/Seoul"
     open-pull-requests-limit: 10
+    groups:
+      api-runtime:
+        patterns:
+          - "*"
     labels:
       - "dependencies"
       - "api"
@@ -30,23 +41,9 @@ updates:
       prefix: "chore"
       include: "scope"
 
-  - package-ecosystem: "pip"
-    directory: "/omx_discord_bridge"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:30"
-      timezone: "Asia/Seoul"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "automation"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
       day: "monday"

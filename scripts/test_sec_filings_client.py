@@ -12,6 +12,9 @@ if str(API_ROOT) not in sys.path:
 
 from app.services.clients.sec_filings import SecFilingsClient  # noqa: E402
 
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 
 class FakeSecFilingsClient(SecFilingsClient):
     async def _request(self, path: str) -> dict[str, Any]:
