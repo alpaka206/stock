@@ -104,7 +104,7 @@ export function InstrumentSearch({
         />
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        <span className="text-[0.68rem] font-semibold uppercase text-muted-foreground">
           {label}
         </span>
         {quickSymbols.map((symbol) => (
@@ -142,7 +142,7 @@ export function InstrumentSearch({
               )}
             >
               <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-semibold tracking-tight">
+                <p className="text-sm font-semibold">
                   {instrument.symbol}
                 </p>
                 <span className="numeric text-xs text-muted-foreground">

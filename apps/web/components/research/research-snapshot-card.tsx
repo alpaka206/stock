@@ -38,7 +38,7 @@ export function ResearchSnapshotCard({
           <div className="flex flex-wrap items-center gap-2">
             <span
               className={cn(
-                "rounded-full px-2 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em]",
+                "rounded-md px-2 py-1 text-[0.68rem] font-semibold uppercase",
                 stanceTone === "positive"
                   ? "bg-[color:color-mix(in_oklch,var(--positive)_14%,transparent)] text-[color:var(--positive)]"
                   : stanceTone === "negative"
@@ -53,7 +53,7 @@ export function ResearchSnapshotCard({
             </span>
           </div>
           <div>
-            <p className="text-sm font-semibold tracking-tight">
+            <p className="text-sm font-semibold">
               {snapshot.symbol} · {snapshot.name}
             </p>
             <p className="text-xs text-muted-foreground">

@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { useAppLanguage } from "@/components/providers/language-provider";
 import { DataSourceNotice } from "@/components/research/data-source-notice";
 import { InstrumentSearch } from "@/components/research/instrument-search";
 import { ResearchPanel } from "@/components/research/research-panel";
@@ -24,7 +25,7 @@ import { useRecentSymbols } from "@/lib/client/use-recent-symbols";
 import { useResearchSnapshots } from "@/lib/client/use-research-snapshots";
 import { useUrlState } from "@/lib/client/use-url-state";
 import type { HistoryFixture } from "@/lib/research/types";
-import { layoutTokens } from "@/lib/tokens";
+import { layoutTokens, typographyTokens } from "@/lib/tokens";
 import { cn } from "@/lib/utils";
 
 type HistoryPageProps = {
@@ -33,6 +34,8 @@ type HistoryPageProps = {
 
 export function HistoryPage({ history }: HistoryPageProps) {
   const router = useRouter();
+  const { messages } = useAppLanguage();
+  const copy = messages.history;
   const { searchParams, replaceParams } = useUrlState();
   const { symbols: recentSymbols, pushSymbol } = useRecentSymbols(
     "stock-workspace:history-recent-symbols",
@@ -71,16 +74,13 @@ export function HistoryPage({ history }: HistoryPageProps) {
 
   return (
     <div className={layoutTokens.page} data-testid="history-page">
-      <ResearchPanel
-        title="히스토리 / 이벤트 리플레이"
-        description="종목과 날짜 범위를 바꾸면서 과거 급등·급락 이유를 차트 중심으로 다시 읽습니다."
-      >
+      <ResearchPanel title={copy.title} description={copy.description}>
         <div className="space-y-4">
           <DataSourceNotice source={history.dataSource} />
           <InstrumentSearch
             selectedSymbol={history.symbol}
-            label="기록 다시 보기"
-            helperText="종목을 바꾸면 해당 종목의 이벤트 리플레이로 바로 이동합니다."
+            label={copy.searchLabel}
+            helperText={copy.searchHelper}
             quickSymbols={recentSymbols}
             onSelect={(instrument) => {
               const nextQuery = new URLSearchParams(searchParams.toString());
@@ -101,10 +101,12 @@ export function HistoryPage({ history }: HistoryPageProps) {
               }
             >
               <SelectTrigger className="w-full bg-background/65">
-                <SelectValue placeholder="구간" />
+                <SelectValue placeholder={copy.rangePlaceholder} />
               </SelectTrigger>
               <SelectContent>
-                {hasCustomRange ? <SelectItem value="custom">직접 선택</SelectItem> : null}
+                {hasCustomRange ? (
+                  <SelectItem value="custom">{copy.customRange}</SelectItem>
+                ) : null}
                 {history.availableRanges.map((range) => (
                   <SelectItem key={range.value} value={range.value}>
                     {range.label}
@@ -122,7 +124,6 @@ export function HistoryPage({ history }: HistoryPageProps) {
                   event: undefined,
                 })
               }
-              className="bg-background/70"
             />
             <Input
               type="date"
@@ -134,7 +135,6 @@ export function HistoryPage({ history }: HistoryPageProps) {
                   event: undefined,
                 })
               }
-              className="bg-background/70"
             />
           </div>
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -147,22 +147,18 @@ export function HistoryPage({ history }: HistoryPageProps) {
 
       <div className="grid gap-[var(--space-grid)] xl:grid-cols-[minmax(0,1.3fr)_380px]">
         <ResearchPanel
-          title="과거 차트 리플레이"
+          title={copy.replayTitle}
           description={
             selectedEvent
               ? `${selectedEvent.date} · ${selectedEvent.title}`
-              : `${history.symbol} 과거 이벤트 리플레이`
+              : `${history.symbol} ${copy.replayTitle}`
           }
         >
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  {selectedEvent
-                    ? selectedEvent.summary
-                    : "과거 변곡점을 선택하면 차트와 타임라인이 동시에 이동합니다."}
-                </p>
-              </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+                {selectedEvent ? selectedEvent.summary : copy.replayFallback}
+              </p>
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
@@ -173,8 +169,8 @@ export function HistoryPage({ history }: HistoryPageProps) {
                     previousEvent ? replaceParams({ event: previousEvent.id }) : undefined
                   }
                 >
-                  <ChevronLeft />
-                  이전
+                  <ChevronLeft className="size-4" />
+                  {messages.common.previous}
                 </Button>
                 <Button
                   type="button"
@@ -185,8 +181,8 @@ export function HistoryPage({ history }: HistoryPageProps) {
                     nextEvent ? replaceParams({ event: nextEvent.id }) : undefined
                   }
                 >
-                  다음
-                  <ChevronRight />
+                  {messages.common.next}
+                  <ChevronRight className="size-4" />
                 </Button>
               </div>
             </div>
@@ -213,10 +209,7 @@ export function HistoryPage({ history }: HistoryPageProps) {
           </div>
         </ResearchPanel>
 
-        <ResearchPanel
-          title="이벤트 / 뉴스 타임라인"
-          description="특정 이벤트를 누르면 차트 시점이 바로 이동합니다."
-        >
+        <ResearchPanel title={copy.timelineTitle} description={copy.timelineDescription}>
           <EventTimeline
             events={history.events}
             selectedId={selectedEvent?.id}
@@ -226,18 +219,15 @@ export function HistoryPage({ history }: HistoryPageProps) {
       </div>
 
       <div className="grid gap-[var(--space-grid)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <ResearchPanel
-          title="급등 / 급락 이유 요약"
-          description="과거 움직임 이유를 카드로 다시 읽습니다."
-        >
+        <ResearchPanel title={copy.moveTitle} description={copy.moveDescription}>
           <div className="space-y-3">
             {history.moveReasons.map((reason, index) => (
               <div
                 key={`${reason.label}-${reason.relatedDate ?? index}`}
-                className="rounded-[calc(var(--radius)*1.05)] border border-border/55 bg-background/30 p-4"
+                className="rounded-lg border border-border/55 bg-background/30 p-4"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold tracking-tight">{reason.label}</p>
+                  <p className="text-sm font-semibold">{reason.label}</p>
                   {reason.relatedDate ? (
                     <span className="numeric text-xs text-muted-foreground">
                       {reason.relatedDate}
@@ -252,21 +242,18 @@ export function HistoryPage({ history }: HistoryPageProps) {
           </div>
         </ResearchPanel>
 
-        <ResearchPanel
-          title="중복 지표 설명 카드"
-          description="변곡점에서 겹친 보조지표 신호를 함께 봅니다."
-        >
+        <ResearchPanel title={copy.overlapTitle} description={copy.overlapDescription}>
           <div className="space-y-3">
             {history.overlaps.map((overlap, index) => (
               <div
                 key={`${overlap.label}-${overlap.relatedDate ?? index}`}
-                className="rounded-[calc(var(--radius)*1.05)] border border-border/55 bg-background/30 p-4"
+                className="rounded-lg border border-border/55 bg-background/30 p-4"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold tracking-tight">{overlap.label}</p>
+                  <p className="text-sm font-semibold">{overlap.label}</p>
                   <span
                     className={cn(
-                      "rounded-full px-2 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.14em]",
+                      "rounded-md px-2 py-1 text-[0.68rem] font-semibold",
                       overlap.tone === "positive"
                         ? "bg-[color:color-mix(in_oklch,var(--positive)_14%,transparent)] text-[color:var(--positive)]"
                         : overlap.tone === "negative"
@@ -275,10 +262,10 @@ export function HistoryPage({ history }: HistoryPageProps) {
                     )}
                   >
                     {overlap.tone === "positive"
-                      ? "강세"
+                      ? copy.tonePositive
                       : overlap.tone === "negative"
-                        ? "주의"
-                        : "중립"}
+                        ? copy.toneNegative
+                        : copy.toneNeutral}
                   </span>
                 </div>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -286,7 +273,7 @@ export function HistoryPage({ history }: HistoryPageProps) {
                 </p>
                 {overlap.relatedDate ? (
                   <p className="numeric mt-2 text-xs text-muted-foreground">
-                    관련 날짜 {overlap.relatedDate}
+                    {messages.common.relatedDate} {overlap.relatedDate}
                   </p>
                 ) : null}
               </div>
@@ -296,16 +283,16 @@ export function HistoryPage({ history }: HistoryPageProps) {
       </div>
 
       <ResearchPanel
-        title="리서치 저널"
-        description={`${history.symbol} 기준 저장된 판단 스냅샷을 시점 순으로 다시 읽습니다.`}
+        title={copy.journalTitle}
+        description={`${history.symbol} ${copy.journalDescription}`}
       >
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-muted-foreground">
-              저장된 기록 {symbolSnapshots.length}건
+            <p className={cn(typographyTokens.eyebrow, "normal-case")}>
+              {copy.savedCount(symbolSnapshots.length)}
             </p>
             <Button asChild variant="outline" size="sm">
-              <Link href={`/stocks/${history.symbol}`}>상세 화면으로 이동</Link>
+              <Link href={`/stocks/${history.symbol}`}>{copy.goToDetail}</Link>
             </Button>
           </div>
 
@@ -322,17 +309,15 @@ export function HistoryPage({ history }: HistoryPageProps) {
                       variant="ghost"
                       onClick={() => removeSnapshot(snapshot.id)}
                     >
-                      삭제
+                      {messages.common.delete}
                     </Button>
                   }
                 />
               ))}
             </div>
           ) : (
-            <div className="rounded-[calc(var(--radius)*1.05)] border border-dashed border-border/60 px-4 py-5 text-sm leading-6 text-muted-foreground">
-              아직 이 종목에 저장된 판단 기록이 없습니다. `/stocks/[symbol]`
-              화면에서 스냅샷을 저장하면 과거 이벤트 리플레이와 함께 회고할 수
-              있습니다.
+            <div className="rounded-lg border border-dashed border-border/60 px-4 py-5 text-sm leading-6 text-muted-foreground">
+              {copy.journalEmpty}
             </div>
           )}
         </div>

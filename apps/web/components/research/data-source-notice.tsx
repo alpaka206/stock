@@ -18,15 +18,20 @@ export function DataSourceNotice({ source, className }: DataSourceNoticeProps) {
     return null;
   }
 
+  const label =
+    source.label.includes("목데이터") || source.description.includes("(목데이터)")
+      ? source.label
+      : `${source.label} (목데이터)`;
+
   return (
     <div
       className={cn(
-        "rounded-[calc(var(--radius)*1.05)] border px-3 py-2",
+        "rounded-md border px-3 py-2",
         toneClassMap[source.mode],
         className
       )}
     >
-      <p className="text-sm font-semibold tracking-tight">{source.label}</p>
+      <p className="text-sm font-semibold tracking-normal">{label}</p>
       <p className="mt-1 text-sm leading-6 text-muted-foreground">{source.description}</p>
     </div>
   );

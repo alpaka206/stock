@@ -13,7 +13,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
   const apiUrl = resolveSnapshotApiUrl(id);
 
   if (!apiUrl) {
-    return NextResponse.json({ deleted: false, id, status: "disabled" }, { status: 202 });
+    return NextResponse.json({ deleted: await deleteLocalSnapshot(id), id, status: "local" });
   }
 
   try {
@@ -25,30 +25,29 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     });
 
     if (!response.ok) {
-      return NextResponse.json(
-        {
-          deleted: false,
-          id,
-          status: "error",
-          errorMessage: `snapshot API responded with ${response.status}`,
-        },
-        { status: 202 }
-      );
+      return NextResponse.json({
+        deleted: await deleteLocalSnapshot(id),
+        id,
+        status: "local",
+        errorMessage: `snapshot API responded with ${response.status}`,
+      });
     }
 
     const payload = (await response.json()) as { deleted: boolean; id: string };
     return NextResponse.json({ ...payload, status: "success" });
   } catch (error) {
-    return NextResponse.json(
-      {
-        deleted: false,
-        id,
-        status: "error",
-        errorMessage: error instanceof Error ? error.message : "snapshot API failed",
-      },
-      { status: 202 }
-    );
+    return NextResponse.json({
+      deleted: await deleteLocalSnapshot(id),
+      id,
+      status: "local",
+      errorMessage: error instanceof Error ? error.message : "snapshot API failed",
+    });
   }
+}
+
+async function deleteLocalSnapshot(id: string) {
+  const { deleteServerSnapshot } = await import("@/lib/server/snapshot-store");
+  return deleteServerSnapshot(id);
 }
 
 function resolveSnapshotApiUrl(id: string) {

@@ -16,17 +16,25 @@ export function AppNavigation({ onNavigate }: AppNavigationProps) {
   const { language } = useAppLanguage();
   const routeContext = getCurrentRouteContext(pathname, language);
   const mainNavigation = getMainNavigation(language);
-  const sectionLabel = language === "en" ? "Core Screens" : "핵심 화면";
+  const sectionLabel =
+    language === "en"
+      ? "Core views"
+      : language === "ja"
+        ? "主要画面"
+        : language === "zh"
+          ? "主要页面"
+          : "핵심 화면";
 
   return (
     <nav className="grid gap-1">
-      <div className="mb-3 flex items-center justify-between border-b border-border/80 pb-3 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground/80">
+      <div className="mb-2 flex items-center justify-between border-b border-border/80 pb-3 text-xs font-semibold uppercase text-muted-foreground">
         <span>{sectionLabel}</span>
         <span className="numeric">{mainNavigation.length}</span>
       </div>
 
-      {mainNavigation.map((navigationItem, index) => {
+      {mainNavigation.map((navigationItem) => {
         const active = routeContext.activeSection === navigationItem.id;
+        const Icon = navigationItem.icon;
 
         return (
           <Link
@@ -34,40 +42,30 @@ export function AppNavigation({ onNavigate }: AppNavigationProps) {
             href={navigationItem.href}
             onClick={onNavigate}
             className={cn(
-              "group border-l-2 px-0 py-3 transition-colors",
+              "group flex items-start gap-3 rounded-md border px-3 py-3 transition-colors",
               active
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
+                ? "border-primary/35 bg-primary/10 text-foreground"
+                : "border-transparent text-muted-foreground hover:border-border hover:bg-muted/40 hover:text-foreground"
             )}
           >
-            <div
+            <span
               className={cn(
-                "flex items-start justify-between gap-4 border-b border-border/60 pl-3 pb-3",
-                active ? "border-border/90" : "group-hover:border-border/85"
+                "mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-md border",
+                active
+                  ? "border-primary/30 bg-background/60 text-primary"
+                  : "border-border/70 bg-background/45 text-muted-foreground"
               )}
             >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="numeric text-[0.72rem] font-semibold text-muted-foreground/70">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <p className="text-sm font-semibold tracking-tight">
-                    {navigationItem.label}
-                  </p>
-                </div>
-                <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                  {navigationItem.description}
-                </p>
-              </div>
-              <span
-                className={cn(
-                  "numeric shrink-0 text-[0.72rem] font-semibold",
-                  active ? "text-primary" : "text-muted-foreground/60"
-                )}
-              >
-                {navigationItem.id.toUpperCase()}
+              <Icon className="size-4" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold tracking-normal">
+                {navigationItem.label}
               </span>
-            </div>
+              <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                {navigationItem.description}
+              </span>
+            </span>
           </Link>
         );
       })}

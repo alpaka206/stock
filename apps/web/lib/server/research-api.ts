@@ -79,7 +79,7 @@ export async function fetchResearchApiJson<TPayload>({
         status: "error",
         payload: null,
         apiUrl,
-        errorMessage: `API 응답이 ${response.status} 상태로 실패했습니다.`,
+        errorMessage: `API 응답이 HTTP ${response.status} 상태로 실패했습니다.`,
       } satisfies ResearchApiFetchResult<TPayload>;
     }
 
@@ -96,8 +96,8 @@ export async function fetchResearchApiJson<TPayload>({
       apiUrl,
       errorMessage:
         error instanceof Error
-          ? `API 요청이 실패했습니다: ${error.message}`
-          : "API 요청이 실패했습니다.",
+          ? `API 요청에 실패했습니다: ${error.message}`
+          : "API 요청에 실패했습니다.",
     } satisfies ResearchApiFetchResult<TPayload>;
   }
 }
@@ -127,17 +127,11 @@ export function buildFixtureDataSource({
   reason: string;
   fallback: boolean;
 }): ResearchDataSource {
-  return fallback
-    ? {
-        mode: "fixture-fallback",
-        label: "대체 데이터",
-        description: reason,
-      }
-    : {
-        mode: "fixture",
-        label: "기본 데이터",
-        description: reason,
-      };
+  return {
+    mode: fallback ? "fixture-fallback" : "fixture",
+    label: "목데이터",
+    description: `${reason} (목데이터)`,
+  };
 }
 
 export function buildPayloadDataSource(sourceRefs: SourceRef[]): ResearchDataSource {
@@ -148,24 +142,28 @@ export function buildPayloadDataSource(sourceRefs: SourceRef[]): ResearchDataSou
     return {
       mode: "mock",
       label: "검증 응답",
-      description: "API가 검증용 sourceRefs를 반환했습니다. 실제 분석용 데이터로 사용하지 마세요.",
+      description:
+        "API가 검증용 sourceRefs를 반환했습니다. 실제 투자 판단 데이터로 사용하지 마세요. (목데이터)",
     };
   }
 
   return {
     mode: "live",
-    label: "실시간 데이터",
-    description: "연결된 sourceRefs와 결정론적 계산 결과를 기준으로 화면을 구성했습니다.",
+    label: "실제 데이터",
+    description: "서버가 연결된 sourceRefs와 계산 결과를 기준으로 화면을 구성했습니다.",
   };
 }
 
-export function assertResearchApiAvailable(result: ResearchApiFetchResult<unknown>, pageLabel: string) {
+export function assertResearchApiAvailable(
+  result: ResearchApiFetchResult<unknown>,
+  pageLabel: string
+) {
   if (result.status !== "error" || !isFixtureFallbackLocked()) {
     return;
   }
 
   throw new Error(
-    `${pageLabel} API 연결이 실패했습니다. release 모드에서는 대체 데이터를 자동 표시하지 않습니다. ${result.errorMessage}`
+    `${pageLabel} API 연결에 실패했습니다. 릴리스 모드에서는 목데이터를 자동 표시하지 않습니다. ${result.errorMessage}`
   );
 }
 
@@ -178,7 +176,7 @@ export function assertResearchApiConfigured(
   }
 
   throw new Error(
-    `${pageLabel} API URL이 설정되지 않았습니다. release 모드에서는 fixture fallback을 허용하지 않습니다. STOCK_API_BASE_URL 또는 route별 API URL을 설정해야 합니다.`
+    `${pageLabel} API URL이 설정되지 않았습니다. 릴리스 모드에서는 목데이터 fallback을 허용하지 않습니다. STOCK_API_BASE_URL 또는 route별 API URL을 설정해야 합니다.`
   );
 }
 

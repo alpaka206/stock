@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 import { ResearchPanel } from "@/components/research/research-panel";
 import { buttonVariants } from "@/components/ui/button";
@@ -14,26 +14,20 @@ type SectorStrengthPanelProps = {
 export function SectorStrengthPanel({ items }: SectorStrengthPanelProps) {
   return (
     <ResearchPanel
-      eyebrow="Leader Tracking"
-      title="리더 추적"
-      description="상단 섹터의 점수, 모멘텀, 대표 종목을 한 줄씩 확인합니다."
+      eyebrow="Leader tracking"
+      title="주도 섹터"
+      description="점수, 모멘텀, 대표 종목을 기준으로 시장 리더를 봅니다."
       action={
-        <Link
-          href="/radar"
-          className={cn(
-            buttonVariants({ variant: "outline", size: "sm" }),
-            "rounded-[calc(var(--radius)*0.72)]"
-          )}
-        >
-          레이더 전체 보기
+        <Link href="/radar" className={buttonVariants({ variant: "outline", size: "sm" })}>
+          레이더 전체
         </Link>
       }
       variant="feed"
     >
       <div className="space-y-3">
         {items.length === 0 ? (
-          <div className="rounded-[calc(var(--radius)*0.82)] border border-dashed border-border/80 bg-muted/10 p-4 text-sm leading-6 text-muted-foreground">
-            현재 추적할 상단 섹터가 없습니다. 레이더에서 섹터별 흐름을 직접 확인해 주세요.
+          <div className="rounded-lg border border-dashed border-border/80 bg-muted/10 p-4 text-sm leading-6 text-muted-foreground">
+            추적할 주도 섹터가 없습니다. 레이더에서 섹터별 흐름을 확인해 주세요.
           </div>
         ) : null}
 
@@ -48,7 +42,7 @@ export function SectorStrengthPanel({ items }: SectorStrengthPanelProps) {
                 <div className="grid gap-3 md:grid-cols-[1.1fr_0.9fr] md:items-start">
                   <div>
                     <div className="flex items-center gap-3">
-                      <p className="text-sm font-semibold tracking-tight">{item.name}</p>
+                      <p className="text-sm font-semibold">{item.name}</p>
                       {item.changePercent !== undefined ? (
                         <span
                           className={cn(
@@ -70,10 +64,8 @@ export function SectorStrengthPanel({ items }: SectorStrengthPanelProps) {
                   </div>
 
                   <div className="md:text-right">
-                    <p className="numeric text-[1.35rem] font-semibold tracking-[-0.04em]">
-                      {item.score}
-                    </p>
-                    <p className="mt-1 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground/75">
+                    <p className="numeric text-2xl font-semibold">{item.score}</p>
+                    <p className="mt-1 text-[0.72rem] font-semibold uppercase text-muted-foreground/75">
                       {item.targetSymbol}
                     </p>
                     <p className="mt-2 text-xs leading-5 text-muted-foreground">

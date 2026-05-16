@@ -53,7 +53,7 @@ export function ResearchPanel({
       >
         <div>
           {eyebrow ? (
-            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground/85">
+            <p className="text-[0.68rem] font-semibold uppercase text-muted-foreground/85">
               {eyebrow}
             </p>
           ) : null}

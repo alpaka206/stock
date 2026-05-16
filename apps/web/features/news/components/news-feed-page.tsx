@@ -3,9 +3,9 @@ import Link from "next/link";
 import { DataSourceNotice } from "@/components/research/data-source-notice";
 import { ResearchPanel } from "@/components/research/research-panel";
 import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import type { NewsFeedArticle, NewsFeedFixture } from "@/lib/research/types";
 import { layoutTokens, typographyTokens } from "@/lib/tokens";
+import { cn } from "@/lib/utils";
 
 type NewsFeedPageProps = {
   data: NewsFeedFixture;
@@ -24,21 +24,21 @@ export function NewsFeedPage({ data, scope }: NewsFeedPageProps) {
     {
       key: "global",
       title: "해외 헤드라인",
-      description: "시황 해석에 바로 영향을 주는 메인 뉴스를 먼저 본다.",
+      description: "시장 방향에 영향을 주는 주요 글로벌 뉴스를 먼저 보여줍니다.",
       items: data.featuredNews,
-      empty: "현재 해외 헤드라인이 없습니다.",
+      empty: "표시할 해외 헤드라인이 없습니다.",
     },
     {
       key: "watchlist",
       title: "관심종목 뉴스",
-      description: "레이더 종목과 바로 연결되는 뉴스만 분리한다.",
+      description: "레이더에 담은 종목과 직접 연결되는 기사만 따로 모았습니다.",
       items: data.watchlistNews,
       empty: "관심종목 뉴스가 없습니다.",
     },
     {
       key: "domestic",
       title: "국내 공시",
-      description: "OpenDART 연동으로 국내 행복 이벤트를 보조 피드로 제공한다.",
+      description: "OpenDART 연동 자료를 공시 흐름으로 확인할 수 있게 정리합니다.",
       items: data.domesticDisclosures,
       empty: "표시할 국내 공시가 없습니다.",
     },
@@ -46,24 +46,26 @@ export function NewsFeedPage({ data, scope }: NewsFeedPageProps) {
 
   return (
     <div className={layoutTokens.page}>
-      <section className="flex flex-col gap-4 rounded-[calc(var(--radius)*1.5)] border border-border/60 bg-[radial-gradient(circle_at_top_left,color-mix(in_oklch,var(--primary)_12%,transparent),transparent_50%),linear-gradient(180deg,color-mix(in_oklch,var(--background)_88%,var(--card))_0%,var(--background)_100%)] p-[var(--card-padding)]">
-        <div className="max-w-3xl">
-          <p className={typographyTokens.eyebrow}>뉴스 / 요약</p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight lg:text-3xl">
-            해외 뉴스, 관심종목 속보, 국내 공시를 한 흐름으로 보는 피드
-          </h2>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground lg:text-base">
-            {data.marketSummary}
-          </p>
-          <DataSourceNotice source={data.dataSource} className="mt-4 max-w-2xl" />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/overview" className={cn(buttonVariants({ size: "sm" }))}>
-            시황 대시보드
-          </Link>
-          <Link href="/calendar" className={cn(buttonVariants({ size: "sm", variant: "outline" }))}>
-            캘린더 보기
-          </Link>
+      <section className="rounded-lg border border-border/60 bg-card p-[var(--card-padding)]">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl">
+            <p className={typographyTokens.eyebrow}>뉴스 / 공시</p>
+            <h1 className="mt-2 text-2xl font-semibold leading-tight lg:text-3xl">
+              시장 뉴스와 공시를 투자 판단 흐름에 맞게 정리
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground lg:text-base">
+              {data.marketSummary}
+            </p>
+            <DataSourceNotice source={data.dataSource} className="mt-4 max-w-2xl" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/overview" className={cn(buttonVariants({ size: "sm" }))}>
+              시장 대시보드
+            </Link>
+            <Link href="/calendar" className={cn(buttonVariants({ size: "sm", variant: "outline" }))}>
+              캘린더 보기
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -72,11 +74,9 @@ export function NewsFeedPage({ data, scope }: NewsFeedPageProps) {
           <Link
             key={`${driver.label}-${driver.text}`}
             href={driver.href}
-            className="rounded-[calc(var(--radius)*1.1)] border border-border/60 bg-background/65 p-4 transition hover:border-primary/30 hover:bg-background/90"
+            className="rounded-md border border-border/60 bg-background p-4 transition-colors hover:border-primary/35 hover:bg-muted/35"
           >
-            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              {driver.label}
-            </p>
+            <p className="text-xs font-semibold uppercase text-muted-foreground">{driver.label}</p>
             <p className="mt-2 text-sm leading-6 text-foreground">{driver.text}</p>
           </Link>
         ))}
@@ -88,10 +88,10 @@ export function NewsFeedPage({ data, scope }: NewsFeedPageProps) {
             key={option.value}
             href={option.href}
             className={cn(
-              "rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors",
+              "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
               scope === option.value
                 ? "border-primary/35 bg-primary/10 text-foreground"
-                : "border-border/70 bg-background/45 text-muted-foreground hover:bg-muted/60"
+                : "border-border/70 bg-background text-muted-foreground hover:bg-muted/50"
             )}
           >
             {option.label}
@@ -104,7 +104,7 @@ export function NewsFeedPage({ data, scope }: NewsFeedPageProps) {
           <ResearchPanel key={section.key} title={section.title} description={section.description}>
             <div className="space-y-3">
               {section.items.length === 0 ? (
-                <div className="rounded-[calc(var(--radius)*1.05)] border border-dashed border-border/70 bg-background/20 p-4 text-sm leading-6 text-muted-foreground">
+                <div className="rounded-md border border-dashed border-border/70 bg-background p-4 text-sm leading-6 text-muted-foreground">
                   {section.empty}
                 </div>
               ) : null}
@@ -120,10 +120,11 @@ export function NewsFeedPage({ data, scope }: NewsFeedPageProps) {
 }
 
 function ArticleCard({ item }: { item: NewsFeedArticle }) {
-  const stockHref = item.symbol && item.market !== "domestic" ? `/stocks/${item.symbol}` : null;
+  const stockHref =
+    item.symbol && item.market !== "domestic" ? `/stocks/${item.symbol}` : null;
 
   return (
-    <article className="rounded-[calc(var(--radius)*1.05)] border border-border/55 bg-background/25 p-4">
+    <article className="rounded-md border border-border/60 bg-background p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -131,9 +132,14 @@ function ArticleCard({ item }: { item: NewsFeedArticle }) {
             <span>{formatPublishedAt(item.publishedAt)}</span>
             {item.symbol ? <span className="numeric">{item.symbol}</span> : null}
           </div>
-          <p className="mt-2 text-sm font-semibold leading-6 tracking-tight">{item.headline}</p>
+          <h2 className="mt-2 text-sm font-semibold leading-6">{item.headline}</h2>
         </div>
-        <span className={cn("shrink-0 rounded-full px-2.5 py-1 text-[0.68rem] font-semibold", getImpactTone(item.impact))}>
+        <span
+          className={cn(
+            "shrink-0 rounded-md px-2.5 py-1 text-xs font-semibold",
+            getImpactTone(item.impact)
+          )}
+        >
           {item.impact}
         </span>
       </div>
@@ -161,10 +167,18 @@ function ArticleCard({ item }: { item: NewsFeedArticle }) {
 
 function getImpactTone(impact: string) {
   const normalized = impact.toLowerCase();
-  if (normalized.includes("긍정") || normalized.includes("관심") || normalized.includes("positive")) {
+  if (
+    normalized.includes("긍정") ||
+    normalized.includes("상승") ||
+    normalized.includes("positive")
+  ) {
     return "bg-[color:color-mix(in_oklch,var(--positive)_14%,transparent)] text-[color:var(--positive)]";
   }
-  if (normalized.includes("부정") || normalized.includes("리스크") || normalized.includes("negative")) {
+  if (
+    normalized.includes("부정") ||
+    normalized.includes("위험") ||
+    normalized.includes("negative")
+  ) {
     return "bg-[color:color-mix(in_oklch,var(--negative)_14%,transparent)] text-[color:var(--negative)]";
   }
   return "bg-muted text-muted-foreground";
