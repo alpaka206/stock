@@ -3,9 +3,9 @@ import Link from "next/link";
 import { DataSourceNotice } from "@/components/research/data-source-notice";
 import { ResearchPanel } from "@/components/research/research-panel";
 import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import type { CalendarEventItem, CalendarFixture } from "@/lib/research/types";
 import { layoutTokens, typographyTokens } from "@/lib/tokens";
+import { cn } from "@/lib/utils";
 
 type CalendarBoardPageProps = {
   data: CalendarFixture;
@@ -43,27 +43,26 @@ export function CalendarBoardPage({ data, scope }: CalendarBoardPageProps) {
 
   return (
     <div className={layoutTokens.page}>
-      <section className="flex flex-col gap-4 rounded-[calc(var(--radius)*1.5)] border border-border/60 bg-[radial-gradient(circle_at_top_left,color-mix(in_oklch,var(--primary)_12%,transparent),transparent_50%),linear-gradient(180deg,color-mix(in_oklch,var(--background)_88%,var(--card))_0%,var(--background)_100%)] p-[var(--card-padding)]">
-        <div className="max-w-3xl">
-          <p className={typographyTokens.eyebrow}>일정 / 실적</p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight lg:text-3xl">
-            실적, IPO, 국내 공시, 뉴스 체크 포인트를 한 화면에서 보는 캘린더
-          </h2>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground lg:text-base">
-            {data.summary}
-          </p>
-          <DataSourceNotice source={data.dataSource} className="mt-4 max-w-2xl" />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/overview" className={cn(buttonVariants({ size: "sm" }))}>
-            시황 대시보드
-          </Link>
-          <Link
-            href="/news"
-            className={cn(buttonVariants({ size: "sm", variant: "outline" }))}
-          >
-            뉴스 피드
-          </Link>
+      <section className="rounded-lg border border-border/60 bg-card p-[var(--card-padding)]">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl">
+            <p className={typographyTokens.eyebrow}>일정 / 이벤트</p>
+            <h1 className="mt-2 text-2xl font-semibold leading-tight lg:text-3xl">
+              실적, IPO, 공시, 뉴스 체크 포인트를 한 화면에서 확인
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground lg:text-base">
+              {data.summary}
+            </p>
+            <DataSourceNotice source={data.dataSource} className="mt-4 max-w-2xl" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/overview" className={cn(buttonVariants({ size: "sm" }))}>
+              시장 대시보드
+            </Link>
+            <Link href="/news" className={cn(buttonVariants({ size: "sm", variant: "outline" }))}>
+              뉴스 피드
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -71,11 +70,9 @@ export function CalendarBoardPage({ data, scope }: CalendarBoardPageProps) {
         {data.highlights.map((item) => (
           <div
             key={item.label}
-            className="rounded-[calc(var(--radius)*1.05)] border border-border/55 bg-background/35 p-4"
+            className="rounded-md border border-border/60 bg-background p-4"
           >
-            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              {item.label}
-            </p>
+            <p className="text-xs font-semibold uppercase text-muted-foreground">{item.label}</p>
             <p className="numeric mt-2 text-2xl font-semibold">{item.value}</p>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.detail}</p>
           </div>
@@ -84,15 +81,15 @@ export function CalendarBoardPage({ data, scope }: CalendarBoardPageProps) {
 
       <ResearchPanel
         title="월간 캘린더"
-        description="날짜축으로 먼저 훑고, 아래 상세 카드에서 종목과 원문 링크를 이어서 확인합니다."
+        description="날짜순으로 먼저 훑고, 아래 상세 카드에서 종목과 원문 링크를 확인합니다."
       >
-        <div className="rounded-[calc(var(--radius)*1.1)] border border-border/60 bg-background/35 p-4">
+        <div className="rounded-md border border-border/60 bg-background p-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              <p className="text-xs font-semibold uppercase text-muted-foreground">
                 Calendar View
               </p>
-              <h3 className="mt-2 text-lg font-semibold tracking-tight">{monthView.title}</h3>
+              <h2 className="mt-2 text-lg font-semibold">{monthView.title}</h2>
             </div>
             <p className="text-sm text-muted-foreground">
               현재 범위 이벤트 {visibleEvents.length}건
@@ -103,7 +100,7 @@ export function CalendarBoardPage({ data, scope }: CalendarBoardPageProps) {
             {weekdayLabels.map((label) => (
               <div
                 key={label}
-                className="rounded-full bg-muted/70 px-2 py-1 text-center text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground"
+                className="rounded-md bg-muted px-2 py-1 text-center text-xs font-semibold text-muted-foreground"
               >
                 {label}
               </div>
@@ -112,11 +109,11 @@ export function CalendarBoardPage({ data, scope }: CalendarBoardPageProps) {
               <div
                 key={cell.key}
                 className={cn(
-                  "min-h-28 rounded-[calc(var(--radius)*1.05)] border p-2.5",
+                  "min-h-28 rounded-md border p-2.5",
                   cell.day === null
                     ? "border-transparent bg-transparent"
-                    : "border-border/60 bg-background/55",
-                  cell.muted && "bg-background/25"
+                    : "border-border/60 bg-card",
+                  cell.muted && "bg-background"
                 )}
               >
                 {cell.day !== null ? (
@@ -124,7 +121,7 @@ export function CalendarBoardPage({ data, scope }: CalendarBoardPageProps) {
                     <div className="flex items-center justify-between">
                       <span className="numeric text-sm font-semibold">{cell.day}</span>
                       {cell.items.length > 0 ? (
-                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[0.68rem] font-semibold text-foreground">
+                        <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-foreground">
                           {cell.items.length}건
                         </span>
                       ) : null}
@@ -133,24 +130,19 @@ export function CalendarBoardPage({ data, scope }: CalendarBoardPageProps) {
                       {cell.items.slice(0, 2).map((item) => (
                         <div
                           key={item.id}
-                          className={cn(
-                            "rounded-md px-2 py-1 text-xs leading-5",
-                            getTone(item.tone)
-                          )}
+                          className={cn("rounded-md px-2 py-1 text-xs leading-5", getTone(item.tone))}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <span className="truncate font-semibold">
                               {formatCategory(item.category)}
                             </span>
-                            <span className="truncate text-[0.68rem] opacity-80">
-                              {item.time}
-                            </span>
+                            <span className="truncate opacity-80">{item.time}</span>
                           </div>
                           <p className="mt-0.5 truncate">{item.title}</p>
                         </div>
                       ))}
                       {cell.items.length > 2 ? (
-                        <p className="text-[0.68rem] text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           +{cell.items.length - 2}건 더 있음
                         </p>
                       ) : null}
@@ -169,10 +161,10 @@ export function CalendarBoardPage({ data, scope }: CalendarBoardPageProps) {
             key={option.value}
             href={option.href}
             className={cn(
-              "rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors",
+              "rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
               scope === option.value
                 ? "border-primary/35 bg-primary/10 text-foreground"
-                : "border-border/70 bg-background/45 text-muted-foreground hover:bg-muted/60"
+                : "border-border/70 bg-background text-muted-foreground hover:bg-muted/50"
             )}
           >
             {option.label}
@@ -182,14 +174,10 @@ export function CalendarBoardPage({ data, scope }: CalendarBoardPageProps) {
 
       <section className="grid gap-[var(--space-grid)] xl:grid-cols-3">
         {sections.map((section) => (
-          <ResearchPanel
-            key={section.key}
-            title={section.title}
-            description={section.description}
-          >
+          <ResearchPanel key={section.key} title={section.title} description={section.description}>
             <div className="space-y-3">
               {section.items.length === 0 ? (
-                <div className="rounded-[calc(var(--radius)*1.05)] border border-dashed border-border/70 bg-background/20 p-4 text-sm leading-6 text-muted-foreground">
+                <div className="rounded-md border border-dashed border-border/70 bg-background p-4 text-sm leading-6 text-muted-foreground">
                   {section.empty}
                 </div>
               ) : null}
@@ -209,21 +197,21 @@ function buildSections(data: CalendarFixture, scope: string): CalendarSection[] 
     {
       key: "watchlist",
       title: "관심종목 일정",
-      description: "레이더 종목 기준으로 실적과 뉴스 체크 포인트를 먼저 모읍니다.",
+      description: "레이더 종목 기준으로 실적과 주요 체크 포인트를 먼저 모았습니다.",
       items: data.watchlistEvents,
       empty: "표시할 관심종목 일정이 없습니다.",
     },
     {
       key: "market",
       title: "IPO / 시장 이벤트",
-      description: "글로벌 IPO와 시장 체크 포인트를 날짜 중심으로 훑습니다.",
+      description: "글로벌 IPO와 시장 체크 포인트를 날짜 중심으로 정리합니다.",
       items: data.marketEvents,
       empty: "표시할 시장 이벤트가 없습니다.",
     },
     {
       key: "domestic",
       title: "국내 공시",
-      description: "OpenDART 기준 최신 공시를 일정 흐름으로 연결합니다.",
+      description: "OpenDART 기반 최신 공시를 일정 흐름으로 연결합니다.",
       items: data.domesticEvents,
       empty: "표시할 국내 공시가 없습니다.",
     },
@@ -254,7 +242,7 @@ function buildMonthView(events: CalendarEventItem[]) {
     const isoDate = formatIsoDate(
       new Date(Date.UTC(anchorDate.getUTCFullYear(), anchorDate.getUTCMonth(), day))
     );
-    const cellItems = eventMap.has(isoDate) ? eventMap.get(isoDate)! : [];
+    const cellItems = eventMap.get(isoDate) ?? [];
     cells.push({
       key: isoDate,
       day,
@@ -297,7 +285,7 @@ function groupEventsByDate(events: CalendarEventItem[]) {
       if (!normalizedDate) {
         return;
       }
-      const current = grouped.has(normalizedDate) ? grouped.get(normalizedDate)! : [];
+      const current = grouped.get(normalizedDate) ?? [];
       current.push(event);
       grouped.set(normalizedDate, current);
     });
@@ -335,10 +323,11 @@ function formatIsoDate(value: Date) {
 }
 
 function EventCard({ item }: { item: CalendarEventItem }) {
-  const stockHref = item.symbol && item.market !== "domestic" ? `/stocks/${item.symbol}` : null;
+  const stockHref =
+    item.symbol && item.market !== "domestic" ? `/stocks/${item.symbol}` : null;
 
   return (
-    <article className="rounded-[calc(var(--radius)*1.05)] border border-border/55 bg-background/25 p-4">
+    <article className="rounded-md border border-border/60 bg-background p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -346,11 +335,11 @@ function EventCard({ item }: { item: CalendarEventItem }) {
             <span className="numeric">{item.date}</span>
             <span>{item.time}</span>
           </div>
-          <p className="mt-2 text-sm font-semibold leading-6 tracking-tight">{item.title}</p>
+          <h2 className="mt-2 text-sm font-semibold leading-6">{item.title}</h2>
         </div>
         <span
           className={cn(
-            "shrink-0 rounded-full px-2.5 py-1 text-[0.68rem] font-semibold",
+            "shrink-0 rounded-md px-2.5 py-1 text-xs font-semibold",
             getTone(item.tone)
           )}
         >

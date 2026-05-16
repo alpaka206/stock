@@ -25,7 +25,11 @@ const uvPackages = [
   "--with",
   "pydantic",
   "--with",
+  "psycopg[binary]",
+  "--with",
   "pyyaml",
+  "--with",
+  "sqlalchemy",
   "--with",
   "uvicorn[standard]",
 ];

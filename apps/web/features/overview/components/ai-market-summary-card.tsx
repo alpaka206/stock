@@ -20,16 +20,13 @@ const driverIconMap = {
 export function AiMarketSummaryCard({ data }: AiMarketSummaryCardProps) {
   return (
     <ResearchPanel
-      eyebrow="Opening Brief"
-      title="오프닝 브리프"
-      description={`${data.asOf} 기준 시장 해석`}
+      eyebrow="Opening brief"
+      title="시장 흐름 요약"
+      description={`${data.asOf} 기준 서버 요약`}
       action={
         <Link
           href="/radar"
-          className={cn(
-            buttonVariants({ variant: "outline", size: "sm" }),
-            "rounded-[calc(var(--radius)*0.72)]"
-          )}
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-md")}
         >
           레이더로 이어서 보기
         </Link>
@@ -44,7 +41,7 @@ export function AiMarketSummaryCard({ data }: AiMarketSummaryCardProps) {
           </p>
 
           <div className={cn(surfaceStyles.panelInset, "p-4")}>
-            <p className={typographyTokens.eyebrow}>오늘의 해석 프레임</p>
+            <p className={typographyTokens.eyebrow}>해석 프레임</p>
             <p className="mt-2 text-sm leading-7 text-foreground/88">
               {data.scenario}
             </p>
@@ -52,28 +49,24 @@ export function AiMarketSummaryCard({ data }: AiMarketSummaryCardProps) {
 
           <div className="grid gap-3 sm:grid-cols-3">
             <BriefMeta
-              label="판단 신뢰도"
-              value={`${Math.round(data.confidence.score * 100)}점`}
+              label="신뢰도"
+              value={`${Math.round(data.confidence.score * 100)}%`}
               description={formatConfidenceLabel(data.confidence.label)}
             />
             <BriefMeta
               label="출처 수"
               value={`${data.sourceSummary.sourceCount}건`}
-              description="브리프에 반영된 데이터 출처"
+              description="요약에 반영된 서버 출처"
             />
             <BriefMeta
-              label="데이터 공백"
+              label="누락 데이터"
               value={`${data.sourceSummary.missingDataCount}건`}
-              description="현재 응답에서 누락된 항목"
+              description="응답에서 확인되지 않은 항목"
             />
-          </div>
-
-          <div className="rounded-[calc(var(--radius)*0.82)] border border-border/80 bg-muted/10 px-4 py-3 text-sm leading-6 text-muted-foreground">
-            {data.confidence.rationale}
           </div>
         </div>
 
-        <div className="border-t border-border/80 pt-4 xl:border-t-0 xl:border-l xl:pl-6 xl:pt-0">
+        <div className="border-t border-border/80 pt-4 xl:border-l xl:border-t-0 xl:pl-6 xl:pt-0">
           <p className={typographyTokens.eyebrow}>판단 재료</p>
           {data.summaryDrivers.length > 0 ? (
             <div className="mt-3 divide-y divide-border/80">
@@ -89,7 +82,7 @@ export function AiMarketSummaryCard({ data }: AiMarketSummaryCardProps) {
                     <div className="flex items-start gap-3">
                       <span
                         className={cn(
-                          "mt-0.5 inline-flex size-9 items-center justify-center rounded-[0.5rem] border",
+                          "mt-0.5 inline-flex size-9 items-center justify-center rounded-md border",
                           getDriverTone(driver.tone)
                         )}
                       >
@@ -97,7 +90,7 @@ export function AiMarketSummaryCard({ data }: AiMarketSummaryCardProps) {
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-semibold tracking-tight">
+                          <p className="text-sm font-semibold tracking-normal">
                             {driver.label}
                           </p>
                           <ArrowRight className="size-4 shrink-0 text-muted-foreground transition group-hover:text-primary" />
@@ -112,9 +105,8 @@ export function AiMarketSummaryCard({ data }: AiMarketSummaryCardProps) {
               })}
             </div>
           ) : (
-            <div className="mt-3 rounded-[calc(var(--radius)*0.82)] border border-dashed border-border/80 px-4 py-4 text-sm leading-6 text-muted-foreground">
-              브리프를 구성할 판단 재료가 아직 충분하지 않습니다. 레이더와
-              히스토리에서 직접 흐름을 확인해 주세요.
+            <div className="mt-3 rounded-md border border-dashed border-border/80 px-4 py-4 text-sm leading-6 text-muted-foreground">
+              아직 판단 재료가 충분하지 않습니다. 레이더와 뉴스 화면에서 직접 확인하세요.
             </div>
           )}
         </div>
@@ -133,11 +125,9 @@ function BriefMeta({
   description: string;
 }) {
   return (
-    <div className="rounded-[calc(var(--radius)*0.8)] border border-border/80 bg-muted/10 px-4 py-3">
-      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground/80">
-        {label}
-      </p>
-      <p className="numeric mt-2 text-lg font-semibold tracking-tight">{value}</p>
+    <div className="rounded-md border border-border/80 bg-muted/10 px-4 py-3">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="numeric mt-2 text-lg font-semibold tracking-normal">{value}</p>
       <p className="mt-1.5 text-xs leading-5 text-muted-foreground">
         {description}
       </p>
@@ -154,7 +144,7 @@ function formatConfidenceLabel(label: OverviewFixture["confidence"]["label"]) {
     return "낮음";
   }
 
-  return "중간";
+  return "보통";
 }
 
 function getDriverTone(tone: Tone) {

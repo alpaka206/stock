@@ -14,41 +14,35 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen">
-      <div className="mx-auto flex min-h-screen max-w-[1820px]">
-        <aside className="hidden w-[312px] shrink-0 border-r border-sidebar-border px-4 py-5 lg:block">
+      <div className="mx-auto flex min-h-screen max-w-[1720px]">
+        <aside className="hidden w-[272px] shrink-0 border-r border-sidebar-border px-4 py-5 lg:block">
           <div
             className={cn(
               surfaceStyles.panel,
               "sticky top-5 flex h-[calc(100vh-2.5rem)] flex-col bg-sidebar px-4 py-4"
             )}
           >
-            <div className="border-b border-border/80 pb-5">
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground/80">
+            <div className="border-b border-border/80 pb-4">
+              <p className="text-xs font-semibold uppercase text-muted-foreground">
                 {messages.shell.badge}
               </p>
-              <div className="mt-3">
-                <h2 className="text-[1.35rem] font-semibold tracking-[-0.03em]">
-                  {messages.shell.title}
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {messages.shell.description}
-                </p>
-              </div>
+              <h2 className="mt-2 text-xl font-semibold tracking-normal">
+                {messages.shell.title}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {messages.shell.description}
+              </p>
             </div>
 
-            <div className="grid gap-2 border-b border-border/80 py-4 text-[0.72rem] text-muted-foreground">
+            <div className="grid gap-2 border-b border-border/80 py-4 text-xs text-muted-foreground">
               <div className="flex items-center justify-between">
-                <span className="uppercase tracking-[0.18em]">
-                  {messages.shell.coverageLabel}
-                </span>
+                <span>{messages.shell.coverageLabel}</span>
                 <span className="numeric font-semibold text-foreground">
                   {messages.shell.coverageValue}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="uppercase tracking-[0.18em]">
-                  {messages.shell.modeLabel}
-                </span>
+                <span>{messages.shell.modeLabel}</span>
                 <span className="font-semibold text-foreground">
                   {messages.shell.modeValue}
                 </span>
@@ -61,7 +55,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
             <Badge
               variant="secondary"
-              className="justify-center rounded-[0.45rem] border border-border/80 bg-muted/15 px-3 py-2 text-[0.72rem] font-medium text-muted-foreground"
+              className="justify-center rounded-md border border-border/80 bg-muted/20 px-3 py-2 text-xs font-medium text-muted-foreground"
             >
               {messages.shell.footerNote}
             </Badge>

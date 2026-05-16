@@ -304,6 +304,8 @@ export function ResearchLineChart({
 
           {linePoints.map((point, index) => {
             const isActive = point.key === activePoint?.key;
+            const isLast = index === linePoints.length - 1;
+            const shouldShowDot = isActive || isLast || Boolean(onPointSelect);
 
             return (
               <g key={`${point.key}-${index}`}>
@@ -318,16 +320,18 @@ export function ResearchLineChart({
                     opacity="0.32"
                   />
                 ) : null}
-                <circle
-                  cx={point.x}
-                  cy={point.y}
-                  r={isActive ? 5.5 : index === linePoints.length - 1 ? 4.5 : 3}
-                  fill={accentMap[accent]}
-                  stroke="var(--background)"
-                  strokeWidth="2"
-                  className={cn(onPointSelect ? "cursor-pointer" : undefined)}
-                  onClick={() => onPointSelect?.(point.key)}
-                />
+                {shouldShowDot ? (
+                  <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r={isActive ? 5.5 : isLast ? 4.5 : 3}
+                    fill={accentMap[accent]}
+                    stroke="var(--background)"
+                    strokeWidth="2"
+                    className={cn(onPointSelect ? "cursor-pointer" : undefined)}
+                    onClick={() => onPointSelect?.(point.key)}
+                  />
+                ) : null}
               </g>
             );
           })}
@@ -379,8 +383,8 @@ function getOverlayKey(point: ChartOverlay["points"][number]) {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-border/50 bg-background/30 px-3 py-2">
-      <p className="text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+    <div className="rounded-lg border border-border/50 bg-background/30 px-3 py-2">
+      <p className="text-[0.7rem] font-semibold uppercase text-muted-foreground">
         {label}
       </p>
       <p className="numeric mt-1 text-sm font-semibold">{value}</p>

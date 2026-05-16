@@ -1,17 +1,9 @@
-# Contributing Quick Guide
+# Wiki 기여 가이드
 
-## 작업 흐름
+1. GitHub Issue 생성
+2. `develop` 기준 작업 브랜치 생성
+3. 문서 또는 코드 변경
+4. `pnpm verify:standard` 실행
+5. `develop` 대상 PR 생성
 
-1. 이슈 생성
-2. `develop_loop` 기준 작업 브랜치 생성
-3. 검증 통과
-4. `develop_loop` 대상 PR
-5. 안정화 후 `develop`
-6. 릴리스는 `develop -> main`
-
-## 필수 확인
-
-- `pnpm verify:standard`
-- `pnpm verify:automation`
-- UI 변경 설명 또는 스크린샷
-- 리스크와 후속 작업 정리
+문서는 한국어 우선으로 작성하고, 필요한 경우 같은 문서 안에 짧은 English Summary를 둔다.

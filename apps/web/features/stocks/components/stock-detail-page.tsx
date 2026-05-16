@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { BookmarkPlus, History } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -29,6 +30,7 @@ import {
 } from "@/lib/client/use-research-snapshots";
 import { useStoredPresets } from "@/lib/client/use-stored-presets";
 import { useUrlState } from "@/lib/client/use-url-state";
+import { formatPrice } from "@/lib/format";
 import type {
   ResearchSnapshotConviction,
   ResearchSnapshotStance,
@@ -77,7 +79,7 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
   const defaultPreset: SavedViewPreset<StockRulePresetState> = React.useMemo(
     () => ({
       id: "default",
-      name: language === "en" ? "Default Rules" : "기본 규칙",
+      name: language === "ko" ? "기본 신호" : "Default signals",
       updatedAt: new Date().toISOString(),
       value: {
         presetId: "default",
@@ -151,11 +153,26 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
 
   return (
     <div className={layoutTokens.page} data-testid="stock-detail-page">
-      <div className="space-y-3">
-        <p className={typographyTokens.eyebrow}>{stockMessages.eyebrow}</p>
-        <DataSourceNotice source={stock.dataSource} className="max-w-2xl" />
-        <h2 className={typographyTokens.title}>{stockMessages.title}</h2>
-      </div>
+      <section className="space-y-4">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div className="max-w-4xl">
+            <p className={typographyTokens.eyebrow}>{stockMessages.eyebrow}</p>
+            <h2 className={typographyTokens.title}>{stockMessages.title}</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+              가격, 이벤트, 기술적 신호, 뉴스와 공시 근거를 한 종목 기준으로 읽습니다.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="outline">
+              <Link href={`/history?symbol=${stock.instrument.symbol}`}>
+                <History className="size-4" />
+                {stockMessages.viewHistory}
+              </Link>
+            </Button>
+          </div>
+        </div>
+        <DataSourceNotice source={stock.dataSource} className="max-w-3xl" />
+      </section>
 
       <div className="grid gap-[var(--space-grid)] xl:grid-cols-[minmax(0,1.45fr)_360px]">
         <ResearchPanel
@@ -164,35 +181,36 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
           action={<TrendChip direction={direction} value={stock.changePercent} />}
         >
           <div className="space-y-5">
-            <div className="rounded-[calc(var(--radius)*1.1)] border border-border/55 bg-background/30 p-4">
-              <div className="flex flex-col gap-4">
-                <InstrumentSearch
-                  selectedSymbol={stock.instrument.symbol}
-                  label={stockMessages.quickSwitchLabel}
-                  helperText={stockMessages.quickSwitchHelper}
-                  quickSymbols={Array.from(
-                    new Set([...recentSymbols, ...stock.relatedSymbols])
-                  ).slice(0, 6)}
-                  onSelect={(instrument) => {
-                    router.push(`/stocks/${instrument.symbol}`);
-                  }}
-                />
-                <div className="flex flex-wrap items-center gap-2">
-                  {stock.relatedSymbols.map((symbol) => (
-                    <Button key={symbol} asChild variant="outline" size="sm">
-                      <Link href={`/stocks/${symbol}`}>{symbol}</Link>
-                    </Button>
-                  ))}
-                </div>
+            <div className="rounded-lg border border-border/55 bg-background/30 p-4">
+              <InstrumentSearch
+                selectedSymbol={stock.instrument.symbol}
+                label={stockMessages.quickSwitchLabel}
+                helperText={stockMessages.quickSwitchHelper}
+                quickSymbols={Array.from(
+                  new Set([...recentSymbols, ...stock.relatedSymbols])
+                ).slice(0, 6)}
+                onSelect={(instrument) => {
+                  router.push(`/stocks/${instrument.symbol}`);
+                }}
+              />
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {stock.relatedSymbols.map((symbol) => (
+                  <Button key={symbol} asChild variant="outline" size="sm">
+                    <Link href={`/stocks/${symbol}`}>{symbol}</Link>
+                  </Button>
+                ))}
               </div>
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
-              <Metric label={stockMessages.currentPrice} value={stock.price.toFixed(2)} />
+              <Metric
+                label={stockMessages.currentPrice}
+                value={formatPrice(stock.price)}
+              />
               <Metric label={stockMessages.marketCap} value={stock.instrument.marketCap} />
               <Metric
                 label={stockMessages.scoreView}
-                value={`${stock.scoreSummary.total}${language === "en" ? "" : "점"}`}
+                value={`${stock.scoreSummary.total}${language === "ko" ? "점" : ""}`}
               />
             </div>
 
@@ -224,17 +242,19 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
                   type="button"
                   onClick={() => setSelectedMarkerId(marker.id)}
                   className={cn(
-                    "rounded-[calc(var(--radius)*1.05)] border px-3 py-3 text-left transition-colors",
+                    "rounded-lg border px-3 py-3 text-left transition-colors",
                     marker.id === selectedMarker?.id
                       ? "border-primary/35 bg-primary/10"
                       : "border-border/60 bg-background/25 hover:bg-muted/60"
                   )}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold tracking-tight">{marker.title}</p>
+                    <p className="text-sm font-semibold">{marker.title}</p>
                     <span className="text-xs text-muted-foreground">{marker.label}</span>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">{marker.date}</p>
+                  <p className="numeric mt-1 text-xs text-muted-foreground">
+                    {marker.date}
+                  </p>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
                     {marker.detail}
                   </p>
@@ -244,8 +264,8 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
 
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
               <ResearchPanel
-                title="기술 지표 체크"
-                description="이동평균, 모멘텀, 거래량, 지지/저항을 실제 시계열로 계산합니다."
+                title="기술적 신호"
+                description="이동평균, 지지선, 거래량, 상대강도 기준으로 현재 위치를 봅니다."
                 size="sm"
               >
                 <div
@@ -265,8 +285,8 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
               </ResearchPanel>
 
               <ResearchPanel
-                title="패턴 유사도"
-                description="현재 차트 구조와 가까운 패턴, 진행 단계, 무효화 조건입니다."
+                title="패턴 후보"
+                description="현재 차트와 가까운 구조, 진행 단계, 무효화 조건입니다."
                 size="sm"
               >
                 <div className="space-y-2" data-testid="stock-pattern-cards">
@@ -274,18 +294,16 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
                     <div
                       key={pattern.id}
                       data-testid="stock-pattern-card"
-                      className="rounded-[calc(var(--radius)*1.05)] border border-border/55 bg-background/25 px-3 py-3"
+                      className="rounded-lg border border-border/55 bg-background/25 px-3 py-3"
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-semibold tracking-tight">
-                          {pattern.label}
-                        </p>
+                        <p className="text-sm font-semibold">{pattern.label}</p>
                         <span className="numeric text-xs font-semibold text-muted-foreground">
                           {Math.round(pattern.similarity * 100)}%
                         </span>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {pattern.stage} · 무효화: {pattern.invalidation}
+                        {pattern.stage} · 무효화 {pattern.invalidation}
                       </p>
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">
                         {pattern.summary}
@@ -310,7 +328,6 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
                   value={presetName}
                   onChange={(event) => setPresetName(event.target.value)}
                   placeholder={stockMessages.presetPlaceholder}
-                  className="bg-background/70"
                 />
                 <Button
                   type="button"
@@ -338,7 +355,7 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
                   <div
                     key={preset.id}
                     className={cn(
-                      "rounded-[calc(var(--radius)*1.05)] border p-3",
+                      "rounded-lg border p-3",
                       preset.id === activePreset.id
                         ? "border-primary/35 bg-primary/10"
                         : "border-border/60 bg-background/30"
@@ -346,9 +363,10 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold tracking-tight">{preset.name}</p>
+                        <p className="text-sm font-semibold">{preset.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {preset.value.indicatorIds.length} {stockMessages.ruleCountSuffix}
+                          {preset.value.indicatorIds.length}{" "}
+                          {stockMessages.ruleCountSuffix}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -400,16 +418,14 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
                         });
                       }}
                       className={cn(
-                        "w-full rounded-[calc(var(--radius)*1.05)] border px-4 py-3 text-left transition-colors",
+                        "w-full rounded-lg border px-4 py-3 text-left transition-colors",
                         active
                           ? "border-primary/35 bg-primary/10"
                           : "border-border/60 bg-background/25 hover:bg-muted/60"
                       )}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-semibold tracking-tight">
-                          {definition.label}
-                        </p>
+                        <p className="text-sm font-semibold">{definition.label}</p>
                         <span className="text-xs text-muted-foreground">
                           {active ? messages.common.active : messages.common.inactive}
                         </span>
@@ -474,61 +490,56 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
                 onChange={(event) => setSnapshotNote(event.target.value)}
                 placeholder={stockMessages.snapshotNotePlaceholder}
                 rows={4}
-                className="min-h-28 w-full rounded-[calc(var(--radius)*1.05)] border border-border/60 bg-background/70 px-3 py-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/35"
+                className="min-h-28 w-full rounded-lg border border-border/60 bg-background/70 px-3 py-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/35"
               />
 
-              <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="space-y-3">
                 <p className="text-xs text-muted-foreground">
                   {stockMessages.snapshotMeta
                     .replace("{event}", selectedMarker?.title ?? messages.common.none)
                     .replace("{count}", String(activeRuleDefinitions.length))}
                 </p>
-                <div className="flex items-center gap-2">
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/history?symbol=${stock.instrument.symbol}`}>
-                      {stockMessages.viewHistory}
-                    </Link>
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    data-testid="stock-save-snapshot"
-                    disabled={!canSaveSnapshot}
-                    onClick={() => {
-                      const trimmedNote = snapshotNote.trim();
+                <Button
+                  type="button"
+                  size="sm"
+                  data-testid="stock-save-snapshot"
+                  disabled={!canSaveSnapshot}
+                  onClick={() => {
+                    const trimmedNote = snapshotNote.trim();
 
-                      if (!trimmedNote) {
-                        return;
-                      }
+                    if (!trimmedNote) {
+                      return;
+                    }
 
-                      saveSnapshot({
-                        symbol: stock.instrument.symbol,
-                        name: stock.instrument.name,
-                        exchange: stock.instrument.exchange,
-                        securityCode: stock.instrument.securityCode,
-                        sector: stock.instrument.sector,
-                        note: trimmedNote,
-                        stance: snapshotStance,
-                        conviction: snapshotConviction,
-                        price: stock.price,
-                        changePercent: stock.changePercent,
-                        score: stock.scoreSummary.total,
-                        thesis: stock.thesis,
-                        selectedEventTitle: selectedMarker?.title,
-                        selectedEventDate: selectedMarker?.date,
-                        activeRuleLabels: activeRuleDefinitions.map(
-                          (definition) => definition.label
-                        ),
-                        presetName: activePreset.name,
-                      });
-                      setSnapshotNote("");
-                      setSnapshotStance("neutral");
-                      setSnapshotConviction("medium");
-                    }}
-                  >
-                    {stockMessages.saveSnapshot}
-                  </Button>
-                </div>
+                    saveSnapshot({
+                      symbol: stock.instrument.symbol,
+                      name: stock.instrument.name,
+                      exchange: stock.instrument.exchange,
+                      securityCode: stock.instrument.securityCode,
+                      sector: stock.instrument.sector,
+                      note: trimmedNote,
+                      stance: snapshotStance,
+                      conviction: snapshotConviction,
+                      price: stock.price,
+                      changePercent: stock.changePercent,
+                      score: stock.scoreSummary.total,
+                      thesis: stock.thesis,
+                      selectedEventTitle: selectedMarker?.title,
+                      selectedEventDate: selectedMarker?.date,
+                      activeRuleLabels: activeRuleDefinitions.map(
+                        (definition) => definition.label
+                      ),
+                      presetName: activePreset.name,
+                    });
+                    setSnapshotNote("");
+                    setSnapshotStance("neutral");
+                    setSnapshotConviction("medium");
+                  }}
+                  className="w-full"
+                >
+                  <BookmarkPlus className="size-4" />
+                  {stockMessages.saveSnapshot}
+                </Button>
               </div>
 
               <div className="space-y-3">
@@ -551,7 +562,7 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
                     />
                   ))
                 ) : (
-                  <div className="rounded-[calc(var(--radius)*1.05)] border border-dashed border-border/60 px-4 py-5 text-sm leading-6 text-muted-foreground">
+                  <div className="rounded-lg border border-dashed border-border/60 px-4 py-5 text-sm leading-6 text-muted-foreground">
                     {stockMessages.emptySnapshots}
                   </div>
                 )}
@@ -578,7 +589,9 @@ export function StockDetailPage({ stock }: StockDetailPageProps) {
               className="h-fit"
             >
               <div className="space-y-3">
-                <p className="numeric text-4xl font-semibold">{stock.scoreSummary.total}</p>
+                <p className="numeric text-4xl font-semibold">
+                  {stock.scoreSummary.total}
+                </p>
                 <p className="text-sm leading-6 text-muted-foreground">
                   {messages.common.confidence}{" "}
                   {stock.scoreSummary.confidence.score.toFixed(2)} ·{" "}
@@ -694,7 +707,7 @@ function Metric({
   detail?: string;
 }) {
   return (
-    <div className="rounded-[calc(var(--radius)*1.05)] border border-border/55 bg-background/30 p-4">
+    <div className="rounded-lg border border-border/55 bg-background/30 p-4">
       <p className={typographyTokens.eyebrow}>{label}</p>
       <p className="numeric mt-2 text-2xl font-semibold">{value}</p>
       {detail ? (

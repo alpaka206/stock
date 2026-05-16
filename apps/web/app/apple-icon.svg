@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-label="Stock Desk">
+  <rect width="180" height="180" rx="40" fill="#0f4c81"/>
+  <path d="M44 122h92" stroke="#d9e7f2" stroke-width="11" stroke-linecap="round"/>
+  <path d="M50 110l28-31 22 20 31-43" fill="none" stroke="#ffffff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="131" cy="56" r="11" fill="#7dd3fc"/>
+</svg>

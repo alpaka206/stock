@@ -33,7 +33,7 @@ export function SectorSummaryPanel({
           >
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold tracking-tight">
+                <p className="text-sm font-semibold">
                   {item.label}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">{item.summary}</p>

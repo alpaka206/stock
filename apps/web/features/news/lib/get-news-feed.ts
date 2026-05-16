@@ -1,6 +1,7 @@
 import "server-only";
 
 import { newsFeedFixture } from "@/dev/fixtures/news";
+import type { NewsApiResponse, NewsFeedFixture, OverviewDriverItem } from "@/lib/research/types";
 import {
   allowFixtureFallback,
   assertResearchApiAvailable,
@@ -9,7 +10,6 @@ import {
   buildPayloadDataSource,
   fetchResearchApiJson,
 } from "@/lib/server/research-api";
-import type { NewsApiResponse, NewsFeedFixture, OverviewDriverItem } from "@/lib/research/types";
 
 export async function getNewsFeed() {
   const result = await fetchResearchApiJson<NewsApiResponse>({
@@ -23,7 +23,7 @@ export async function getNewsFeed() {
       ...newsFeedFixture,
       dataSource: buildFixtureDataSource({
         fallback: false,
-        reason: "API URL이 설정되지 않아 기본 뉴스 구성을 표시합니다.",
+        reason: "뉴스 API URL이 설정되지 않아 기본 뉴스 구성을 표시합니다.",
       }),
     } satisfies NewsFeedFixture;
   }
@@ -34,7 +34,7 @@ export async function getNewsFeed() {
       ...newsFeedFixture,
       dataSource: buildFixtureDataSource({
         fallback: allowFixtureFallback(),
-        reason: `news API 연결이 실패해 대체 뉴스 구성을 표시합니다. ${result.errorMessage}`,
+        reason: `뉴스 API 연결에 실패해 대체 뉴스 구성을 표시합니다. ${result.errorMessage}`,
       }),
     } satisfies NewsFeedFixture;
   }
@@ -50,7 +50,7 @@ export async function getNewsFeed() {
       ...newsFeedFixture,
       dataSource: buildFixtureDataSource({
         fallback: true,
-        reason: "news API 응답에 표시할 뉴스가 없어 기본 뉴스 구성을 표시합니다.",
+        reason: "뉴스 API 응답에 표시할 뉴스가 없어 기본 뉴스 구성을 표시합니다.",
       }),
     } satisfies NewsFeedFixture;
   }
@@ -72,7 +72,7 @@ function mapDrivers(payload: NewsApiResponse): OverviewDriverItem[] {
   const hrefs = ["/overview", "/radar", "/calendar"] as const;
 
   return payload.newsDrivers.slice(0, 3).map((item, index) => ({
-    label: labels[index] ?? `포인트 ${index + 1}` ,
+    label: labels[index] ?? `포인트 ${index + 1}`,
     text: item.text,
     tone: tones[index] ?? "neutral",
     href: hrefs[index] ?? "/overview",

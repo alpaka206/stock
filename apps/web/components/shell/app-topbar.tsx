@@ -27,8 +27,8 @@ export function AppTopbar() {
   const [open, setOpen] = React.useState(false);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border/80 bg-background/94">
-      <div className="mx-auto flex min-h-[4.5rem] w-full max-w-[1760px] items-center justify-between gap-4 px-[var(--space-page)] py-3 lg:px-[var(--space-page-lg)]">
+    <header className="sticky top-0 z-30 border-b border-border/80 bg-background/95 backdrop-blur">
+      <div className="mx-auto flex min-h-16 w-full max-w-[1680px] items-center justify-between gap-4 px-[var(--space-page)] py-3 lg:px-[var(--space-page-lg)]">
         <div className="flex min-w-0 items-center gap-3">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
@@ -60,13 +60,13 @@ export function AppTopbar() {
           </Sheet>
 
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
               <span>{routeContext.eyebrow}</span>
               <span className="inline-block size-1 rounded-full bg-border" />
               <span className="hidden md:inline">{messages.topbar.workflowLabel}</span>
             </div>
             <div className="mt-1 flex min-w-0 items-center gap-3">
-              <h1 className="truncate text-lg font-semibold tracking-[-0.03em]">
+              <h1 className="truncate text-lg font-semibold tracking-normal">
                 {routeContext.label}
               </h1>
               <p className="hidden truncate text-sm text-muted-foreground xl:block">
@@ -82,7 +82,7 @@ export function AppTopbar() {
           </div>
           <Badge
             variant="secondary"
-            className="hidden rounded-[0.45rem] border border-border/80 bg-muted/15 px-3 py-1.5 text-[0.72rem] font-medium text-muted-foreground sm:inline-flex"
+            className="hidden rounded-md border border-border/80 bg-muted/20 px-3 py-1.5 text-xs font-medium text-muted-foreground sm:inline-flex"
           >
             {messages.topbar.workspaceBadge}
           </Badge>

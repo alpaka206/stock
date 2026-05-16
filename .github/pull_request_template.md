@@ -1,25 +1,18 @@
 ## 요약
-- 
+-
 
 ## 변경 내용
-- 
+-
 
-## 왜 필요한가
-- 
+## 사용자 영향
+-
 
 ## 검증
-- [ ] `pnpm verify:automation`
 - [ ] `pnpm verify:standard`
-- [ ] 수동 확인 또는 smoke 확인
+- [ ] `pnpm verify:release`
+- [ ] 핵심 화면 직접 확인
 
-## 리뷰 포인트
-- 
-
-## 스크린샷 / 참고 자료
-- 
-
-## 체크리스트
-- [ ] `main`, `develop`, `develop_loop`에 직접 commit/push 하지 않았다
-- [ ] PR 제목이 `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`, `ci:` 중 하나로 시작한다
-- [ ] 출처, unavailable, 오류 처리 기준을 확인했다
-- [ ] 불필요한 비밀값이나 생성 산출물을 포함하지 않았다
+## 보안 확인
+- [ ] `.env`, `.env.*`, API 키, 토큰, 웹훅 URL 미포함
+- [ ] 목데이터 또는 fallback 데이터는 화면에 `(목데이터)`로 표시
+- [ ] 실제 데이터 API 오류와 누락 데이터 처리 확인

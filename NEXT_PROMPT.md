@@ -1,5 +1,5 @@
-1. release PR #174를 사용자가 main에 수동 merge했는지 확인한다.
-2. main merge 후 production 배포 완료를 기다린다.
-3. `https://stock-radar-board.vercel.app/overview`, `/radar`, `/stocks/NVDA`, `/history`를 직접 확인한다.
-4. production 확인 결과와 남은 리스크를 `STATE.md`에 기록한다.
-5. #160 후속으로 overview/news/calendar provider builder 분리를 진행한다.
+1. `rg`로 깨진 한글, 제거된 자동화, 불필요한 레거시 참조를 다시 확인한다.
+2. `pnpm guard:no-secrets`와 텍스트 품질 검사를 실행하고 실패를 수정한다.
+3. `pnpm verify:standard`를 실행해 웹/API 변경을 검증한다.
+4. 변경사항을 보안 파일 포함 여부까지 확인한 뒤 커밋하고 `develop` 대상 PR을 만든다.
+5. 통합 PR 번호를 기준으로 기존 Dependabot PR을 닫거나 superseded 처리한다.

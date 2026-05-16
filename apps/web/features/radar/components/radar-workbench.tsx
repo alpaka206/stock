@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import type { ColDef } from "ag-grid-community";
+import { RotateCcw, Search, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 
 import { DataSourceNotice } from "@/components/research/data-source-notice";
@@ -17,23 +17,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FilterChipGroup } from "@/features/filters/components/filter-chip-group";
-import { AgGridTable } from "@/features/grid/components/ag-grid-table";
-import {
-  GridColumnVisibilityMenu,
-  type GridColumnOption,
-} from "@/features/grid/components/grid-column-visibility-menu";
 import { SectorSummaryPanel } from "@/features/sector/components/sector-summary-panel";
 import { WatchlistFolderTree } from "@/features/watchlist/components/watchlist-folder-tree";
-import { formatPrice, formatSignedPercent } from "@/lib/format";
 import { useStoredPresets } from "@/lib/client/use-stored-presets";
 import { useDebouncedValue, useUrlState } from "@/lib/client/use-url-state";
+import { formatPrice, formatSignedPercent } from "@/lib/format";
 import type {
-  RadarDetectedAlert,
   RadarColumnKey,
+  RadarDetectedAlert,
   RadarFixture,
   RadarGroupMode,
   RadarSortItem,
   RadarViewMode,
+  RadarViewPresetState,
   SavedViewPreset,
   ScheduleItem,
   WatchlistFolderNode,
@@ -53,14 +49,14 @@ type SortOption = {
 };
 
 const radarModeOptions = [
-  { value: "core", label: "코어 보기" },
-  { value: "volume", label: "거래량 보기" },
-  { value: "risk", label: "리스크 보기" },
+  { value: "core", label: "핵심" },
+  { value: "volume", label: "거래량" },
+  { value: "risk", label: "변동성" },
 ] as const satisfies ReadonlyArray<{ value: RadarViewMode; label: string }>;
 
 const groupModeOptions = [
-  { value: "flat", label: "단일 그리드" },
-  { value: "sector", label: "섹터 묶음" },
+  { value: "flat", label: "전체" },
+  { value: "sector", label: "섹터별" },
 ] as const satisfies ReadonlyArray<{ value: RadarGroupMode; label: string }>;
 
 const sortOptions: SortOption[] = [
@@ -76,12 +72,12 @@ const sortOptions: SortOption[] = [
   },
   {
     value: "volume-desc",
-    label: "거래량 배수 높은 순",
+    label: "거래량 강한 순",
     sortModel: [{ colId: "volumeRatio", sort: "desc" }],
   },
   {
     value: "sector-asc",
-    label: "섹터 순",
+    label: "섹터 이름순",
     sortModel: [
       { colId: "sector", sort: "asc" },
       { colId: "score", sort: "desc" },
@@ -96,18 +92,31 @@ const columnLabelMap: Record<RadarColumnKey, string> = {
   price: "가격",
   changePercent: "등락률",
   score: "점수",
-  volumeRatio: "거래량 배수",
+  volumeRatio: "거래량",
   relativeStrength: "상대강도",
   sector: "섹터",
   nextEvent: "다음 이벤트",
-  thesis: "핵심 논리",
+  thesis: "핵심 근거",
 };
+
+const compactColumns: RadarColumnKey[] = [
+  "symbol",
+  "name",
+  "price",
+  "changePercent",
+  "score",
+  "volumeRatio",
+  "relativeStrength",
+  "sector",
+  "nextEvent",
+  "thesis",
+];
 
 export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
   const { searchParams, replaceParams } = useUrlState();
   const [draftQuery, setDraftQuery] = React.useState(searchParams.get("q") ?? "");
   const [presetName, setPresetName] = React.useState("");
-  const debouncedQuery = useDebouncedValue(draftQuery, 160);
+  const debouncedQuery = useDebouncedValue(draftQuery, 140);
 
   const { presets, savePreset, removePreset } = useStoredPresets(
     "stock-workspace:radar-presets",
@@ -139,44 +148,66 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
     searchParams.get("cols"),
     workspace.defaultVisibleColumns
   );
-  const activeFolderIds = resolveActiveFolderIds(workspace.folders, folderId);
-
-  const allTags = Array.from(
-    new Set(workspace.rows.flatMap((row) => row.tags.map((tag) => tag.trim())))
-  ).sort((left, right) => left.localeCompare(right, "ko-KR"));
-
+  const activeFolderKey = React.useMemo(
+    () => resolveActiveFolderKey(workspace.folders, folderId),
+    [folderId, workspace.folders]
+  );
   const sortModel =
     sortOptions.find((option) => option.value === sortValue)?.sortModel ??
     sortOptions[0].sortModel;
 
-  const normalizedQuery = debouncedQuery.trim().toLowerCase();
-  const filteredRows = sortRadarRows(
-    workspace.rows.filter((row) => {
-      const matchesFolder =
-        activeFolderIds === null ? true : activeFolderIds.has(row.folderId);
-      const matchesSector =
-        selectedSectorParam.trim().length === 0
-          ? true
-          : row.sector === selectedSectorParam;
-      const matchesQuery =
-        normalizedQuery.length === 0
-          ? true
-          : [
-              row.symbol,
-              row.name,
-              row.securityCode,
-              row.sector,
-              row.thesis,
-              row.tags.join(" "),
-            ]
-              .join(" ")
-              .toLowerCase()
-              .includes(normalizedQuery);
+  const allTags = React.useMemo(
+    () =>
+      Array.from(
+        new Set(workspace.rows.flatMap((row) => row.tags.map((tag) => tag.trim())))
+      ).sort((left, right) => left.localeCompare(right, "ko-KR")),
+    [workspace.rows]
+  );
 
-      return matchesFolder && matchesSector && matchesQuery;
-    }),
-    sortModel,
-    viewMode
+  const normalizedQuery = debouncedQuery.trim().toLowerCase();
+  const filteredRows = React.useMemo(
+    () => {
+      const activeFolderSet =
+        activeFolderKey.length > 0 ? new Set(activeFolderKey.split("|")) : null;
+
+      return sortRadarRows(
+        workspace.rows.filter((row) => {
+          const matchesFolder = activeFolderSet
+            ? activeFolderSet.has(row.folderId)
+            : true;
+          const matchesSector =
+            selectedSectorParam.trim().length === 0
+              ? true
+              : row.sector === selectedSectorParam;
+          const matchesQuery =
+            normalizedQuery.length === 0
+              ? true
+              : [
+                  row.symbol,
+                  row.name,
+                  row.securityCode,
+                  row.sector,
+                  row.thesis,
+                  row.tags.join(" "),
+                ]
+                  .join(" ")
+                  .toLowerCase()
+                  .includes(normalizedQuery);
+
+          return matchesFolder && matchesSector && matchesQuery;
+        }),
+        sortModel,
+        viewMode
+      );
+    },
+    [
+      activeFolderKey,
+      normalizedQuery,
+      selectedSectorParam,
+      sortModel,
+      viewMode,
+      workspace.rows,
+    ]
   );
 
   const selectedRow =
@@ -202,9 +233,8 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
   const activeAlertRuleCount = workspace.alertRules.filter(
     (rule) => rule.enabledByDefault
   ).length;
-  const selectedAlertSymbol = selectedRow?.symbol;
-  const symbolAlerts = selectedAlertSymbol
-    ? workspace.detectedAlerts.filter((alert) => alert.symbol === selectedAlertSymbol)
+  const symbolAlerts = selectedRow
+    ? workspace.detectedAlerts.filter((alert) => alert.symbol === selectedRow.symbol)
     : [];
   const visibleAlerts = (symbolAlerts.length > 0
     ? symbolAlerts
@@ -213,105 +243,11 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
   const selectedPreset = presets.find(
     (preset) => preset.id === searchParams.get("preset")
   );
-
-  const columnDefs: ColDef<WatchlistRow>[] = React.useMemo(
-    () => [
-      {
-        field: "symbol",
-        headerName: "티커",
-        hide: !visibleColumns.includes("symbol"),
-        maxWidth: 110,
-        cellClass: "numeric font-semibold",
-      },
-      {
-        field: "name",
-        headerName: "종목명",
-        hide: !visibleColumns.includes("name"),
-        minWidth: 140,
-      },
-      {
-        field: "securityCode",
-        headerName: "종목번호",
-        hide: !visibleColumns.includes("securityCode"),
-        minWidth: 112,
-        cellClass: "numeric text-muted-foreground",
-      },
-      {
-        field: "price",
-        headerName: "가격",
-        hide: !visibleColumns.includes("price"),
-        cellClass: "numeric",
-        valueFormatter: ({ value }) => formatPrice(value ?? 0),
-      },
-      {
-        field: "changePercent",
-        headerName: "등락률",
-        hide: !visibleColumns.includes("changePercent"),
-        cellRenderer: ({ value }: { value: number }) => (
-          <span
-            className={cn(
-              "numeric font-semibold",
-              value > 0 ? "tone-positive" : value < 0 ? "tone-negative" : "tone-neutral"
-            )}
-          >
-            {formatSignedPercent(value)}
-          </span>
-        ),
-      },
-      {
-        field: "score",
-        headerName: "점수",
-        hide: !visibleColumns.includes("score"),
-        maxWidth: 92,
-        cellClass: "numeric font-semibold",
-      },
-      {
-        field: "volumeRatio",
-        headerName: "거래량 배수",
-        hide: !visibleColumns.includes("volumeRatio"),
-        cellClass: "numeric",
-        valueFormatter: ({ value }) => `${Number(value ?? 0).toFixed(2)}x`,
-      },
-      {
-        field: "relativeStrength",
-        headerName: "상대강도",
-        hide: !visibleColumns.includes("relativeStrength"),
-        cellClass: "numeric",
-      },
-      {
-        field: "sector",
-        headerName: "섹터",
-        hide: !visibleColumns.includes("sector"),
-        minWidth: 128,
-      },
-      {
-        field: "nextEvent",
-        headerName: "다음 이벤트",
-        hide: !visibleColumns.includes("nextEvent"),
-        minWidth: 150,
-      },
-      {
-        field: "thesis",
-        headerName: "핵심 논리",
-        hide: !visibleColumns.includes("thesis"),
-        flex: 1.3,
-        minWidth: 220,
-        tooltipField: "thesis",
-      },
-    ],
-    [visibleColumns]
+  const selectedVisibleColumns = compactColumns.filter((column) =>
+    visibleColumns.includes(column)
   );
 
-  const columnOptions: GridColumnOption[] = Object.entries(columnLabelMap).map(
-    ([key, label]) => ({
-      key,
-      label,
-      checked: visibleColumns.includes(key as RadarColumnKey),
-      disabled: key === "symbol",
-    })
-  );
-
-  const currentViewState = {
+  const currentViewState: RadarViewPresetState = {
     folderId,
     query: debouncedQuery,
     viewMode,
@@ -324,67 +260,71 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
 
   return (
     <div className={layoutTokens.page} data-testid="radar-page">
-      <div className="space-y-3">
-        <p className={typographyTokens.eyebrow}>Radar Workspace</p>
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
-          <div>
+      <section className="space-y-4">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div className="max-w-4xl">
+            <p className={typographyTokens.eyebrow}>Radar</p>
             <h2 className={typographyTokens.title}>
-              관심종목과 섹터 분석을 같은 화면에서 정리하는 핵심 작업대
+              미국장과 국내장을 한 화면에서 빠르게 걸러보기
             </h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-              좌측은 폴더와 태그, 중앙은 AG Grid 기반 워치리스트, 우측은 선택
-              섹터 컨텍스트다. 컬럼 가시성, 정렬, 필터, 저장된 뷰 preset을 모두
-              유지하면서 다음 분석 화면으로 자연스럽게 이어진다.
+              관심 종목을 가격, 거래량, 상대강도, 일정, 이슈 기준으로 좁혀 봅니다.
+              종목을 고르면 오른쪽에 확인해야 할 근거와 알림이 바로 정리됩니다.
             </p>
-            <DataSourceNotice source={workspace.dataSource} className="mt-4 max-w-2xl" />
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              data-testid="radar-search-input"
-              value={draftQuery}
-              onChange={(event) => setDraftQuery(event.target.value)}
-              placeholder="티커, 종목명, 종목번호, 태그 검색"
-              className="w-full min-w-[240px] bg-background/70 xl:w-[300px]"
-            />
-            <GridColumnVisibilityMenu
-              options={columnOptions}
-              onCheckedChange={(key, checked) => {
-                const columnKey = key as RadarColumnKey;
-
-                if (columnKey === "symbol") {
-                  return;
-                }
-
-                const nextColumns = checked
-                  ? Array.from(new Set([...visibleColumns, columnKey]))
-                  : visibleColumns.filter((item) => item !== columnKey);
-
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative min-w-[260px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                data-testid="radar-search-input"
+                value={draftQuery}
+                onChange={(event) => setDraftQuery(event.target.value)}
+                placeholder="티커, 종목명, 섹터, 태그 검색"
+                className="pl-9"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
                 replaceParams({
-                  cols: nextColumns.join(","),
-                  preset: undefined,
-                });
-              }}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className={layoutTokens.threePanelGrid}>
-        <ResearchPanel
-          title="폴더 / 태그 / preset"
-          description="왼쪽 트리에서 감시 그룹과 저장된 작업 뷰를 고른다."
-        >
-          <div className="space-y-5">
-            <FilterChipGroup
-              options={groupModeOptions}
-              value={groupMode}
-              onValueChange={(value) =>
-                replaceParams({
-                  group: value,
+                  folder: workspace.defaultSelectedFolderId,
+                  q: undefined,
+                  view: workspace.defaultViewMode,
+                  group: workspace.defaultGroupMode,
+                  sort: sortOptions[0].value,
+                  sector: undefined,
+                  symbol: undefined,
+                  cols: workspace.defaultVisibleColumns.join(","),
                   preset: undefined,
                 })
               }
-            />
+            >
+              <RotateCcw className="size-4" />
+              초기화
+            </Button>
+          </div>
+        </div>
+        <DataSourceNotice source={workspace.dataSource} className="max-w-3xl" />
+      </section>
+
+      <div className={layoutTokens.threePanelGrid}>
+        <ResearchPanel
+          title="필터"
+          description="폴더, 섹터, 태그, 저장된 보기를 조합합니다."
+        >
+          <div className="space-y-5">
+            <div className="space-y-3">
+              <p className={typographyTokens.eyebrow}>보기 방식</p>
+              <FilterChipGroup
+                options={groupModeOptions}
+                value={groupMode}
+                onValueChange={(value) =>
+                  replaceParams({ group: value, preset: undefined })
+                }
+              />
+            </div>
+
             <WatchlistFolderTree
               folders={workspace.folders}
               activeId={folderId}
@@ -398,13 +338,33 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
             />
 
             <div className="space-y-3">
-              <p className={typographyTokens.eyebrow}>태그 바로가기</p>
+              <p className={typographyTokens.eyebrow}>섹터</p>
               <div className="flex flex-wrap gap-2">
                 <TagChip
                   active={selectedSectorParam.length === 0}
                   label="전체"
                   onClick={() => replaceParams({ sector: undefined, preset: undefined })}
                 />
+                {workspace.sectorCards.map((sector) => (
+                  <TagChip
+                    key={sector.sector}
+                    active={selectedSectorParam === sector.sector}
+                    label={sector.sector}
+                    onClick={() =>
+                      replaceParams({
+                        sector: sector.sector,
+                        symbol: undefined,
+                        preset: undefined,
+                      })
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <p className={typographyTokens.eyebrow}>태그</p>
+              <div className="flex flex-wrap gap-2">
                 {allTags.map((tag) => (
                   <TagChip
                     key={tag}
@@ -420,13 +380,12 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
             </div>
 
             <div className="space-y-3">
-              <p className={typographyTokens.eyebrow}>저장된 뷰</p>
+              <p className={typographyTokens.eyebrow}>저장된 보기</p>
               <div className="flex gap-2">
                 <Input
                   value={presetName}
                   onChange={(event) => setPresetName(event.target.value)}
-                  placeholder="preset 이름"
-                  className="bg-background/70"
+                  placeholder="보기 이름"
                 />
                 <Button
                   type="button"
@@ -451,12 +410,7 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
                     key={preset.id}
                     preset={preset}
                     active={selectedPreset?.id === preset.id}
-                    onApply={() =>
-                      applyPreset({
-                        preset,
-                        replaceParams,
-                      })
-                    }
+                    onApply={() => applyPreset({ preset, replaceParams })}
                     onRemove={() => removePreset(preset.id)}
                   />
                 ))}
@@ -466,8 +420,14 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
         </ResearchPanel>
 
         <ResearchPanel
-          title="관심종목 Grid"
-          description={`${filteredRows.length}개 종목 · AG Grid Community 기반`}
+          title="관심 종목"
+          description={`${filteredRows.length}개 종목을 현재 조건으로 표시 중`}
+          action={
+            <span className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-background px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+              <SlidersHorizontal className="size-3.5" />
+              {viewMode === "core" ? "핵심" : viewMode === "volume" ? "거래량" : "변동성"}
+            </span>
+          }
         >
           <div className="space-y-4">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
@@ -475,114 +435,73 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
                 options={radarModeOptions}
                 value={viewMode}
                 onValueChange={(value) =>
-                  replaceParams({
-                    view: value,
-                    preset: undefined,
-                  })
+                  replaceParams({ view: value, preset: undefined })
                 }
               />
-              <div className="flex flex-wrap items-center gap-2">
-                <Select
-                  value={sortValue}
-                  onValueChange={(value) =>
-                    replaceParams({
-                      sort: value,
-                      preset: undefined,
-                    })
-                  }
-                >
-                  <SelectTrigger className="min-w-[170px] bg-background/65">
-                    <SelectValue placeholder="정렬" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sortOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    replaceParams({
-                      folder: workspace.defaultSelectedFolderId,
-                      q: undefined,
-                      view: workspace.defaultViewMode,
-                      group: workspace.defaultGroupMode,
-                      sort: sortOptions[0].value,
-                      sector: undefined,
-                      symbol: undefined,
-                      cols: workspace.defaultVisibleColumns.join(","),
-                      preset: undefined,
-                    })
-                  }
-                >
-                  뷰 초기화
-                </Button>
-              </div>
+              <Select
+                value={sortValue}
+                onValueChange={(value) =>
+                  replaceParams({ sort: value, preset: undefined })
+                }
+              >
+                <SelectTrigger className="w-full bg-background/65 sm:w-[180px]">
+                  <SelectValue placeholder="정렬" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sortOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {groupMode === "flat" ? (
-              <AgGridTable
-                rowData={filteredRows}
-                columnDefs={columnDefs}
-                className="h-[560px]"
-                emptyMessage="조건에 맞는 관심종목이 없습니다."
-                onRowClicked={(event) => {
-                  if (!event.data) {
-                    return;
-                  }
-
+              <RadarTable
+                rows={filteredRows}
+                columns={selectedVisibleColumns}
+                selectedSymbol={selectedRow?.symbol}
+                onSelect={(row) =>
                   replaceParams({
-                    symbol: event.data.symbol,
-                    sector: event.data.sector,
+                    symbol: row.symbol,
+                    sector: row.sector,
                     preset: undefined,
-                  });
-                }}
-                gridOptions={{
-                  suppressMovableColumns: true,
-                }}
+                  })
+                }
               />
             ) : (
               <div className="space-y-4">
                 {groupedRows.map(([sector, rows]) => (
                   <div key={sector} className="space-y-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          replaceParams({ sector, preset: undefined, symbol: rows[0]?.symbol })
-                        }
-                        className="text-left"
-                      >
-                        <p className="text-sm font-semibold tracking-tight">{sector}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {rows.length}개 종목 · 섹터 묶음 보기
-                        </p>
-                      </button>
-                    </div>
-                    <AgGridTable
-                      rowData={rows}
-                      columnDefs={columnDefs}
-                      className="h-[260px]"
-                      emptyMessage="표시할 종목이 없습니다."
-                      onRowClicked={(event) => {
-                        if (!event.data) {
-                          return;
-                        }
-
+                    <button
+                      type="button"
+                      onClick={() =>
                         replaceParams({
-                          symbol: event.data.symbol,
-                          sector: event.data.sector,
+                          sector,
+                          symbol: rows[0]?.symbol,
                           preset: undefined,
-                        });
-                      }}
-                      gridOptions={{
-                        suppressMovableColumns: true,
-                      }}
+                        })
+                      }
+                      className="flex w-full items-center justify-between rounded-md px-1 py-1 text-left hover:text-primary"
+                    >
+                      <span className="text-sm font-semibold">{sector}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {rows.length}개 종목
+                      </span>
+                    </button>
+                    <RadarTable
+                      rows={rows}
+                      columns={selectedVisibleColumns}
+                      selectedSymbol={selectedRow?.symbol}
+                      compact
+                      onSelect={(row) =>
+                        replaceParams({
+                          symbol: row.symbol,
+                          sector: row.sector,
+                          preset: undefined,
+                        })
+                      }
                     />
                   </div>
                 ))}
@@ -594,7 +513,7 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
         <div className="space-y-[var(--space-grid)]">
           {selectedRow ? (
             <ResearchPanel
-              title={`${selectedRow.symbol} 워크스테이션`}
+              title={`${selectedRow.symbol} 점검`}
               description={`${selectedRow.name} · ${selectedRow.securityCode}`}
               action={
                 <TrendChip
@@ -610,11 +529,11 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
               }
             >
               <div className="space-y-4">
-                <div className="rounded-[calc(var(--radius)*1.05)] border border-border/55 bg-background/30 p-4">
-                  <div className="flex items-center justify-between gap-3">
+                <div className="rounded-lg border border-border/55 bg-background/30 p-4">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className={typographyTokens.eyebrow}>{selectedRow.sector}</p>
-                      <p className="text-lg font-semibold tracking-tight">
+                      <p className="mt-1 text-base font-semibold">
                         {selectedRow.condition}
                       </p>
                     </div>
@@ -626,14 +545,14 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
                   <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                     <Metric label="가격" value={formatPrice(selectedRow.price)} />
                     <Metric
-                      label="거래량 배수"
+                      label="거래량"
                       value={`${selectedRow.volumeRatio.toFixed(2)}x`}
                     />
                     <Metric
                       label="상대강도"
                       value={`${selectedRow.relativeStrength}`}
                     />
-                    <Metric label="다음 이벤트" value={selectedRow.nextEvent} />
+                    <Metric label="이벤트" value={selectedRow.nextEvent} />
                   </div>
                 </div>
                 <div className="grid gap-2">
@@ -642,12 +561,12 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
                       href={`/stocks/${selectedRow.symbol}`}
                       data-testid="radar-open-selected-stock"
                     >
-                      종목 워크스테이션 열기
+                      종목 분석 열기
                     </Link>
                   </Button>
                   <Button asChild variant="outline" className="w-full">
                     <Link href={`/history?symbol=${selectedRow.symbol}`}>
-                      과거 이벤트 리플레이 보기
+                      과거 이벤트 보기
                     </Link>
                   </Button>
                 </div>
@@ -656,8 +575,8 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
           ) : null}
 
           <ResearchPanel
-            title="조건 감지 알림"
-            description={`${activeAlertRuleCount}개 활성 규칙으로 우선 확인 신호를 정리합니다.`}
+            title="감지 알림"
+            description={`${activeAlertRuleCount}개 규칙으로 우선 확인할 신호를 보여줍니다.`}
           >
             <div className="space-y-3" data-testid="radar-alert-panel">
               {visibleAlerts.length > 0 ? (
@@ -670,15 +589,15 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
                 ))
               ) : (
                 <p className="text-sm leading-6 text-muted-foreground">
-                  현재 조건에 걸린 관심종목 알림이 없습니다.
+                  현재 조건에 걸린 알림이 없습니다.
                 </p>
               )}
             </div>
           </ResearchPanel>
 
           <SectorSummaryPanel
-            title="선택 섹터 요약"
-            description={`${activeSector || "섹터 미선택"} 기준으로 우측 컨텍스트를 갱신한다.`}
+            title="섹터 요약"
+            description={`${activeSector || "선택 없음"} 기준으로 필요한 맥락을 정리합니다.`}
             items={workspace.sectorCards
               .filter((item) => !activeSector || item.sector === activeSector)
               .map((item) => ({
@@ -690,7 +609,7 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
           />
 
           {selectedSectorCard ? (
-            <ResearchPanel title="섹터 컨텍스트" description={selectedSectorCard.sector}>
+            <ResearchPanel title="섹터 근거" description={selectedSectorCard.sector}>
               <div className="space-y-3">
                 <p className="text-sm leading-6 text-muted-foreground">
                   {selectedSectorCard.thesis}
@@ -698,22 +617,19 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
                 <Metric label="촉매" value={selectedSectorCard.catalyst} />
                 <Button asChild variant="outline" className="w-full">
                   <Link href={`/stocks/${selectedSectorCard.topPick}`}>
-                    Top Pick {selectedSectorCard.topPick} 보기
+                    Top Pick {selectedSectorCard.topPick}
                   </Link>
                 </Button>
               </div>
             </ResearchPanel>
           ) : null}
 
-          <ResearchPanel title="리포트 요약" description={`${activeSector} 기준 브로커 메모`}>
+          <ResearchPanel title="리포트" description={`${activeSector} 관련 메모`}>
             <div className="space-y-3">
               {selectedReports.map((report) => (
-                <div
-                  key={`${report.house}-${report.symbol}`}
-                  className="rounded-[calc(var(--radius)*1.05)] border border-border/55 bg-background/30 p-3"
-                >
+                <SmallCard key={`${report.house}-${report.symbol}`}>
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold tracking-tight">
+                    <p className="text-sm font-semibold">
                       {report.house} · {report.symbol}
                     </p>
                     <span className="text-xs text-muted-foreground">{report.stance}</span>
@@ -721,12 +637,12 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
                     {report.summary}
                   </p>
-                </div>
+                </SmallCard>
               ))}
             </div>
           </ResearchPanel>
 
-          <ResearchPanel title="일정" description="선택 섹터 기준 체크할 이벤트">
+          <ResearchPanel title="일정" description="선택한 섹터의 확인 일정">
             <div className="space-y-3">
               {selectedSchedules.map((schedule) => (
                 <ScheduleRow key={`${schedule.time}-${schedule.title}`} schedule={schedule} />
@@ -734,17 +650,12 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
             </div>
           </ResearchPanel>
 
-          <ResearchPanel title="주요 이슈" description="선택 섹터에 따라 우측 패널이 갱신된다.">
+          <ResearchPanel title="주요 이슈" description="관련 뉴스와 공시 흐름">
             <div className="space-y-3">
               {selectedIssues.map((issue) => (
-                <div
-                  key={issue.id}
-                  className="rounded-[calc(var(--radius)*1.05)] border border-border/55 bg-background/30 p-3"
-                >
+                <SmallCard key={issue.id}>
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold tracking-tight">
-                      {issue.headline}
-                    </p>
+                    <p className="text-sm font-semibold">{issue.headline}</p>
                     <span className="text-xs text-muted-foreground">
                       {issue.impactLabel}
                     </span>
@@ -752,21 +663,21 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
                     {issue.summary}
                   </p>
-                </div>
+                </SmallCard>
               ))}
             </div>
           </ResearchPanel>
 
-          <ResearchPanel title="Top Pick" description="현재 섹터에서 우선 검토할 종목">
+          <ResearchPanel title="Top Pick" description="현재 조건에서 먼저 볼 종목">
             <div className="space-y-3">
               {selectedTopPicks.map((topPick) => (
                 <Link
                   key={topPick.symbol}
                   href={`/stocks/${topPick.symbol}`}
-                  className="flex items-center justify-between gap-3 rounded-[calc(var(--radius)*1.05)] border border-border/55 bg-background/30 p-3 transition-colors hover:bg-muted/60"
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border/55 bg-background/30 p-3 transition-colors hover:bg-muted/60"
                 >
                   <div>
-                    <p className="text-sm font-semibold tracking-tight">{topPick.symbol}</p>
+                    <p className="text-sm font-semibold">{topPick.symbol}</p>
                     <p className="mt-1 text-xs text-muted-foreground">{topPick.reason}</p>
                   </div>
                   <span className="numeric text-lg font-semibold">{topPick.score}</span>
@@ -778,6 +689,154 @@ export function RadarWorkbench({ workspace }: RadarWorkbenchProps) {
       </div>
     </div>
   );
+}
+
+function RadarTable({
+  rows,
+  columns,
+  selectedSymbol,
+  compact,
+  onSelect,
+}: {
+  rows: WatchlistRow[];
+  columns: RadarColumnKey[];
+  selectedSymbol?: string;
+  compact?: boolean;
+  onSelect: (row: WatchlistRow) => void;
+}) {
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-border/70 px-4 py-10 text-center text-sm text-muted-foreground">
+        조건에 맞는 종목이 없습니다.
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "overflow-hidden rounded-lg border border-border/70",
+        compact ? "max-h-[340px]" : "max-h-[620px]"
+      )}
+    >
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[860px] border-collapse text-sm">
+          <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur">
+            <tr>
+              {columns.map((column) => (
+                <th
+                  key={column}
+                  scope="col"
+                  className={cn(
+                    "border-b border-border/70 px-3 py-2 text-left text-xs font-semibold text-muted-foreground",
+                    numericColumns.has(column) ? "text-right" : undefined
+                  )}
+                >
+                  {columnLabelMap[column]}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr
+                key={row.symbol}
+                className={cn(
+                  "border-b border-border/45 last:border-b-0",
+                  row.symbol === selectedSymbol ? "bg-primary/10" : "hover:bg-muted/45"
+                )}
+              >
+                {columns.map((column) => (
+                  <td
+                    key={`${row.symbol}-${column}`}
+                    className={cn(
+                      "px-3 py-3 align-top",
+                      numericColumns.has(column) ? "numeric text-right" : undefined
+                    )}
+                  >
+                    {renderCell({ row, column, onSelect })}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+const numericColumns = new Set<RadarColumnKey>([
+  "price",
+  "changePercent",
+  "score",
+  "volumeRatio",
+  "relativeStrength",
+]);
+
+function renderCell({
+  row,
+  column,
+  onSelect,
+}: {
+  row: WatchlistRow;
+  column: RadarColumnKey;
+  onSelect: (row: WatchlistRow) => void;
+}) {
+  switch (column) {
+    case "symbol":
+      return (
+        <button
+          type="button"
+          onClick={() => onSelect(row)}
+          className="numeric font-semibold text-primary hover:underline"
+        >
+          {row.symbol}
+        </button>
+      );
+    case "name":
+      return (
+        <div>
+          <p className="font-medium">{row.name}</p>
+          <p className="numeric mt-1 text-xs text-muted-foreground">
+            {row.securityCode}
+          </p>
+        </div>
+      );
+    case "securityCode":
+      return row.securityCode;
+    case "price":
+      return formatPrice(row.price);
+    case "changePercent":
+      return (
+        <span
+          className={cn(
+            "numeric font-semibold",
+            row.changePercent > 0
+              ? "tone-positive"
+              : row.changePercent < 0
+                ? "tone-negative"
+                : "tone-neutral"
+          )}
+        >
+          {formatSignedPercent(row.changePercent)}
+        </span>
+      );
+    case "score":
+      return row.score;
+    case "volumeRatio":
+      return `${row.volumeRatio.toFixed(2)}x`;
+    case "relativeStrength":
+      return row.relativeStrength;
+    case "sector":
+      return row.sector;
+    case "nextEvent":
+      return row.nextEvent;
+    case "thesis":
+      return <span className="block max-w-[360px] leading-6">{row.thesis}</span>;
+    default:
+      return null;
+  }
 }
 
 function parseViewMode(value: string | null, fallback: RadarViewMode): RadarViewMode {
@@ -853,21 +912,21 @@ function sortRadarRows(
   return copiedRows;
 }
 
-function resolveActiveFolderIds(
+function resolveActiveFolderKey(
   folders: WatchlistFolderNode[],
   activeFolderId: string
 ) {
   if (activeFolderId === "all") {
-    return null;
+    return "";
   }
 
   const targetNode = findFolderNode(folders, activeFolderId);
 
   if (!targetNode) {
-    return null;
+    return "";
   }
 
-  return new Set(collectFolderIds(targetNode));
+  return collectFolderIds(targetNode).sort().join("|");
 }
 
 function findFolderNode(
@@ -934,20 +993,20 @@ function AlertCard({
       href={`/stocks/${alert.symbol}`}
       data-testid="radar-alert-card"
       className={cn(
-        "block rounded-[calc(var(--radius)*1.05)] border bg-background/30 p-3 transition-colors hover:bg-muted/60",
+        "block rounded-lg border bg-background/30 p-3 transition-colors hover:bg-muted/60",
         getAlertBorderClassName(alert.severity)
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold tracking-tight">{alert.title}</p>
+          <p className="text-sm font-semibold">{alert.title}</p>
           <p className="mt-1 text-xs text-muted-foreground">
             {ruleLabel ?? alert.ruleId} · {formatAlertTriggeredAt(alert.triggeredAt)}
           </p>
         </div>
         <span
           className={cn(
-            "shrink-0 rounded-full px-2 py-0.5 text-[0.68rem] font-semibold",
+            "shrink-0 rounded-md px-2 py-0.5 text-[0.68rem] font-semibold",
             getAlertPillClassName(alert.severity)
           )}
         >
@@ -1002,28 +1061,20 @@ function formatAlertTriggeredAt(value: string) {
     return value;
   }
 
-  return `${match[2]}. ${match[3]}. ${match[4]}:${match[5]}`;
+  return `${match[2]}.${match[3]} ${match[4]}:${match[5]}`;
 }
 
 function applyPreset({
   preset,
   replaceParams,
 }: {
-  preset: SavedViewPreset<{
-    folderId: string;
-    query: string;
-    viewMode: RadarViewMode;
-    groupMode: RadarGroupMode;
-    sector: string;
-    selectedSymbol: string;
-    visibleColumns: RadarColumnKey[];
-    sortModel: RadarSortItem[];
-  }>;
+  preset: SavedViewPreset<RadarViewPresetState>;
   replaceParams: (updates: Record<string, string | null | undefined>) => void;
 }) {
   const matchedSortOption =
-    sortOptions.find((option) =>
-      JSON.stringify(option.sortModel) === JSON.stringify(preset.value.sortModel)
+    sortOptions.find(
+      (option) =>
+        JSON.stringify(option.sortModel) === JSON.stringify(preset.value.sortModel)
     )?.value ?? sortOptions[0].value;
 
   replaceParams({
@@ -1041,11 +1092,17 @@ function applyPreset({
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-border/50 bg-background/40 px-3 py-2">
-      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-        {label}
-      </p>
+    <div className="rounded-lg border border-border/50 bg-background/40 px-3 py-2">
+      <p className={typographyTokens.eyebrow}>{label}</p>
       <p className="numeric mt-1 text-sm font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function SmallCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-border/55 bg-background/30 p-3">
+      {children}
     </div>
   );
 }
@@ -1064,7 +1121,7 @@ function TagChip({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors",
+        "rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors",
         active
           ? "border-primary/35 bg-primary/10 text-foreground"
           : "border-border/70 bg-background/45 text-muted-foreground hover:bg-muted/60"
@@ -1077,9 +1134,9 @@ function TagChip({
 
 function ScheduleRow({ schedule }: { schedule: ScheduleItem }) {
   return (
-    <div className="flex items-start justify-between gap-3 rounded-[calc(var(--radius)*1.05)] border border-border/55 bg-background/30 p-3">
+    <div className="flex items-start justify-between gap-3 rounded-lg border border-border/55 bg-background/30 p-3">
       <div>
-        <p className="text-sm font-semibold tracking-tight">{schedule.title}</p>
+        <p className="text-sm font-semibold">{schedule.title}</p>
         <p className="mt-1 text-xs text-muted-foreground">{schedule.note}</p>
       </div>
       <span className="numeric text-xs font-semibold text-muted-foreground">
@@ -1095,7 +1152,7 @@ function PresetRow({
   onApply,
   onRemove,
 }: {
-  preset: SavedViewPreset<unknown>;
+  preset: SavedViewPreset<RadarViewPresetState>;
   active: boolean;
   onApply: () => void;
   onRemove: () => void;
@@ -1103,15 +1160,13 @@ function PresetRow({
   return (
     <div
       className={cn(
-        "rounded-[calc(var(--radius)*1.05)] border p-3",
-        active
-          ? "border-primary/35 bg-primary/10"
-          : "border-border/60 bg-background/30"
+        "rounded-lg border p-3",
+        active ? "border-primary/35 bg-primary/10" : "border-border/60 bg-background/30"
       )}
     >
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold tracking-tight">{preset.name}</p>
+          <p className="text-sm font-semibold">{preset.name}</p>
           <p className="text-xs text-muted-foreground">
             {formatPresetUpdatedAt(preset.updatedAt)}
           </p>
@@ -1136,5 +1191,5 @@ function formatPresetUpdatedAt(value: string) {
     return value;
   }
 
-  return `${match[2]}. ${match[3]}. ${match[4]}:${match[5]}`;
+  return `${match[2]}.${match[3]} ${match[4]}:${match[5]}`;
 }

@@ -2,7 +2,6 @@
 
 import * as React from "react";
 
-import { useStoredState } from "@/lib/client/use-stored-state";
 import type {
   ResearchSnapshot,
   ResearchSnapshotConviction,
@@ -12,7 +11,6 @@ import type {
 } from "@/lib/research/types";
 
 const MAX_RESEARCH_SNAPSHOTS = 120;
-const DEFAULT_STORAGE_KEY = "stock-workspace:research-snapshots";
 const SNAPSHOT_API_PATH = "/api/research-snapshots";
 
 export const researchSnapshotStanceTone: Record<
@@ -43,31 +41,20 @@ type SaveResearchSnapshotInput = Omit<ResearchSnapshot, "id" | "createdAt"> & {
 type SnapshotSyncStatus = "idle" | "loading" | "ready" | "error";
 
 type SnapshotListApiResponse = Partial<ResearchSnapshotListResponse> & {
-  status?: "success" | "disabled" | "error";
+  status?: "success" | "local" | "error";
 };
 
 type SnapshotMutationApiResponse = Partial<ResearchSnapshotMutationResponse> & {
-  status?: "success" | "disabled" | "error";
+  status?: "success" | "local" | "error";
 };
 
-export function useResearchSnapshots(storageKey = DEFAULT_STORAGE_KEY) {
-  const { hasLoaded, value, setValue } = useStoredState<ResearchSnapshot[]>(
-    storageKey,
-    []
-  );
+export function useResearchSnapshots() {
+  const [hasLoaded, setHasLoaded] = React.useState(false);
+  const [snapshots, setSnapshots] = React.useState<ResearchSnapshot[]>([]);
   const [snapshotSyncStatus, setSnapshotSyncStatus] =
     React.useState<SnapshotSyncStatus>("idle");
 
-  const snapshots = React.useMemo(
-    () => [...value].sort((left, right) => right.createdAt.localeCompare(left.createdAt)),
-    [value]
-  );
-
   React.useEffect(() => {
-    if (!hasLoaded) {
-      return;
-    }
-
     let cancelled = false;
     setSnapshotSyncStatus("loading");
 
@@ -88,16 +75,13 @@ export function useResearchSnapshots(storageKey = DEFAULT_STORAGE_KEY) {
           return;
         }
 
-        if (Array.isArray(payload.snapshots)) {
-          setValue((currentSnapshots) =>
-            mergeSnapshots(payload.snapshots ?? [], currentSnapshots)
-          );
-        }
-
+        setSnapshots(normalizeSnapshots(payload.snapshots ?? []));
+        setHasLoaded(true);
         setSnapshotSyncStatus(payload.status === "error" ? "error" : "ready");
       })
       .catch(() => {
         if (!cancelled) {
+          setHasLoaded(true);
           setSnapshotSyncStatus("error");
         }
       });
@@ -105,35 +89,29 @@ export function useResearchSnapshots(storageKey = DEFAULT_STORAGE_KEY) {
     return () => {
       cancelled = true;
     };
-  }, [hasLoaded, setValue]);
+  }, []);
 
-  const saveSnapshot = React.useCallback(
-    (input: SaveResearchSnapshotInput) => {
-      const nextSnapshot: ResearchSnapshot = {
-        ...input,
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        createdAt: input.createdAt ?? new Date().toISOString(),
-      };
+  const saveSnapshot = React.useCallback((input: SaveResearchSnapshotInput) => {
+    const optimisticSnapshot: ResearchSnapshot = {
+      ...input,
+      id: `pending-${Date.now()}`,
+      createdAt: input.createdAt ?? new Date().toISOString(),
+    };
 
-      setValue((currentSnapshots) =>
-        [nextSnapshot, ...currentSnapshots].slice(0, MAX_RESEARCH_SNAPSHOTS)
-      );
-      void persistSnapshot(nextSnapshot, setValue, setSnapshotSyncStatus);
+    setSnapshots((currentSnapshots) =>
+      normalizeSnapshots([optimisticSnapshot, ...currentSnapshots])
+    );
+    void persistSnapshot(input, setSnapshots, setSnapshotSyncStatus);
 
-      return nextSnapshot;
-    },
-    [setValue]
-  );
+    return optimisticSnapshot;
+  }, []);
 
-  const removeSnapshot = React.useCallback(
-    (snapshotId: string) => {
-      setValue((currentSnapshots) =>
-        currentSnapshots.filter((snapshot) => snapshot.id !== snapshotId)
-      );
-      void deletePersistedSnapshot(snapshotId, setSnapshotSyncStatus);
-    },
-    [setValue]
-  );
+  const removeSnapshot = React.useCallback((snapshotId: string) => {
+    setSnapshots((currentSnapshots) =>
+      currentSnapshots.filter((snapshot) => snapshot.id !== snapshotId)
+    );
+    void deletePersistedSnapshot(snapshotId, setSnapshotSyncStatus);
+  }, []);
 
   return {
     hasLoaded,
@@ -144,13 +122,10 @@ export function useResearchSnapshots(storageKey = DEFAULT_STORAGE_KEY) {
   };
 }
 
-function mergeSnapshots(
-  primarySnapshots: ResearchSnapshot[],
-  secondarySnapshots: ResearchSnapshot[]
-) {
+function normalizeSnapshots(items: ResearchSnapshot[]) {
   const snapshotById = new Map<string, ResearchSnapshot>();
 
-  [...secondarySnapshots, ...primarySnapshots].forEach((snapshot) => {
+  items.forEach((snapshot) => {
     snapshotById.set(snapshot.id, snapshot);
   });
 
@@ -160,8 +135,8 @@ function mergeSnapshots(
 }
 
 async function persistSnapshot(
-  snapshot: ResearchSnapshot,
-  setValue: React.Dispatch<React.SetStateAction<ResearchSnapshot[]>>,
+  snapshot: SaveResearchSnapshotInput,
+  setSnapshots: React.Dispatch<React.SetStateAction<ResearchSnapshot[]>>,
   setSnapshotSyncStatus: React.Dispatch<React.SetStateAction<SnapshotSyncStatus>>
 ) {
   try {
@@ -180,7 +155,12 @@ async function persistSnapshot(
 
     const payload = (await response.json()) as SnapshotMutationApiResponse;
     if (payload.snapshot) {
-      setValue((currentSnapshots) => mergeSnapshots([payload.snapshot!], currentSnapshots));
+      setSnapshots((currentSnapshots) =>
+        normalizeSnapshots([
+          payload.snapshot!,
+          ...currentSnapshots.filter((item) => !item.id.startsWith("pending-")),
+        ])
+      );
     }
 
     setSnapshotSyncStatus(payload.status === "error" ? "error" : "ready");
@@ -208,7 +188,7 @@ async function deletePersistedSnapshot(
       throw new Error(`snapshot delete failed with ${response.status}`);
     }
 
-    const payload = (await response.json()) as { status?: "success" | "disabled" | "error" };
+    const payload = (await response.json()) as { status?: "success" | "local" | "error" };
     setSnapshotSyncStatus(payload.status === "error" ? "error" : "ready");
   } catch {
     setSnapshotSyncStatus("error");

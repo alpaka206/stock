@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
+import Link from "next/link";
 
 import { ResearchPanel } from "@/components/research/research-panel";
 import { buttonVariants } from "@/components/ui/button";
@@ -13,17 +13,11 @@ type NewsPanelProps = {
 export function NewsPanel({ items }: NewsPanelProps) {
   return (
     <ResearchPanel
-      eyebrow="Headline Flow"
-      title="헤드라인 플로우"
-      description="시장 해석을 바꿀 수 있는 기사만 시간순으로 압축해 읽습니다."
+      eyebrow="Headline flow"
+      title="핵심 뉴스"
+      description="시장 해석을 바꿀 수 있는 기사와 공시를 시간순으로 봅니다."
       action={
-        <Link
-          href="/news"
-          className={cn(
-            buttonVariants({ variant: "outline", size: "sm" }),
-            "rounded-[calc(var(--radius)*0.72)]"
-          )}
-        >
+        <Link href="/news" className={buttonVariants({ variant: "outline", size: "sm" })}>
           전체 뉴스
         </Link>
       }
@@ -31,9 +25,8 @@ export function NewsPanel({ items }: NewsPanelProps) {
     >
       <div className="space-y-3">
         {items.length === 0 ? (
-          <div className="rounded-[calc(var(--radius)*0.82)] border border-dashed border-border/80 bg-muted/10 p-4 text-sm leading-6 text-muted-foreground">
-            현재 헤드라인 플로우를 구성할 기사 요약이 없습니다. 뉴스 원문과
-            히스토리에서 직접 확인해 주세요.
+          <div className="rounded-lg border border-dashed border-border/80 bg-muted/10 p-4 text-sm leading-6 text-muted-foreground">
+            표시할 뉴스가 없습니다. 실제 API 연결 상태와 데이터 출처를 확인해 주세요.
           </div>
         ) : null}
 
@@ -47,14 +40,14 @@ export function NewsPanel({ items }: NewsPanelProps) {
               >
                 <div className="grid gap-3 md:grid-cols-[88px_minmax(0,1fr)_108px] md:items-start">
                   <div className="text-xs text-muted-foreground">
-                    <p className="font-semibold uppercase tracking-[0.18em] text-muted-foreground/75">
+                    <p className="font-semibold uppercase text-muted-foreground/75">
                       {item.source}
                     </p>
                     <p className="numeric mt-1">{item.publishedAt}</p>
                   </div>
 
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold leading-6 tracking-tight text-foreground">
+                    <p className="text-sm font-semibold leading-6 text-foreground">
                       {item.headline}
                     </p>
                     {item.summary ? (
@@ -67,14 +60,14 @@ export function NewsPanel({ items }: NewsPanelProps) {
                   <div className="flex items-center justify-between gap-3 md:block md:text-right">
                     <span
                       className={cn(
-                        "inline-flex rounded-[0.42rem] border px-2.5 py-1 text-[0.68rem] font-semibold",
+                        "inline-flex rounded-md border px-2.5 py-1 text-[0.68rem] font-semibold",
                         getToneBadge(item.tone)
                       )}
                     >
                       {item.impactLabel}
                     </span>
                     <p className="mt-0 text-xs font-semibold text-primary md:mt-3">
-                      이어서 읽기
+                      자세히
                       <ArrowUpRight className="ml-1 inline size-3.5 align-middle" />
                     </p>
                   </div>

@@ -33,7 +33,7 @@ export function TrendChip({ direction, value, className }: TrendChipProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-[0.45rem] border px-2.5 py-1 text-[0.72rem] font-semibold tracking-tight",
+        "inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-[0.72rem] font-semibold",
         toneByDirection[direction],
         className
       )}

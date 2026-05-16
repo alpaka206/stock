@@ -1,9 +1,11 @@
-현재 라운드 목표
-- #176 병합 이후 release PR #174의 최종 대기 상태를 문서에 반영한다.
-- 사용자가 수동으로 main merge해야 하는 단계와 merge 이후 배포 확인 단계를 명확히 남긴다.
+# 현재 라운드 목표
 
-완료 조건
-- `STATE.md`에 #176 병합, #174 최신 checks 통과, `pnpm verify:release` 재통과가 기록된다.
-- `BACKLOG.md`에는 main 수동 merge 이후 확인할 작업만 남는다.
-- `NEXT_PROMPT.md`에는 다음 세션에서 바로 실행할 3~5개 액션만 남는다.
-- 한글 문서 품질 가드가 통과한다.
+UI/UX 리디자인, 성능 개선, 서버 저장 구조, 자동화 제거, Dependabot 정리를 하나의 issue branch에서 검증 가능한 상태로 만든다.
+
+## 완료 조건
+
+- `/overview`, `/radar`, `/stocks/[symbol]`, `/history`가 새 디자인으로 빌드된다.
+- 뉴스, 일정, 스냅샷 fallback 데이터는 `(목데이터)`로 표시된다.
+- 무한 루프 자동화 파일과 검증 경로가 제거된다.
+- Dependabot 대상 브랜치와 그룹 설정이 `develop` 기준으로 정리된다.
+- `pnpm verify:standard` 결과가 기록된다.

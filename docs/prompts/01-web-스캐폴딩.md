@@ -1,32 +1,25 @@
-# 목표
-`apps/web`를 금융 리서치 워크스페이스용 프론트엔드로 스캐폴딩한다.
+# 01. Web 스캐폴딩
 
-# 참고 문서
-- apps/web/AGENTS.md
-- docs/design/design-memory.md
-- docs/architecture/component-manifest.yaml
+## 목표
 
-# 할 일
-- 공통 layout, sidebar/topbar, theme provider, query provider를 구성한다.
-- AG Grid 공통 래퍼와 locale 설정(한국어 우선)을 준비한다.
-- 공통 UI 토큰(간격, 카드, 숫자 스타일)을 정리한다.
-- 페이지별 폴더를 만든다.
-- feature 폴더를 만든다.
-  - `features/grid`
-  - `features/chart`
-  - `features/filters`
-  - `features/watchlist`
-  - `features/sector`
-  - `features/history`
-- 샘플 mock 데이터와 개발용 fixture 구조를 추가한다.
+Next.js App Router 기반 화면 구조를 실제 서비스처럼 빠르고 읽기 쉽게 만든다.
 
-# 제약
-- 비즈니스 로직을 `page.tsx`에 몰아넣지 않는다.
-- 사용자 상태와 서버 상태를 분리한다.
-- 그리드는 AG Grid 기준으로 공통화한다.
+## 작업 범위
 
-# 완료 조건
-- 공통 shell이 적용된다.
-- 다크모드가 동작한다.
-- AG Grid 샘플 화면이 동작한다.
-- 문서와 changelog가 갱신된다.
+- 공통 shell, navigation, topbar 정리
+- `/overview`, `/radar`, `/stocks/[symbol]`, `/history` 진입 경로 확인
+- 뉴스와 캘린더 보조 화면의 접근성 유지
+- i18n 메시지와 사용자 문구 정리
+
+## 제약
+
+- 카드 안에 다시 큰 카드를 중첩하지 않는다.
+- 장식용 그라디언트, 과한 그림자, AI 생성 느낌의 장식을 피한다.
+- 테이블은 경량 네이티브 테이블을 우선 사용하고 필요할 때만 가상화 라이브러리를 검토한다.
+- 버튼, 필터, 탭, 검색은 모바일에서 줄바꿈되어도 레이아웃이 깨지지 않아야 한다.
+
+## 완료 조건
+
+- 핵심 화면 진입이 정상 동작한다.
+- 화면 텍스트가 한국어 기준으로 자연스럽다.
+- `pnpm --dir apps/web lint`와 `pnpm --dir apps/web typecheck`가 통과한다.

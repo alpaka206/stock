@@ -56,7 +56,7 @@ function FolderNode({
         style={{ paddingLeft: `${depth * 14 + 12}px` }}
       >
         <div className="min-w-0">
-          <p className="text-sm font-semibold tracking-tight">{node.label}</p>
+          <p className="text-sm font-semibold">{node.label}</p>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
             {node.description}
           </p>
