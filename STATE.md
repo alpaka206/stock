@@ -11,6 +11,7 @@
 - 운영 백엔드는 별도 저장소 `alpaka206/stock_BE`의 Spring Boot API로 진행한다.
 - 프런트 저장소에서 `apps/api` FastAPI 앱, API smoke, Python provider test, contract parity script를 제거했다.
 - 프런트 Docker Compose는 Next.js web만 실행하고 `STOCK_API_BASE_URL`로 Spring 백엔드에 연결한다.
+- 백엔드 PR #6은 checks 통과 후 merge commit `047001f`로 `develop`에 반영됐다.
 - 백엔드 PR #6에는 화면 계약/저장 API, CSRF 조회 API, Swagger/OpenAPI, Google OAuth 이후 `HttpOnly` access/refresh cookie 세션 구조가 포함됐다.
 - refresh token은 백엔드 DB에 원문 저장 없이 SHA-256 hash로 저장하고, `/auth/refresh`에서 회전한다.
 - 접근 제한은 아직 강제하지 않는다. 테스트 편의를 위해 API는 열어두고 세션 계약만 준비한다.
@@ -25,7 +26,7 @@
 
 ## 남은 리스크
 
-- 백엔드 PR #6은 GitHub Actions `verify`, `codeql` 완료를 기다려야 한다.
+- 프런트 PR #196은 GitHub Actions 완료를 기다려야 한다.
 - 실제 데이터 API 키가 없는 환경에서는 fallback 데이터가 보이며, 사용자 화면에는 `(목데이터)`로 표시해야 한다.
 - 외부 provider 수집 결과를 백엔드 DB에 저장하는 ingest 작업은 아직 남아 있다.
 - 로그인 UI와 접근 제한은 아직 붙이지 않았다.
@@ -33,7 +34,7 @@
 ## 다음 우선순위
 
 1. 프런트 타입체크/빌드 실패를 고친 뒤 `pnpm verify:standard`를 통과시킨다.
-2. 백엔드 PR #6 checks 완료 후 develop에 merge commit 방식으로 반영한다.
-3. 프런트 PR을 develop 대상으로 열고 checks를 확인한다.
+2. 프런트 PR #196 checks 완료 후 develop에 merge commit 방식으로 반영한다.
+3. develop branch protection required checks에서 삭제된 Python CodeQL 체크가 남아 있으면 제거한다.
 4. 백엔드 ingest worker와 실제 provider 저장 흐름을 추가한다.
 5. 로그인 UI, 구독 요금제, 리포트 이메일 발송 구조를 접근 제한 없이 화면/저장 API부터 붙인다.
