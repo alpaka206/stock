@@ -8,6 +8,7 @@
 - [x] i18n, 페이지 매니페스트, API 문서, 환경 변수 문서 갱신
 - [x] 실제 Spring API 기준 프런트 release 검증 통과
 - [x] 실제 로컬 FE/BE 기준 E2E 통과
-- [ ] 백엔드 PR #7을 develop으로 squash 없이 병합
-- [ ] 프런트 PR #197을 develop으로 squash 없이 병합
+- [x] 백엔드 PR #8을 develop으로 squash 없이 병합
+- [x] 프런트 PR #198을 develop으로 squash 없이 병합
+- [ ] 최종 인계 문서 PR #199를 develop으로 squash 없이 병합
 - [ ] 실제 provider key, SMTP, Perso 계정 연결 후 운영 smoke test 수행
