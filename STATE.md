@@ -6,6 +6,8 @@
 - 관련 이슈: #189 `UI/UX 리디자인 및 자동화 제거`
 - GitHub 저장소 설정에서 squash merge는 비활성화했다.
 - `main` 브랜치 보호 규칙을 적용했다. force push와 branch deletion은 금지되고, PR에는 `verify`, `release-guard`, `dependency-review`, `codeql (javascript-typescript)`, `codeql (python)` 체크가 필요하다.
+- `develop` 브랜치를 최신 `main` 기준으로 복구했고 보호 규칙을 적용했다. force push와 branch deletion은 금지되고, PR에는 `verify`, `dependency-review`, `codeql (javascript-typescript)`, `codeql (python)` 체크가 필요하다.
+- merge 후 branch 자동 삭제는 비활성화했다.
 - Dependabot security updates, vulnerability alerts, secret scanning, push protection은 활성 상태다.
 - 핵심 화면은 `/overview`, `/radar`, `/stocks/[symbol]`, `/history` 기준으로 재정리 중이다.
 - 뉴스와 일정 보조 화면도 깨진 문구를 제거하고 사용자용 문장으로 교체했다.
