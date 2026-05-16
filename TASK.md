@@ -1,11 +1,10 @@
 # 현재 라운드 목표
 
-UI/UX 리디자인, 성능 개선, 서버 저장 구조, 자동화 제거, Dependabot 정리를 하나의 issue branch에서 검증 가능한 상태로 만든다.
+Spring Boot 백엔드 저장소와 프런트 API 계약을 연결할 준비를 끝낸다.
 
 ## 완료 조건
 
-- `/overview`, `/radar`, `/stocks/[symbol]`, `/history`가 새 디자인으로 빌드된다.
-- 뉴스, 일정, 스냅샷 fallback 데이터는 `(목데이터)`로 표시된다.
-- 무한 루프 자동화 파일과 검증 경로가 제거된다.
-- Dependabot 대상 브랜치와 그룹 설정이 `develop` 기준으로 정리된다.
-- `pnpm verify:standard` 결과가 기록된다.
+- 백엔드 스택 결정과 이유가 문서화된다.
+- `stock_BE` 초기 Spring Boot 구조와 브랜치 보호 상태가 기록된다.
+- 프런트가 Spring Boot 백엔드로 전환하기 위한 다음 액션이 `NEXT_PROMPT.md`에 남는다.
+- 보안 파일 포함 여부와 텍스트 품질 검사가 통과한다.
