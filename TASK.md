@@ -1,10 +1,10 @@
 # 현재 라운드 목표
 
-Spring Boot 백엔드 저장소와 프런트 API 계약을 연결할 준비를 끝낸다.
+프런트 저장소에서 삭제된 FastAPI 잔여 참조를 정리하고 Spring Boot 백엔드 API 연결 기준으로 검증 가능하게 만든다.
 
 ## 완료 조건
 
-- 백엔드 스택 결정과 이유가 문서화된다.
-- `stock_BE` 초기 Spring Boot 구조와 브랜치 보호 상태가 기록된다.
-- 프런트가 Spring Boot 백엔드로 전환하기 위한 다음 액션이 `NEXT_PROMPT.md`에 남는다.
-- 보안 파일 포함 여부와 텍스트 품질 검사가 통과한다.
+- `apps/api`와 FastAPI 검증 스크립트가 제거된다.
+- 프런트 API adapter, Docker, CI, 문서가 `stock_BE` Spring Boot 백엔드 기준으로 정리된다.
+- 백엔드 PR #6의 Swagger/쿠키 인증 변경이 검증되고 develop 반영 대기 또는 완료 상태로 기록된다.
+- 보안 파일 포함 여부와 표준 검증이 통과한다.

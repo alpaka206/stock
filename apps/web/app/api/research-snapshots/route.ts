@@ -5,6 +5,7 @@ import type {
   ResearchSnapshotListResponse,
   ResearchSnapshotMutationResponse,
 } from "@/lib/research/types";
+import { buildBackendMutationHeaders } from "@/lib/server/backend-csrf";
 
 const SNAPSHOT_API_TIMEOUT_MS = 5000;
 
@@ -76,10 +77,7 @@ export async function POST(request: NextRequest) {
     const response = await fetch(apiUrl, {
       method: "POST",
       cache: "no-store",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
+      headers: await buildBackendMutationHeaders(apiUrl),
       body: JSON.stringify(snapshot),
       signal: buildTimeoutSignal(),
     });

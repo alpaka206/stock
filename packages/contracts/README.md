@@ -4,7 +4,8 @@
 
 - 단일 runtime JSON schema 소스: `schemas/*.schema.json`
 - web TypeScript 타입 소스: `src/index.ts`
-- API prompt loader 는 이 패키지의 schema 를 읽어 LLM structured output 과 provider validation 에 함께 사용한다.
+- Spring 백엔드 응답과 Next.js 프런트 타입은 이 패키지의 계약을 기준으로 맞춘다.
+- 추후 LLM 요약 worker를 붙일 때도 이 schema를 structured output 검증 기준으로 사용한다.
 
 현재 범위:
 

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://stock-workspace.local/contracts/common.schema.json",
   "title": "Common analysis envelope fragments",
-  "$comment": "Canonical contract fragments for runtime payload validation. Page-level prompt output schema copies stay under apps/api/prompts/* for OpenAI structured output.",
+  "$comment": "Canonical contract fragments for runtime payload validation across the Next.js frontend and Spring backend.",
   "type": "object",
   "$defs": {
     "sourceRef": {

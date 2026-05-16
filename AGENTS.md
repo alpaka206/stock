@@ -41,10 +41,12 @@
 
 ## 백엔드 원칙
 
-- API는 FastAPI를 기본으로 유지하되, 규모가 커지면 별도 백엔드 저장소로 분리할 수 있다.
+- 운영 백엔드는 별도 저장소 `../stock_BE`의 Spring Boot API를 기준으로 한다.
 - 프런트는 API 계약과 환경변수만 보고 동작해야 하며 내부 DB 구현에 의존하지 않는다.
-- 저장 동작은 가능하면 DB 트랜잭션으로 처리한다.
-- 파일 fallback은 임시 파일 작성 후 rename으로 교체해 중간 손상 가능성을 줄인다.
+- 저장 동작은 DB 트랜잭션, 정규화, 외래키, cascade 정책을 기준으로 설계한다.
+- Swagger 문서는 백엔드 `/swagger-ui.html`, OpenAPI JSON은 `/v3/api-docs`를 기준으로 확인한다.
+- 로그인 토큰은 백엔드가 `HttpOnly` access/refresh cookie로 관리하고, 프런트 JavaScript는 token 원문을 저장하지 않는다.
+- 접근 제한은 테스트 편의를 위해 아직 강제하지 않지만, 세션 발급/갱신/로그아웃 계약은 백엔드 API에 맞춘다.
 - 관계형 데이터가 필요한 기능은 정규화, 외래키, cascade 정책, 원자성을 먼저 설계한다.
 
 ## 프런트엔드 원칙
@@ -75,5 +77,5 @@ pnpm verify:release
 ## 보안
 
 - `.env`, `.env.*`, API 키, 토큰, 웹훅 URL은 커밋하지 않는다.
-- `apps/web/.env`, `apps/api/.env`, 개인 로컬 설정 파일은 값 확인 없이 존재 여부만 다룬다.
+- `apps/web/.env`, 백엔드 `.env`, 개인 로컬 설정 파일은 값 확인 없이 존재 여부만 다룬다.
 - 커밋 전 `pnpm guard:no-secrets` 또는 `pnpm verify:standard`를 실행한다.

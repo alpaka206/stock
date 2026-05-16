@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { buildBackendMutationHeaders } from "@/lib/server/backend-csrf";
+
 const SNAPSHOT_API_TIMEOUT_MS = 5000;
 
 type RouteContext = {
@@ -20,7 +22,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     const response = await fetch(apiUrl, {
       method: "DELETE",
       cache: "no-store",
-      headers: { Accept: "application/json" },
+      headers: await buildBackendMutationHeaders(apiUrl),
       signal: buildTimeoutSignal(),
     });
 

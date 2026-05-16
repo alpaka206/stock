@@ -13,37 +13,6 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 PNPM_BIN = "pnpm.cmd" if os.name == "nt" else "pnpm"
 PYTHON_BIN = sys.executable
-PY_COMPILE_TARGETS = [
-    "apps/api/app/main.py",
-    "apps/api/app/schemas/common.py",
-    "apps/api/app/schemas/overview.py",
-    "apps/api/app/schemas/radar.py",
-    "apps/api/app/schemas/stocks.py",
-    "apps/api/app/schemas/history.py",
-    "apps/api/app/schemas/news.py",
-    "apps/api/app/schemas/calendar.py",
-    "apps/api/app/schemas/search.py",
-    "apps/api/app/schemas/snapshots.py",
-    "apps/api/app/routers/instruments.py",
-    "apps/api/app/routers/snapshots.py",
-    "apps/api/app/services/clients/alpha_vantage.py",
-    "apps/api/app/services/clients/open_dart.py",
-    "apps/api/app/services/clients/openai_responses.py",
-    "apps/api/app/services/clients/sec_filings.py",
-    "apps/api/app/services/clients/gemini_responses.py",
-    "apps/api/app/services/clients/summary_router.py",
-    "apps/api/app/services/clients/yahoo_market.py",
-    "apps/api/app/services/deterministic_summary.py",
-    "apps/api/app/services/readiness.py",
-    "apps/api/app/services/research_snapshot_store.py",
-    "apps/api/app/services/providers/mock.py",
-    "apps/api/app/services/providers/real.py",
-    "apps/api/app/services/providers/history_builders.py",
-    "apps/api/app/services/providers/radar_builders.py",
-    "apps/api/app/services/providers/stock_builders.py",
-    "apps/api/app/services/providers/extended_mock.py",
-    "apps/api/app/services/providers/extended_real.py",
-]
 
 
 def python_command(*args: str) -> list[str]:
@@ -59,24 +28,11 @@ STEP_GROUPS = {
         {"name": "web typecheck", "command": [PNPM_BIN, "typecheck:web"]},
         {"name": "web build", "command": [PNPM_BIN, "build:web"]},
     ],
-    "api": [
-        {"name": "contract parity", "command": python_command("scripts/check_contract_parity.py")},
-        {"name": "alpha vantage cache key", "command": python_command("scripts/test_alpha_vantage_cache_key.py")},
-        {"name": "sec filings client", "command": python_command("scripts/test_sec_filings_client.py")},
-        {"name": "radar builders", "command": python_command("scripts/test_radar_builders.py")},
-        {"name": "stock/history builders", "command": python_command("scripts/test_stock_history_builders.py")},
-        {
-            "name": "api py_compile",
-            "command": python_command("-m", "py_compile", *PY_COMPILE_TARGETS),
-        },
-        {"name": "api smoke", "command": python_command("scripts/api_smoke.py")},
-    ],
 }
 STEP_GROUPS["standard"] = [
     *STEP_GROUPS["text"],
     {"name": "no secrets guard", "command": python_command("scripts/no_secrets_guard.py")},
     *STEP_GROUPS["web"],
-    *STEP_GROUPS["api"],
 ]
 STEP_GROUPS["release"] = [
     {"name": "release readiness", "command": python_command("scripts/verify_release_readiness.py")}

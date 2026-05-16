@@ -53,9 +53,9 @@ pnpm verify:release
 pnpm lint:web
 pnpm typecheck:web
 pnpm build:web
-python scripts/api_smoke.py
-python scripts/verify_workspace.py --group api
 ```
+
+백엔드 검증은 별도 저장소 `../stock_BE`에서 `.\mvnw.cmd test`로 실행합니다.
 
 ## 보안
 
