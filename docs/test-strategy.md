@@ -1,19 +1,37 @@
-# Test Strategy
+# 테스트 전략
 
-## Standard Gate
-- web lint
-- web typecheck
-- web build
-- contract parity
-- api py_compile
-- api smoke
+## 표준 게이트
 
-## Notes
-- `scripts/api_smoke.py` launches a temporary uvicorn process and verifies routes over real HTTP.
-- `pnpm verify:standard` is the unattended close-out gate.
-- Discord bridge health and OMX loop smoke are separate from the main app gate.
+- `pnpm guard:no-secrets`
+- `pnpm lint:web`
+- `pnpm typecheck:web`
+- `pnpm build:web`
+- `python scripts/check_contract_parity.py`
+- `python scripts/api_smoke.py`
 
-## Additional Checks
-- `scripts/no_secrets_guard.sh`
-- `scripts/check-discord-bridge.sh` (expected to fail cleanly when `.env.discord` is absent)
-- `python scripts/text_quality_guard.py`
+전체 실행:
+
+```bash
+pnpm verify:standard
+```
+
+## 릴리스 게이트
+
+```bash
+pnpm verify:release
+```
+
+## 화면 확인
+
+프런트 변경 후 최소 확인 경로:
+
+- `/overview`
+- `/radar`
+- `/stocks/NVDA`
+- `/history?symbol=NVDA`
+
+## 데이터 확인
+
+- 실제 API 응답이면 출처와 신뢰도를 확인한다.
+- fallback이면 화면에 `(목데이터)`가 표시되어야 한다.
+- 판단 기록 저장/삭제는 `/api/research-snapshots`와 API `/snapshots` 모두 확인한다.
