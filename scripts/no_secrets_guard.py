@@ -13,16 +13,13 @@ EXCLUDED_PREFIXES = (
     "node_modules/",
     "apps/web/.next/",
     ".pnpm-store/",
-    ".omx/logs/",
-    ".omx/runtime/",
+    "data/runtime/",
     "dist/",
     "coverage/",
 )
 BANNED_FILE_PATTERNS = (
     ".env",
     ".env.*",
-    ".env.discord",
-    ".env.discord.*",
     "*.pem",
     "*.key",
     "*.p12",
@@ -39,12 +36,10 @@ HIGH_RISK_PATTERN = re.compile(
     r"|sk-[A-Za-z0-9]{20,}"
     r"|AIza[0-9A-Za-z_-]{20,}"
     r"|hooks\.slack\.com/services/[A-Za-z0-9/_-]+"
-    r"|discord\.com/api/webhooks/[A-Za-z0-9/_-]+"
     r"|x-goog-api-key\s*[:=]\s*[A-Za-z0-9_-]{12,}"
 )
 ALLOWED_TEMPLATE_BASENAMES = {
     ".env.example",
-    ".env.discord.example",
 }
 CONTENT_SCAN_EXCLUDED = {
     "scripts/no_secrets_guard.py",

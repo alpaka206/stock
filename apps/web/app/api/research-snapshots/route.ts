@@ -9,27 +9,27 @@ import type {
 const SNAPSHOT_API_TIMEOUT_MS = 5000;
 
 type SnapshotListResponse = ResearchSnapshotListResponse & {
-  status?: "success" | "disabled" | "error";
+  status?: "success" | "local" | "error";
   errorMessage?: string;
 };
 
 type SnapshotMutationResponse = ResearchSnapshotMutationResponse & {
-  status?: "success" | "disabled" | "error";
+  status?: "success" | "local" | "error";
   errorMessage?: string;
 };
 
 export async function GET(request: NextRequest) {
   const apiUrl = resolveSnapshotApiUrl();
+  const symbol = request.nextUrl.searchParams.get("symbol");
 
   if (!apiUrl) {
     return NextResponse.json({
-      snapshots: [],
-      status: "disabled",
+      snapshots: await listLocalSnapshots(symbol),
+      status: "local",
     } satisfies SnapshotListResponse);
   }
 
   const url = new URL(apiUrl);
-  const symbol = request.nextUrl.searchParams.get("symbol");
   if (symbol) {
     url.searchParams.set("symbol", symbol);
   }
@@ -43,8 +43,8 @@ export async function GET(request: NextRequest) {
 
     if (!response.ok) {
       return NextResponse.json({
-        snapshots: [],
-        status: "error",
+        snapshots: await listLocalSnapshots(symbol),
+        status: "local",
         errorMessage: `snapshot API responded with ${response.status}`,
       } satisfies SnapshotListResponse);
     }
@@ -53,22 +53,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ...payload, status: "success" });
   } catch (error) {
     return NextResponse.json({
-      snapshots: [],
-      status: "error",
+      snapshots: await listLocalSnapshots(symbol),
+      status: "local",
       errorMessage: error instanceof Error ? error.message : "snapshot API failed",
     } satisfies SnapshotListResponse);
   }
 }
 
 export async function POST(request: NextRequest) {
-  const snapshot = (await request.json()) as ResearchSnapshot;
+  const snapshot = (await request.json()) as Omit<ResearchSnapshot, "id" | "createdAt"> &
+    Partial<Pick<ResearchSnapshot, "id" | "createdAt">>;
   const apiUrl = resolveSnapshotApiUrl();
 
   if (!apiUrl) {
-    return NextResponse.json(
-      { snapshot, status: "disabled" } satisfies SnapshotMutationResponse,
-      { status: 202 }
-    );
+    return NextResponse.json({
+      snapshot: await saveLocalSnapshot(snapshot),
+      status: "local",
+    } satisfies SnapshotMutationResponse);
   }
 
   try {
@@ -84,28 +85,35 @@ export async function POST(request: NextRequest) {
     });
 
     if (!response.ok) {
-      return NextResponse.json(
-        {
-          snapshot,
-          status: "error",
-          errorMessage: `snapshot API responded with ${response.status}`,
-        } satisfies SnapshotMutationResponse,
-        { status: 202 }
-      );
+      return NextResponse.json({
+        snapshot: await saveLocalSnapshot(snapshot),
+        status: "local",
+        errorMessage: `snapshot API responded with ${response.status}`,
+      } satisfies SnapshotMutationResponse);
     }
 
     const payload = (await response.json()) as SnapshotMutationResponse;
     return NextResponse.json({ ...payload, status: "success" });
   } catch (error) {
-    return NextResponse.json(
-      {
-        snapshot,
-        status: "error",
-        errorMessage: error instanceof Error ? error.message : "snapshot API failed",
-      } satisfies SnapshotMutationResponse,
-      { status: 202 }
-    );
+    return NextResponse.json({
+      snapshot: await saveLocalSnapshot(snapshot),
+      status: "local",
+      errorMessage: error instanceof Error ? error.message : "snapshot API failed",
+    } satisfies SnapshotMutationResponse);
   }
+}
+
+async function listLocalSnapshots(symbol: string | null) {
+  const { listServerSnapshots } = await import("@/lib/server/snapshot-store");
+  return listServerSnapshots(symbol);
+}
+
+async function saveLocalSnapshot(
+  snapshot: Omit<ResearchSnapshot, "id" | "createdAt"> &
+    Partial<Pick<ResearchSnapshot, "id" | "createdAt">>
+) {
+  const { saveServerSnapshot } = await import("@/lib/server/snapshot-store");
+  return saveServerSnapshot(snapshot);
 }
 
 function resolveSnapshotApiUrl() {

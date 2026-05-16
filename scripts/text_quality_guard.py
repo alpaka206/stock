@@ -45,22 +45,6 @@ DOC_DOUBLE_QUESTION_RE = re.compile(r"(?<!\?)\?\?(?!\?)")
 UNICODE_ESCAPE_RE = re.compile(r"\\u[0-9a-fA-F]{4}")
 MOJIBAKE_RE = re.compile(r"(?:[À-ÿ][\u0080-\u00BF]){2,}")
 REPLACEMENT_CHAR = "\ufffd"
-CORE_OMX_STATE_FILES = {
-    "TASK.md",
-    "STATE.md",
-    "BACKLOG.md",
-    "NEXT_PROMPT.md",
-    "DISCORD_STATUS.md",
-    "VERIFY_LAST_FAILURE.md",
-    "DISCORD_INBOX.md",
-    "DISCORD_IMPORTANT.md",
-    "TEAM_CONVERSATION.jsonl",
-    "DISCORD_INBOX.jsonl",
-    "DISCORD_REPLY_STATE.json",
-    "OMX_LOOP_STATE.json",
-}
-
-
 def should_scan(path: Path) -> bool:
     rel = path.relative_to(ROOT)
     parts = rel.parts
@@ -73,12 +57,6 @@ def should_scan(path: Path) -> bool:
             return False
     except OSError:
         return False
-    if parts and parts[0] == ".omx":
-        if len(parts) >= 2 and parts[1] == "state":
-            return path.name in CORE_OMX_STATE_FILES
-        if len(parts) >= 2 and parts[1] == "bootstrap":
-            return True
-        return False
     return True
 
 
@@ -90,15 +68,6 @@ def iter_candidate_paths() -> list[Path]:
         parts = rel.parts
         if not parts:
             dirnames[:] = [name for name in dirnames if name not in EXCLUDE_DIRS]
-        elif parts[0] == ".omx":
-            if len(parts) == 1:
-                dirnames[:] = [name for name in dirnames if name in {"state", "bootstrap"}]
-            elif len(parts) >= 2 and parts[1] == "state":
-                dirnames[:] = []
-            elif len(parts) >= 2 and parts[1] == "bootstrap":
-                dirnames[:] = [name for name in dirnames if name not in EXCLUDE_DIRS]
-            else:
-                dirnames[:] = []
         else:
             dirnames[:] = [name for name in dirnames if name not in EXCLUDE_DIRS]
 

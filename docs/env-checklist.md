@@ -1,16 +1,19 @@
-# Environment Checklist
+# 환경변수 체크리스트
 
 ## API
-- `STOCK_API_PROVIDER`
+
+- `DATABASE_URL`: 운영 저장소. 예: `postgresql+psycopg://user:password@host:5432/stock`
+- `RESEARCH_SNAPSHOT_STORE_PATH`: `DATABASE_URL`이 없을 때 쓰는 개발용 파일 저장소 경로
+- `STOCK_API_PROVIDER`: `real` 또는 `mock`
 - `STOCK_API_TIMEOUT_SECONDS`
 - `STOCK_API_CACHE_TTL_SECONDS`
 - `ALPHA_VANTAGE_API_KEY`
 - `ALPHA_VANTAGE_BASE_URL`
 - `OPENDART_API_KEY`
 - `OPENDART_BASE_URL`
+- `RESEARCH_LLM_PROVIDER`: `openai`, `gemini`, `auto`, `none`
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL`
-- `RESEARCH_LLM_PROVIDER`
 - `GEMINI_API_KEY`
 - `GEMINI_MODEL`
 - `GEMINI_BASE_URL`
@@ -20,6 +23,7 @@
 - `STOCK_SECTOR_PROXIES`
 
 ## Web
+
 - `STOCK_API_BASE_URL`
 - `OVERVIEW_API_URL`
 - `RADAR_API_URL`
@@ -27,19 +31,30 @@
 - `HISTORY_API_URL`
 - `NEWS_API_URL`
 - `CALENDAR_API_URL`
+- `SNAPSHOT_API_URL`
+- `INSTRUMENT_SEARCH_API_URL`
 - `OVERVIEW_API_TIMEOUT_MS`
 - `RESEARCH_ALLOW_FIXTURE_FALLBACK`
+- `NEXT_PUBLIC_SITE_URL`
 
-## Discord
-- `.env.discord` stays local-only
-- Only key presence is checked
-- Values are never printed or committed
+## 로컬 권장값
 
-## Recommended Local Mode
-- API: `STOCK_API_PROVIDER=real`
-- LLM: `RESEARCH_LLM_PROVIDER=auto` or `none`
-- Web: `STOCK_API_BASE_URL=http://localhost:8000`
+```env
+STOCK_API_PROVIDER=mock
+STOCK_API_BASE_URL=http://localhost:8000
+RESEARCH_ALLOW_FIXTURE_FALLBACK=true
+```
 
-## Release-like Timeout Note
-- `RESEARCH_ALLOW_FIXTURE_FALLBACK=false` 이고 원격 API URL을 직접 붙이는 경우에는 cold start를 고려해 웹 fetch 타임아웃을 최소 30초로 본다.
-- `OVERVIEW_API_TIMEOUT_MS` 를 별도로 둘 때도 30000ms 이상을 권장한다.
+## 운영 후보 권장값
+
+```env
+STOCK_API_PROVIDER=real
+RESEARCH_ALLOW_FIXTURE_FALLBACK=false
+RESEARCH_LLM_PROVIDER=auto
+```
+
+## 보안
+
+- `.env`, `.env.*`는 커밋하지 않는다.
+- API 키와 토큰 값은 로그, PR, 문서에 쓰지 않는다.
+- Docker Compose 기본 비밀번호는 개발용이며 운영에 사용하지 않는다.

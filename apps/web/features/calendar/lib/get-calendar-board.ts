@@ -1,6 +1,7 @@
 import "server-only";
 
 import { calendarFixture } from "@/dev/fixtures/calendar";
+import type { CalendarApiResponse, CalendarFixture } from "@/lib/research/types";
 import {
   allowFixtureFallback,
   assertResearchApiAvailable,
@@ -9,7 +10,6 @@ import {
   buildPayloadDataSource,
   fetchResearchApiJson,
 } from "@/lib/server/research-api";
-import type { CalendarApiResponse, CalendarFixture } from "@/lib/research/types";
 
 export async function getCalendarBoard() {
   const result = await fetchResearchApiJson<CalendarApiResponse>({
@@ -23,7 +23,7 @@ export async function getCalendarBoard() {
       ...calendarFixture,
       dataSource: buildFixtureDataSource({
         fallback: false,
-        reason: "API URL이 설정되지 않아 기본 일정을 표시합니다.",
+        reason: "일정 API URL이 설정되지 않아 기본 캘린더 구성을 표시합니다.",
       }),
     } satisfies CalendarFixture;
   }
@@ -34,7 +34,7 @@ export async function getCalendarBoard() {
       ...calendarFixture,
       dataSource: buildFixtureDataSource({
         fallback: allowFixtureFallback(),
-        reason: `calendar API 연결이 실패해 대체 일정을 표시합니다. ${result.errorMessage}`,
+        reason: `일정 API 연결에 실패해 대체 캘린더 구성을 표시합니다. ${result.errorMessage}`,
       }),
     } satisfies CalendarFixture;
   }
@@ -50,7 +50,7 @@ export async function getCalendarBoard() {
       ...calendarFixture,
       dataSource: buildFixtureDataSource({
         fallback: true,
-        reason: "calendar API 응답에 표시할 일정이 없어 기본 일정을 표시합니다.",
+        reason: "일정 API 응답에 표시할 이벤트가 없어 기본 캘린더 구성을 표시합니다.",
       }),
     } satisfies CalendarFixture;
   }

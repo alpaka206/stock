@@ -18,52 +18,52 @@ export const instrumentCatalog: InstrumentCatalogItem[] = [
     exchange: "NASDAQ",
   },
   {
-    symbol: "VRT",
-    name: "Vertiv",
-    securityCode: "VR-003",
-    aliases: ["버티브", "전력", "data center power"],
-    sector: "전력 인프라",
-    exchange: "NYSE",
-  },
-  {
-    symbol: "AMD",
-    name: "AMD",
-    securityCode: "AM-004",
-    aliases: ["에이엠디", "mi300", "반도체"],
-    sector: "반도체",
-    exchange: "NASDAQ",
-  },
-  {
-    symbol: "SMCI",
-    name: "Super Micro Computer",
-    securityCode: "SM-005",
-    aliases: ["슈퍼마이크로", "server", "서버"],
-    sector: "서버",
-    exchange: "NASDAQ",
-  },
-  {
-    symbol: "PANW",
-    name: "Palo Alto Networks",
-    securityCode: "PA-006",
-    aliases: ["팔로알토", "보안", "security"],
-    sector: "사이버보안",
+    symbol: "MSFT",
+    name: "Microsoft",
+    securityCode: "MS-008",
+    aliases: ["마이크로소프트", "azure", "software"],
+    sector: "클라우드 소프트웨어",
     exchange: "NASDAQ",
   },
   {
     symbol: "CRWD",
     name: "CrowdStrike",
     securityCode: "CR-007",
-    aliases: ["크라우드스트라이크", "보안", "crowdstrike"],
+    aliases: ["크라우드스트라이크", "보안", "cybersecurity"],
     sector: "사이버보안",
     exchange: "NASDAQ",
   },
   {
-    symbol: "MSFT",
-    name: "Microsoft",
-    securityCode: "MS-008",
-    aliases: ["마이크로소프트", "azure", "소프트웨어"],
-    sector: "소프트웨어",
-    exchange: "NASDAQ",
+    symbol: "005930.KS",
+    name: "삼성전자",
+    securityCode: "005930",
+    aliases: ["samsung electronics", "samsung", "메모리"],
+    sector: "반도체",
+    exchange: "KRX",
+  },
+  {
+    symbol: "000660.KS",
+    name: "SK하이닉스",
+    securityCode: "000660",
+    aliases: ["sk hynix", "하이닉스", "hbm"],
+    sector: "반도체",
+    exchange: "KRX",
+  },
+  {
+    symbol: "035420.KS",
+    name: "NAVER",
+    securityCode: "035420",
+    aliases: ["네이버", "search", "commerce"],
+    sector: "인터넷",
+    exchange: "KRX",
+  },
+  {
+    symbol: "207940.KS",
+    name: "삼성바이오로직스",
+    securityCode: "207940",
+    aliases: ["samsung biologics", "바이오", "cdmo"],
+    sector: "바이오",
+    exchange: "KRX",
   },
 ];
 
@@ -82,7 +82,7 @@ export function filterInstruments(query: string) {
   const normalizedQuery = query.trim().toLowerCase();
 
   if (!normalizedQuery) {
-    return instrumentCatalog.slice(0, 6);
+    return instrumentCatalog.slice(0, 8);
   }
 
   return instrumentCatalog.filter((item) =>

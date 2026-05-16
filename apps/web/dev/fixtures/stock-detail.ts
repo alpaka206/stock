@@ -1,5 +1,6 @@
 import { findInstrument } from "@/dev/fixtures/instruments";
 import type {
+  ChartGuide,
   ChartOverlay,
   PatternCard,
   PricePoint,
@@ -8,50 +9,55 @@ import type {
 } from "@/lib/research/types";
 
 const basePriceSeries: PricePoint[] = [
-  { date: "2026-02-12", label: "02/12", close: 842, volume: 44 },
-  { date: "2026-02-19", label: "02/19", close: 851, volume: 39 },
-  { date: "2026-02-26", label: "02/26", close: 865, volume: 48 },
-  { date: "2026-03-05", label: "03/05", close: 858, volume: 41 },
-  { date: "2026-03-10", label: "03/10", close: 876, volume: 54 },
-  { date: "2026-03-13", label: "03/13", close: 889, volume: 58 },
-  { date: "2026-03-17", label: "03/17", close: 901, volume: 63 },
-  { date: "2026-03-19", label: "03/19", close: 917, volume: 60 },
-  { date: "2026-03-21", label: "03/21", close: 923, volume: 57 },
+  { date: "2026-03-12", label: "03/12", close: 842, volume: 44 },
+  { date: "2026-03-19", label: "03/19", close: 851, volume: 39 },
+  { date: "2026-03-26", label: "03/26", close: 865, volume: 48 },
+  { date: "2026-04-02", label: "04/02", close: 858, volume: 41 },
+  { date: "2026-04-09", label: "04/09", close: 876, volume: 54 },
+  { date: "2026-04-16", label: "04/16", close: 889, volume: 58 },
+  { date: "2026-04-23", label: "04/23", close: 901, volume: 63 },
+  { date: "2026-04-30", label: "04/30", close: 917, volume: 60 },
+  { date: "2026-05-14", label: "05/14", close: 923, volume: 57 },
 ];
 
 function scaleSeries(points: PricePoint[], multiplier: number) {
   return points.map((point) => ({
     ...point,
     close: Number((point.close * multiplier).toFixed(2)),
+    volume: Number((point.volume * Math.max(0.6, Math.min(multiplier, 1.8))).toFixed(0)),
   }));
 }
 
-function buildFixtureChartOverlays(points: PricePoint[]): ChartOverlay[] {
-  return [5, 20].map((window) => ({
+function buildMovingAverage(points: PricePoint[], window: number): ChartOverlay {
+  return {
     id: `ma${window}`,
-    label: `MA ${window}`,
-    tone: window === 5 ? "positive" : "neutral",
+    label: `${window}일선`,
+    tone: window <= 10 ? "positive" : "neutral",
     enabled: true,
     points: points.flatMap((point, index) => {
-        const windowPoints = points.slice(Math.max(0, index - window + 1), index + 1);
-        if (windowPoints.length < Math.min(window, points.length)) {
-          return [];
-        }
+      const windowPoints = points.slice(Math.max(0, index - window + 1), index + 1);
+      if (windowPoints.length < Math.min(window, points.length)) {
+        return [];
+      }
 
-        return [
-          {
-            date: point.date ?? "",
-            label: point.label,
-            value: Number(
-              (
-                windowPoints.reduce((total, item) => total + item.close, 0) /
-                windowPoints.length
-              ).toFixed(2)
-            ),
-          },
-        ];
-      }),
-  }));
+      return [
+        {
+          date: point.date ?? "",
+          label: point.label,
+          value: Number(
+            (
+              windowPoints.reduce((total, item) => total + item.close, 0) /
+              windowPoints.length
+            ).toFixed(2)
+          ),
+        },
+      ];
+    }),
+  };
+}
+
+function buildFixtureChartOverlays(points: PricePoint[]): ChartOverlay[] {
+  return [5, 20].map((window) => buildMovingAverage(points, window));
 }
 
 function buildFixtureTechnicalMetrics(points: PricePoint[]): TechnicalMetric[] {
@@ -68,16 +74,16 @@ function buildFixtureTechnicalMetrics(points: PricePoint[]): TechnicalMetric[] {
   return [
     {
       id: "ma-alignment",
-      label: "이동평균 배열",
-      value: latest && previous && latest.close >= previous.close ? "상승 우위" : "혼합",
-      detail: "개발 fixture 기준으로 단기 추세와 이동평균 흐름을 요약합니다.",
+      label: "추세",
+      value: latest && previous && latest.close >= previous.close ? "상승 우위" : "중립",
+      detail: "단기 가격이 이전 구간보다 높게 유지되는지 확인합니다.",
       tone: latest && previous && latest.close >= previous.close ? "positive" : "neutral",
     },
     {
       id: "volume-ratio",
-      label: "거래량 배수",
+      label: "거래량",
       value: `${volumeRatio.toFixed(2)}x`,
-      detail: "최근 거래량을 fixture 평균과 비교한 값입니다.",
+      detail: "최근 거래량이 평균보다 얼마나 강한지 비교합니다.",
       tone: volumeRatio >= 1.2 ? "positive" : "neutral",
     },
     {
@@ -109,21 +115,55 @@ function buildFixturePatternCards(points: PricePoint[]): PatternCard[] {
   return [
     {
       id: "flat-base",
-      label: "Flat base",
+      label: "박스권 돌파",
       similarity: Number(Math.max(0.45, Math.min(0.86, 0.82 - range)).toFixed(2)),
       stage: latest >= high ? "상단 돌파 시도" : "박스 상단 확인",
-      invalidation: `저점 ${low.toFixed(2)} 이탈`,
-      summary: "좁아지는 가격 범위와 거래량 동반 여부를 함께 확인합니다.",
+      invalidation: `${low.toFixed(2)} 이탈`,
+      summary: "좁아진 가격 범위에서 거래량이 붙는지 확인합니다.",
       tone: range <= 0.12 ? "positive" : "neutral",
     },
     {
       id: "ma-trend",
-      label: "MA trend",
+      label: "이동평균 추세",
       similarity: 0.74,
       stage: "추세 유지",
-      invalidation: "MA20 이탈",
+      invalidation: "20일선 이탈",
       summary: "현재가가 단기 평균 위에서 유지되는지 확인합니다.",
       tone: "positive",
+    },
+  ];
+}
+
+function defaultGuides(points: PricePoint[]): ChartGuide[] {
+  const closes = points.map((point) => point.close);
+  const support = Math.min(...closes.slice(-6));
+  const resistance = Math.max(...closes.slice(-6));
+  const latest = closes.at(-1) ?? resistance;
+
+  return [
+    {
+      id: "support",
+      label: "지지선",
+      value: support,
+      tone: "positive",
+      description: "최근 되돌림에서 먼저 확인할 가격대입니다.",
+      enabled: true,
+    },
+    {
+      id: "trend-base",
+      label: "추세 기준",
+      value: latest * 0.98,
+      tone: "neutral",
+      description: "단기 추세가 유지되는지 보는 기준입니다.",
+      enabled: true,
+    },
+    {
+      id: "resistance",
+      label: "저항선",
+      value: resistance * 1.02,
+      tone: "negative",
+      description: "단기 과열을 확인할 가격대입니다.",
+      enabled: true,
     },
   ];
 }
@@ -172,11 +212,46 @@ function createStockFixture(
     relatedSymbols: overrides.relatedSymbols,
     dataSource: {
       mode: "fixture",
-      label: "기본 데이터",
-      description: "API가 연결되지 않은 개발 환경 기본 종목 fixture입니다.",
+      label: "목데이터",
+      description: "API 키 또는 백엔드 연결이 없어 실제 데이터 대신 표시한 종목 데이터입니다. (목데이터)",
     },
   };
 }
+
+const defaultRules = [
+  {
+    id: "support-hold",
+    label: "지지선 유지",
+    description: "최근 지지선 위에서 가격이 유지되는지 확인합니다.",
+    enabledByDefault: true,
+    tone: "positive" as const,
+    guideIds: ["support"],
+  },
+  {
+    id: "ma-trend",
+    label: "이동평균 추세",
+    description: "단기 이동평균과 20일선 흐름을 함께 봅니다.",
+    enabledByDefault: true,
+    tone: "neutral" as const,
+    guideIds: ["ma5", "ma20", "trend-base"],
+  },
+  {
+    id: "volume-spike",
+    label: "거래량 확인",
+    description: "가격 상승에 거래량이 동반되는지 봅니다.",
+    enabledByDefault: true,
+    tone: "positive" as const,
+    guideIds: ["volume"],
+  },
+  {
+    id: "event-window",
+    label: "이벤트 구간",
+    description: "실적, 공시, 발표 전후의 변동성을 함께 표시합니다.",
+    enabledByDefault: true,
+    tone: "neutral" as const,
+    controlsEventMarkers: true,
+  },
+];
 
 export const stockFixtures: Record<string, StockFixture> = {
   NVDA: createStockFixture("NVDA", {
@@ -187,482 +262,148 @@ export const stockFixtures: Record<string, StockFixture> = {
     price: 923.42,
     changePercent: 2.16,
     thesis:
-      "AI 서버 CAPEX 확대가 유지되는 동안 핵심 리더로 남아 있지만, 이벤트 직후에는 변동성이 커질 수 있어 가격 레벨과 거래량을 함께 확인해야 한다.",
+      "AI 서버 투자 흐름의 핵심 종목입니다. 다만 이벤트 기대가 높아 발표 직후 변동성 관리는 필요합니다.",
     priceSeries: basePriceSeries,
     eventMarkers: [
       {
         id: "nvda-earnings",
         label: "실적",
         tone: "positive",
-        date: "2026-03-13",
+        date: "2026-04-16",
         title: "실적과 가이던스 상향",
-        detail: "데이터센터 매출이 예상보다 강했고 다음 분기 가이던스도 상향됐다.",
+        detail: "데이터센터 매출이 예상보다 강했고 다음 분기 가이던스도 상향됐습니다.",
       },
       {
         id: "nvda-gtc",
-        label: "GTC",
+        label: "발표",
         tone: "neutral",
-        date: "2026-03-19",
+        date: "2026-04-30",
         title: "GTC 발표",
-        detail: "신규 플랫폼 발표 이후 기대가 유지되지만 단기 과열 해소 구간 여부를 확인해야 한다.",
+        detail: "신제품 로드맵 기대가 유지되지만 단기 과열도 함께 확인해야 합니다.",
       },
     ],
-    indicatorGuides: [
-      {
-        id: "support",
-        label: "지지 구간",
-        value: 889,
-        tone: "positive",
-        description: "최근 돌파 구간이 첫 번째 방어선 역할을 하는지 본다.",
-        enabled: true,
-      },
-      {
-        id: "trend-base",
-        label: "추세 기준선",
-        value: 901,
-        tone: "neutral",
-        description: "20일 평균 회복 여부를 추세 유지 판단선으로 사용한다.",
-        enabled: true,
-      },
-      {
-        id: "resistance",
-        label: "저항 구간",
-        value: 938,
-        tone: "negative",
-        description: "단기 과열 경계 구간이다.",
-        enabled: true,
-      },
-      {
-        id: "relative-strength",
-        label: "상대강도 기준",
-        value: 88,
-        tone: "positive",
-        description: "리더 유지 여부를 확인하는 상대강도 기준선이다.",
-        enabled: true,
-      },
-      {
-        id: "volume-spike",
-        label: "거래량 배수",
-        value: 1.4,
-        tone: "positive",
-        description: "돌파 신뢰도를 판단하는 거래량 기준이다.",
-        enabled: true,
-      },
-      {
-        id: "volatility",
-        label: "변동성 경계",
-        value: 4.2,
-        tone: "negative",
-        description: "이벤트 이후 일중 흔들림이 커질 수 있는 수준이다.",
-        enabled: false,
-      },
-    ],
-    rulePresetDefinitions: [
-      {
-        id: "support-hold",
-        label: "지지선 유지",
-        description: "889 위에서 지지가 유지되는지 확인한다.",
-        enabledByDefault: true,
-        tone: "positive",
-      },
-      {
-        id: "trend-base",
-        label: "추세선 회복",
-        description: "20일 추세 기준선 위에서 종가가 유지되는지 본다.",
-        enabledByDefault: true,
-        tone: "neutral",
-      },
-      {
-        id: "volume-spike",
-        label: "거래량 배수 1.4x",
-        description: "기관 수급이 붙는 돌파인지 거래량으로 확인한다.",
-        enabledByDefault: true,
-        tone: "positive",
-      },
-      {
-        id: "relative-strength",
-        label: "상대강도 80 이상",
-        description: "리더십 유지 여부를 점검한다.",
-        enabledByDefault: true,
-        tone: "positive",
-      },
-      {
-        id: "volatility-guard",
-        label: "변동성 경계",
-        description: "이벤트 직후 변동성 확대 여부를 경고한다.",
-        enabledByDefault: false,
-        tone: "negative",
-      },
-      {
-        id: "event-window",
-        label: "이벤트 창 관리",
-        description: "실적·행사 직전후 포지션 과열을 막는다.",
-        enabledByDefault: true,
-        tone: "neutral",
-      },
-    ],
+    indicatorGuides: defaultGuides(basePriceSeries),
+    rulePresetDefinitions: defaultRules,
     scoreSummary: {
       total: 86,
       confidence: {
         score: 0.81,
         label: "high",
-        rationale: "가격, 거래량, 뉴스 이벤트가 모두 같은 방향을 가리켜 판단 근거가 비교적 많다.",
+        rationale: "가격, 거래량, 이벤트가 같은 방향으로 움직여 판단 근거가 비교적 많습니다.",
       },
       breakdown: [
-        {
-          label: "기술 추세",
-          score: 90,
-          summary: "상승 추세가 유지되고 최근 돌파 구간도 아직 훼손되지 않았다.",
-        },
-        {
-          label: "수급/유동성",
-          score: 84,
-          summary: "거래량이 붙는 구간이 반복돼 추세의 질이 나쁘지 않다.",
-        },
-        {
-          label: "촉매/이슈",
-          score: 92,
-          summary: "실적과 제품 이벤트가 동시에 서포트하는 구조다.",
-        },
-        {
-          label: "리스크 관리",
-          score: 77,
-          summary: "이벤트 이후 변동성 확대 가능성 때문에 과열 경계가 필요하다.",
-        },
+        { label: "차트 추세", score: 90, summary: "상승 추세가 유지되고 최근 저항선 돌파를 시도합니다." },
+        { label: "거래와 수급", score: 84, summary: "거래량이 평균보다 높은 구간에서 가격이 유지됩니다." },
+        { label: "이벤트", score: 92, summary: "실적과 제품 발표가 모두 긍정적인 방향입니다." },
+        { label: "리스크", score: 77, summary: "이벤트 후 기대가 되돌려질 가능성은 남아 있습니다." },
       ],
     },
     flowMetrics: [
       {
-        label: "기관 수급 메모",
+        label: "기관 수급",
         value: "확인 필요",
-        detail: "실제 기관·개인·외국인 수급 API가 연결되면 이 영역이 대체된다.",
+        detail: "실서비스에서는 거래소와 데이터 제공사 수급 API로 대체합니다.",
         tone: "neutral",
       },
     ],
     flowUnavailable: {
-      label: "수급 데이터 준비 중",
-      reason: "무료 범위에서 기관/개인/외국인 수급 API를 아직 연결하지 않았다.",
-      expectedSource: "국내 수급 provider",
+      label: "실시간 수급 연결 전",
+      reason: "무료 범위에서 검증 가능한 수급 데이터가 아직 연결되지 않았습니다.",
+      expectedSource: "거래소 또는 데이터 제공사 수급 API",
     },
     optionsShortMetrics: [
       {
-        label: "옵션/공매도 메모",
-        value: "준비 중",
-        detail: "실제 공매도·옵션 비율은 아직 연결되지 않았다.",
-        tone: "neutral",
+        label: "옵션 프리미엄",
+        value: "높음",
+        detail: "이벤트 전후 변동성 확대 가능성을 확인해야 합니다.",
+        tone: "negative",
       },
     ],
     optionsUnavailable: {
-      label: "공매도/옵션 데이터 준비 중",
-      reason: "무료 데이터 범위에서 실시간 옵션·공매도 비율을 제공하지 않는다.",
-      expectedSource: "옵션/공매도 provider",
+      label: "공매도 상세 연결 전",
+      reason: "공매도와 옵션 상세 비율은 별도 provider 연결 후 표시합니다.",
+      expectedSource: "옵션/공매도 데이터 provider",
     },
     issues: [
       {
-        title: "패키지 공급 병목 완화",
-        source: "공급망 메모",
-        summary: "하반기 출하량 상향 가능성을 다시 점검하는 구간이다.",
+        title: "AI 서버 투자 지속",
+        source: "시장 브리프 (목데이터)",
+        summary: "대형 클라우드 기업의 AI 투자 확대가 실적 기대를 지지합니다.",
         tone: "positive",
-        category: "종목",
-        href: "/history?symbol=NVDA",
-      },
-      {
-        title: "전력 인프라 병목 지속",
-        source: "섹터 메모",
-        summary: "AI 증설 속도는 빠르지만 전력·서버 랙 병목이 동반된다.",
-        tone: "neutral",
         category: "섹터",
-        href: "/radar?sector=전력 인프라",
+        href: "/radar",
       },
       {
-        title: "이벤트 기대 과열 구간",
-        source: "리스크 메모",
-        summary: "행사 직전 기대감이 높아 단기 흔들림이 커질 수 있다.",
+        title: "이벤트 기대 과열",
+        source: "리스크 메모 (목데이터)",
+        summary: "발표 직전 기대가 높아진 만큼 작은 실망에도 변동성이 커질 수 있습니다.",
         tone: "negative",
-        category: "시황",
+        category: "리스크",
         href: "/history?symbol=NVDA",
       },
     ],
-    relatedSymbols: ["AVGO", "AMD", "VRT"],
+    relatedSymbols: ["AVGO", "000660.KS", "MSFT"],
   }),
-  AVGO: createStockFixture("AVGO", {
+  "000660.KS": createStockFixture("000660.KS", {
     instrument: {
-      marketCap: "626B",
+      marketCap: "139T KRW",
+      exchange: "KRX",
       sector: "반도체",
     },
-    price: 1345.88,
-    changePercent: 1.34,
-    thesis: "커스텀 AI 칩과 네트워크가 동시에 살아 있는 종목으로, 실적 확인 뒤 추세 복귀를 보는 구간이다.",
-    priceSeries: scaleSeries(basePriceSeries, 1.46),
+    price: 191500,
+    changePercent: 1.94,
+    thesis:
+      "HBM 수요와 외국인 수급이 동시에 우호적입니다. 다만 환율과 메모리 가격 지표를 함께 확인해야 합니다.",
+    priceSeries: scaleSeries(basePriceSeries, 207.5),
     eventMarkers: [
       {
-        id: "avgo-earnings",
-        label: "실적",
+        id: "hynix-hbm",
+        label: "HBM",
         tone: "positive",
-        date: "2026-03-17",
-        title: "AI 매출 가이던스 상향",
-        detail: "네트워크와 커스텀 칩 수요가 예상보다 강했다.",
+        date: "2026-04-23",
+        title: "HBM 공급 코멘트",
+        detail: "고부가 메모리 수요가 실적 기대를 지지합니다.",
       },
     ],
-    indicatorGuides: [
-      {
-        id: "support",
-        label: "지지 구간",
-        value: 1288,
-        tone: "positive",
-        description: "최근 눌림 시 방어선이다.",
-        enabled: true,
-      },
-      {
-        id: "trend-base",
-        label: "추세 기준선",
-        value: 1314,
-        tone: "neutral",
-        description: "추세 재가속 여부를 보는 기준선이다.",
-        enabled: true,
-      },
-      {
-        id: "resistance",
-        label: "저항 구간",
-        value: 1368,
-        tone: "negative",
-        description: "고점 매물 부담 구간이다.",
-        enabled: true,
-      },
-      {
-        id: "volume",
-        label: "거래량 배수",
-        value: 1.2,
-        tone: "positive",
-        description: "실적 이후 거래량 유지 여부를 확인한다.",
-        enabled: true,
-      },
-      {
-        id: "relative-strength",
-        label: "상대강도",
-        value: 82,
-        tone: "positive",
-        description: "반도체 내 리더 그룹 유지 여부를 점검한다.",
-        enabled: true,
-      },
-      {
-        id: "volatility",
-        label: "변동성",
-        value: 3.4,
-        tone: "neutral",
-        description: "과열은 아니지만 흔들림이 커질 수 있다.",
-        enabled: false,
-      },
-    ],
-    rulePresetDefinitions: [
-      {
-        id: "earnings-followthrough",
-        label: "실적 후 추세 확인",
-        description: "실적 발표 후 거래량이 이어지는지 본다.",
-        enabledByDefault: true,
-      },
-      {
-        id: "trend-base",
-        label: "추세선 유지",
-        description: "1314 위에서 종가가 유지되는지 확인한다.",
-        enabledByDefault: true,
-      },
-      {
-        id: "support-hold",
-        label: "1288 지지선",
-        description: "눌림 이후 구조 훼손 여부를 체크한다.",
-        enabledByDefault: true,
-      },
-      {
-        id: "rs80",
-        label: "상대강도 80",
-        description: "리더십 유지 기준으로 본다.",
-        enabledByDefault: true,
-      },
-      {
-        id: "volume-1-2",
-        label: "거래량 배수 1.2x",
-        description: "추세 신뢰도를 판단한다.",
-        enabledByDefault: true,
-      },
-      {
-        id: "macro-risk",
-        label: "금리 민감도",
-        description: "금리 반등 시 대형주 밸류에이션 압박을 경고한다.",
-        enabledByDefault: false,
-      },
-    ],
+    indicatorGuides: defaultGuides(scaleSeries(basePriceSeries, 207.5)),
+    rulePresetDefinitions: defaultRules,
     scoreSummary: {
-      total: 81,
+      total: 88,
       confidence: {
         score: 0.74,
         label: "medium",
-        rationale: "기술적 구조는 양호하지만 macro 민감도와 밸류에이션 부담이 함께 존재한다.",
+        rationale: "섹터 모멘텀은 강하지만 국내 수급과 환율 확인이 필요합니다.",
       },
       breakdown: [
-        { label: "기술 추세", score: 84, summary: "눌림 이후 추세 재가속 가능성이 남아 있다." },
-        { label: "수급/유동성", score: 78, summary: "거래량이 받쳐주지만 과도한 몰림은 아니다." },
-        { label: "촉매/이슈", score: 86, summary: "실적과 AI 수요가 동시에 지지한다." },
-        { label: "리스크 관리", score: 74, summary: "금리와 대형주 밸류 부담을 체크해야 한다." },
+        { label: "차트 추세", score: 86, summary: "최근 고점 돌파 흐름이 유지됩니다." },
+        { label: "거래와 수급", score: 88, summary: "거래량과 외국인 관심이 함께 증가하는 구간입니다." },
+        { label: "이벤트", score: 90, summary: "HBM 공급 코멘트가 핵심 촉매입니다." },
+        { label: "리스크", score: 74, summary: "환율과 메모리 가격 변동성은 계속 확인해야 합니다." },
       ],
     },
     flowMetrics: [],
     flowUnavailable: {
-      label: "수급 데이터 준비 중",
-      reason: "기관/개인/외국인 수급 API 미연결 상태다.",
-      expectedSource: "flow provider",
+      label: "투자자별 수급 연결 전",
+      reason: "국내 투자자별 순매수 데이터 API 연결 후 표시합니다.",
+      expectedSource: "KRX 또는 증권 데이터 provider",
     },
     optionsShortMetrics: [],
     optionsUnavailable: {
-      label: "옵션/공매도 데이터 준비 중",
-      reason: "실제 비율 계산용 데이터 소스가 아직 없다.",
-      expectedSource: "options-short provider",
+      label: "공매도 상세 연결 전",
+      reason: "공매도 잔고와 대차 데이터는 별도 provider 연결이 필요합니다.",
+      expectedSource: "KRX 공매도/대차 데이터",
     },
     issues: [
       {
-        title: "커스텀 칩 수요 지속",
-        source: "브로커 요약",
-        summary: "AI 데이터센터 고객사 확장으로 가시성이 유지된다.",
+        title: "HBM 공급 가시성",
+        source: "섹터 메모 (목데이터)",
+        summary: "고부가 메모리 수요가 실적 기대를 끌어올리는 구간입니다.",
         tone: "positive",
+        category: "섹터",
+        href: "/radar?sector=반도체",
       },
     ],
-    relatedSymbols: ["NVDA", "VRT", "MSFT"],
-  }),
-  VRT: createStockFixture("VRT", {
-    instrument: {
-      marketCap: "39B",
-      sector: "전력 인프라",
-      exchange: "NYSE",
-    },
-    price: 101.12,
-    changePercent: 2.82,
-    thesis: "전력 병목이 구조적 이슈로 전환되며 AI 인프라 2차 수혜가 붙는 종목이다.",
-    priceSeries: scaleSeries(basePriceSeries, 0.11),
-    eventMarkers: [
-      {
-        id: "vrt-capex",
-        label: "수주",
-        tone: "positive",
-        date: "2026-03-17",
-        title: "전력 설비 수주 메모",
-        detail: "데이터센터 전력 증설 계획이 재차 확인됐다.",
-      },
-    ],
-    indicatorGuides: [
-      {
-        id: "support",
-        label: "지지 구간",
-        value: 96,
-        tone: "positive",
-        enabled: true,
-      },
-      {
-        id: "trend-base",
-        label: "추세 기준선",
-        value: 98.5,
-        tone: "neutral",
-        enabled: true,
-      },
-      {
-        id: "resistance",
-        label: "저항 구간",
-        value: 105,
-        tone: "negative",
-        enabled: true,
-      },
-      {
-        id: "volume",
-        label: "거래량 배수",
-        value: 1.5,
-        tone: "positive",
-        enabled: true,
-      },
-      {
-        id: "relative-strength",
-        label: "상대강도",
-        value: 86,
-        tone: "positive",
-        enabled: true,
-      },
-      {
-        id: "volatility",
-        label: "변동성",
-        value: 5.1,
-        tone: "negative",
-        enabled: false,
-      },
-    ],
-    rulePresetDefinitions: [
-      {
-        id: "power-trend",
-        label: "전력 테마 추세",
-        description: "전력 병목 내러티브가 유지되는지 점검한다.",
-        enabledByDefault: true,
-      },
-      {
-        id: "support-hold",
-        label: "96 지지선",
-        description: "단기 눌림 이후 구조 훼손 여부를 본다.",
-        enabledByDefault: true,
-      },
-      {
-        id: "volume-1-4",
-        label: "거래량 배수 1.4x",
-        description: "테마 확산에 거래량이 따라오는지 확인한다.",
-        enabledByDefault: true,
-      },
-      {
-        id: "rs85",
-        label: "상대강도 85",
-        description: "테마 리더 유지 여부를 본다.",
-        enabledByDefault: true,
-      },
-      {
-        id: "event-window",
-        label: "수주 이벤트 창",
-        description: "수주 기사 직전후 급등 추격을 제한한다.",
-        enabledByDefault: true,
-      },
-      {
-        id: "volatility",
-        label: "변동성 경계",
-        description: "테마 과열 시 흔들림 확대를 경고한다.",
-        enabledByDefault: false,
-      },
-    ],
-    scoreSummary: {
-      total: 79,
-      confidence: {
-        score: 0.71,
-        label: "medium",
-        rationale: "전력 병목 논리는 명확하지만 변동성이 높아 확신도는 한 단계 낮다.",
-      },
-      breakdown: [
-        { label: "기술 추세", score: 80, summary: "돌파 이후 눌림을 소화하는 구조다." },
-        { label: "수급/유동성", score: 82, summary: "거래량이 붙는 구간이 반복된다." },
-        { label: "촉매/이슈", score: 86, summary: "AI 전력 병목 수혜 논리가 명확하다." },
-        { label: "리스크 관리", score: 68, summary: "과열 이후 흔들림이 큰 종목군이다." },
-      ],
-    },
-    flowMetrics: [],
-    flowUnavailable: {
-      label: "수급 데이터 준비 중",
-      reason: "실제 수급 source 미연결 상태다.",
-    },
-    optionsShortMetrics: [],
-    optionsUnavailable: {
-      label: "공매도/옵션 데이터 준비 중",
-      reason: "실측 비율 없이 임의 수치를 만들지 않는다.",
-    },
-    issues: [
-      {
-        title: "데이터센터 전력 병목",
-        source: "섹터 메모",
-        summary: "전력 설비 병목이 장기 테마로 전환되는지 확인해야 한다.",
-        tone: "positive",
-      },
-    ],
-    relatedSymbols: ["NVDA", "AVGO", "SMCI"],
+    relatedSymbols: ["005930.KS", "NVDA", "AVGO"],
   }),
 };
 
@@ -676,14 +417,14 @@ export function buildStockFixture(symbol: string) {
 
   return createStockFixture(normalizedSymbol, {
     instrument: {
-      name: normalizedSymbol,
+      name: findInstrument(normalizedSymbol)?.name ?? normalizedSymbol,
       marketCap: "미제공",
-      sector: "기타",
+      sector: findInstrument(normalizedSymbol)?.sector ?? "기타",
     },
     price: stockFixtures.NVDA.price,
     changePercent: stockFixtures.NVDA.changePercent,
     thesis:
-      "개발용 fixture에 없는 종목이므로 기본 분석 워크스테이션 구조를 그대로 보여준다. 실제 연결 시 서버 데이터로 대체된다.",
+      "아직 전용 예시 데이터가 없는 종목입니다. 실제 API가 연결되면 가격, 뉴스, 공시, 차트가 해당 종목 기준으로 대체됩니다.",
     priceSeries: stockFixtures.NVDA.priceSeries,
     eventMarkers: stockFixtures.NVDA.eventMarkers,
     indicatorGuides: stockFixtures.NVDA.indicatorGuides,

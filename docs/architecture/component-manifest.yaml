@@ -1,129 +1,83 @@
-version: 1
-updated_at: 2026-04-13T00:00:00+09:00
+version: 2
+updated_at: 2026-05-16T00:00:00+09:00
 shared:
   components:
-    - name: ResearchAppShell
+    - name: AppShell
       kind: shell
-      role: 4개 메인 화면의 공통 sidebar, topbar, theme toggle을 제공하는 앱 shell
+      role: 핵심 화면 공통 사이드바, 상단바, 언어 선택, 테마 전환을 제공한다.
     - name: AppProviders
       kind: provider
-      role: Theme provider와 TanStack Query provider를 루트에서 묶는 초기화 레이어
-    - name: AgResearchGrid
-      kind: grid
-      role: AG Grid Community 공통 래퍼. 한국어 locale, 기본 colDef, legacy theme 설정 포함
-    - name: ResearchLineChart
-      kind: chart
-      role: 가격 시계열, 거래량, 가이드, 이벤트 마커, active point, highlight range를 함께 그리는 공통 차트
-    - name: InstrumentSearch
-      kind: search
-      role: 티커 / 종목명 / 종목번호 검색과 최근 조회 심볼 바로가기를 제공하는 공통 검색 컴포넌트
+      role: theme, i18n, query provider를 루트에서 묶는다.
     - name: ResearchPanel
-      kind: card
-      role: 카드 헤더, 액션, content padding을 통일하는 공통 패널
-
+      kind: surface
+      role: 분석 화면의 제목, 설명, 액션, content padding을 통일한다.
     - name: DataSourceNotice
       kind: trust
-      role: live 화면에는 노출하지 않고, mock / fixture / fallback 상태에서만 연결 경고를 얇게 노출하는 공통 안내
+      role: 실제 데이터가 아닌 mock/fixture/fallback 상태에서 `(목데이터)`를 명확히 표시한다.
+    - name: InstrumentSearch
+      kind: search
+      role: 티커, 종목명, 종목번호 검색과 최근 조회 종목 이동을 제공한다.
+    - name: ResearchLineChart
+      kind: chart
+      role: 가격, 거래량, 보조지표, 이벤트 마커, active point, highlight range를 표시한다.
+    - name: ResearchSnapshotCard
+      kind: history
+      role: 사용자가 저장한 판단 기록을 조회하고 삭제할 수 있게 표시한다.
 
 pages:
   overview:
     components:
       - name: IndexStrip
         kind: summary
-        role: 주요 지수 / 금리 / 섹터 벤치마크를 첫 줄에서 읽게 하는 상단 스트립
+        role: 주요 지수와 금리/섹터 벤치마크를 상단에서 보여준다.
       - name: AiMarketSummaryCard
-        kind: card
-        role: 시장 요약과 핵심 driver를 2~3개의 문장으로 압축
+        kind: summary
+        role: 시장 요약과 핵심 driver를 짧은 문장으로 제공한다.
       - name: MarketHeatmap
         kind: visualization
-        role: 섹터 점수와 변화율을 빠르게 읽고 다음 화면으로 이동시키는 시각화
+        role: 섹터 점수와 변화율을 빠르게 비교한다.
       - name: NewsPanel
         kind: feed
-        role: 시황 해석에 필요한 뉴스 headline과 sourced summary를 정리
+        role: 시장 해석에 영향을 주는 뉴스와 공시를 시간순으로 정리한다.
       - name: SectorStrengthPanel
         kind: ranking
-        role: 강한 섹터와 관련 종목 이동 동선을 연결
+        role: 강한 섹터와 대표 종목을 연결한다.
       - name: RiskBanner
         kind: alert
-        role: 금리, 과열, missingData를 상단에서 바로 확인시키는 경고 배너
+        role: 신뢰도, 누락 데이터, 주요 위험 요인을 먼저 확인하게 한다.
 
   radar:
     components:
+      - name: RadarWorkbench
+        kind: workspace
+        role: 검색, 필터, 정렬, 선택 종목 컨텍스트를 한 화면에서 제공한다.
       - name: WatchlistFolderTree
-        kind: nav
-        role: 폴더 트리와 관심 그룹을 탐색하는 왼쪽 탐색 트리
-      - name: RadarViewPresetList
-        kind: controls
-        role: 저장된 뷰 preset을 저장 / 적용 / 삭제하는 리스트
-      - name: WatchlistToolbar
-        kind: controls
-        role: 검색, view mode, group mode, sort, column toggle을 제공하는 중앙 툴바
-      - name: WatchlistGrid
-        kind: grid
-        role: AG Grid 기반 flat view 작업 영역
-      - name: SectorStackedGrid
-        kind: grid
-        role: enterprise grouping 없이 섹터별 pre-grouped section grid를 보여주는 대체 뷰
-      - name: SelectedSectorSummaryPanel
-        kind: analysis
-        role: 선택 섹터 요약, 촉매, top pick을 우측에 노출
-      - name: BrokerReportSummaryPanel
-        kind: analysis
-        role: 선택 섹터 기준 브로커 메모를 요약
-      - name: SectorSchedulePanel
-        kind: timeline
-        role: 섹터별 체크 일정과 event note를 정리
-      - name: SectorIssuePanel
-        kind: feed
-        role: 선택 섹터 기준 주요 이슈를 노출
-      - name: SectorTopPickPanel
-        kind: ranking
-        role: 섹터별 우선 검토 종목을 보여주는 패널
+        kind: filter
+        role: 관심 종목 그룹을 폴더 구조로 탐색한다.
+      - name: RadarTable
+        kind: table
+        role: 대규모 그리드 라이브러리 없이 관심 종목을 가볍게 표시한다.
+      - name: AlertCard
+        kind: alert
+        role: 조건 감지 알림과 관련 종목 이동을 제공한다.
 
   stock_detail:
     components:
-      - name: StockSearchBar
-        kind: search
-        role: 티커 / 종목명 / 종목번호 검색과 최근 조회 종목 바로가기를 제공
-      - name: PriceChartPanel
-        kind: chart
-        role: 가격 시계열, 이벤트 마커, 활성 포인트를 중심에 크게 노출
-      - name: EventMarkerStrip
-        kind: timeline
-        role: 차트 아래에서 이벤트를 선택하고 포커스를 이동시키는 카드 스트립
-      - name: RulePresetSidebar
+      - name: StockDetailPage
+        kind: page
+        role: 종목 차트, 기술적 신호, 판단 기록, 이슈 탭을 조합한다.
+      - name: RulePresetPanel
         kind: controls
-        role: 규칙 토글과 사용자 preset 저장 / 적용 / 삭제를 관리
-      - name: ScoreBreakdownPanel
-        kind: score
-        role: 총점, breakdown, confidence를 한 번에 보여준다
-      - name: FlowPanel
-        kind: analysis
-        role: 수급 카드와 unavailable 상태를 함께 노출
-      - name: ShortOptionPanel
-        kind: analysis
-        role: 공매도 / 옵션 지표 또는 unavailable 상태를 노출
-      - name: IssueAnalysisPanel
-        kind: analysis
-        role: 종목 / 섹터 / 시황 이슈를 하단 탭에서 분석
+        role: 이동평균, 지지선, 거래량, 상대강도 신호를 켜고 끈다.
+      - name: SnapshotForm
+        kind: mutation
+        role: 사용자의 판단 기록을 서버 API에 저장한다.
 
   history:
     components:
-      - name: HistoryFilterBar
-        kind: controls
-        role: 종목 검색, range select, custom from / to 입력을 묶는 상단 필터 바
-      - name: ReplayChart
-        kind: chart
-        role: 선택 이벤트와 연결된 과거 가격 차트 리플레이
+      - name: HistoryPage
+        kind: page
+        role: 종목/기간 필터, 가격 복기 차트, 이벤트 타임라인, 판단 기록을 조합한다.
       - name: EventTimeline
         kind: timeline
-        role: 이벤트 / 뉴스 타임라인과 선택 상태를 동기화
-      - name: EventStepControls
-        kind: controls
-        role: 이전 / 다음 이벤트로 이동하는 step control
-      - name: MoveReasonSummaryCard
-        kind: analysis
-        role: 급등 / 급락 이유를 다시 읽는 카드
-      - name: IndicatorOverlapCard
-        kind: analysis
-        role: 변곡점에서 겹친 보조지표 신호를 설명하는 카드
+        role: 뉴스, 공시, 실적 이벤트를 선택 가능한 시간순 목록으로 표시한다.

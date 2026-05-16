@@ -21,7 +21,7 @@ jobs:
           fi
 
           if [ "$HEAD_REF" != "develop" ]; then
-            echo "::error::main 대상 PR은 develop 브랜치에서만 열 수 있습니다."
+            echo "::error::main 대상 PR은 develop 브랜치에서만 생성할 수 있습니다."
             exit 1
           fi
 

@@ -1,26 +1,39 @@
-현재 사실
-- PR #165, #166, #167, #168, #169, #170, #171, #172, #173, #176이 모두 `develop`에 병합됐다.
-- release PR #174 `release: develop 변경사항 main 반영`은 `develop -> main`으로 열려 있고 auto-merge는 설정하지 않았다.
-- release PR #174의 head는 최신 `develop` 커밋 `afe3fe2`를 포함한다.
-- release PR #174 생성 사실은 Discord에 1회 보고했고 브리지 응답은 204였다.
-- 완료된 이슈 #175는 닫았다. 열린 작업 이슈는 #160, #177과 장기 상위 이슈 #131이다.
-- Dependabot PR은 현재 열린 항목이 없으며 과거 실패 PR들은 닫힌 상태다.
+# 현재 상태
 
-최근 검증 결과
-- PR #176 GitHub checks: verify, dependency-review, CodeQL, Vercel 모두 성공했고 `develop`에 병합됐다.
-- release PR #174 최신화 후 GitHub checks: verify, dependency-review, CodeQL, release-guard, Vercel 모두 성공했다.
-- `pnpm verify:release` 재실행 통과. remote API `/readyz?probe=remote`, `/overview`, `/radar`, `/stocks/NVDA`, `/history`, `/news`, `/calendar`, `/instruments/search?q=nvda`가 200 JSON 응답을 반환했다.
-- #175 수정 후 develop 로컬 브라우저 확인에서 `/overview`, `/radar`, `/stocks/NVDA`, `/history`가 모두 200으로 열렸고 콘솔 오류가 없었다.
-- 배포 프런트 `https://stock-radar-board.vercel.app` 직접 확인에서 현재 main 기준 `/stocks/NVDA`, `/history`는 열렸고 `/overview`, `/radar`는 500이었다.
+## 현재 사실
 
-남은 리스크
-- production 프런트의 `/overview`, `/radar` 500은 release PR #174가 main에 수동 merge되어 새 배포가 끝난 뒤 다시 확인해야 한다.
-- main merge는 `RELEASE_TO_MAIN_POLICY=pr-only-manual-merge` 때문에 사용자가 직접 수행해야 한다.
-- #160의 provider 분리는 radar/stock/history 중심으로 완료됐고, overview/news/calendar builder 경계는 아직 더 분리할 여지가 있다.
-- 조건 감지 알림은 `/radar` 표시까지만 연결됐고 사용자별 임계값 저장, 알림 히스토리, Discord/브라우저 알림 전송은 아직 없다.
+- 작업 브랜치: `feat/189-ui-performance-redesign`
+- 관련 이슈: #189 `UI/UX 리디자인 및 자동화 제거`
+- GitHub 저장소 설정에서 squash merge는 비활성화했다.
+- `main` 브랜치 보호 규칙을 적용했다. force push와 branch deletion은 금지되고, PR에는 `verify`, `release-guard`, `dependency-review`, `codeql (javascript-typescript)`, `codeql (python)` 체크가 필요하다.
+- Dependabot security updates, vulnerability alerts, secret scanning, push protection은 활성 상태다.
+- 핵심 화면은 `/overview`, `/radar`, `/stocks/[symbol]`, `/history` 기준으로 재정리 중이다.
+- 뉴스와 일정 보조 화면도 깨진 문구를 제거하고 사용자용 문장으로 교체했다.
+- 서버 저장이 필요한 리서치 스냅샷은 Next API와 FastAPI 저장소를 통해 관리하도록 변경했다.
+- FastAPI 스냅샷 저장소는 `DATABASE_URL`이 있으면 Postgres를 사용하고, 없으면 로컬 JSON fallback을 사용한다.
+- Docker Compose에는 Postgres, FastAPI, Next.js 웹 서비스를 포함했다.
+- 무한 루프 자동화 파일과 검증 경로는 제거했다.
+- Dependabot은 `develop` 대상과 그룹 업데이트 방식으로 정리했다.
 
-다음 우선순위
-- 사용자가 release PR #174를 main에 수동 merge한다.
-- Vercel production 배포가 끝난 뒤 `https://stock-radar-board.vercel.app/overview`, `/radar`, `/stocks/NVDA`, `/history`를 다시 확인한다.
-- production 확인 결과를 문서와 저널에 기록한다.
-- 이후 #160 후속으로 overview/news/calendar provider builder 경계를 더 분리한다.
+## 최근 검증 결과
+
+- `pnpm guard:no-secrets` 통과.
+- `node scripts/run-python.mjs scripts/text_quality_guard.py` 통과.
+- `pnpm verify:standard` 통과.
+- `pnpm test:e2e` 통과. 핵심 화면 4개와 레이더 이동, 종목 차트/패턴, 스냅샷 저장, 히스토리 재생을 확인했다.
+- `pnpm audit --audit-level low` 통과.
+- `pnpm --dir apps/web audit --audit-level low` 통과.
+
+## 남은 리스크
+
+- 실제 데이터 API 키가 없는 환경에서는 fallback 데이터가 보이며, 사용자 화면에는 `(목데이터)`로 표시해야 한다.
+- 대규모 UI 교체 후 표준 검증과 e2e는 통과했지만, 실제 배포 환경의 API 키와 캐시 정책은 별도 점검이 필요하다.
+- 기존 Dependabot PR은 `main` 대상으로 열려 있어 release guard와 맞지 않으므로 통합 PR 생성 후 정리해야 한다.
+- `alpaka206/stock_BE`는 현재 비어 있어 백엔드 분리는 별도 초기화 작업이 필요하다.
+
+## 다음 우선순위
+
+1. 남은 깨진 텍스트와 자동화 잔여 참조를 스캔한다.
+2. `pnpm verify:standard`를 실행하고 실패를 고친다.
+3. 변경 범위를 커밋 단위로 정리한다.
+4. `develop` 대상 PR을 만들고 Dependabot PR을 대체 처리한다.

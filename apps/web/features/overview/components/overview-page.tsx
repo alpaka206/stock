@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   Activity,
   ArrowRight,
+  CalendarDays,
   Clock3,
   Database,
   History,
@@ -34,56 +35,56 @@ export function OverviewPage({ data }: OverviewPageProps) {
   return (
     <div className={layoutTokens.page} data-testid="overview-page">
       <section className={cn(surfaceStyles.panel, "overflow-hidden p-[var(--card-padding)]")}>
-        <div className="grid gap-6 xl:grid-cols-[1.18fr_0.82fr]">
+        <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
           <div className="min-w-0">
             <div className="flex flex-wrap gap-2">
               <StatusPill
                 icon={Activity}
-                label="장 상태"
+                label="시장 상태"
                 value={marketState.label}
                 tone={marketState.tone}
               />
               <StatusPill
                 icon={Clock3}
-                label="최종 업데이트"
+                label="업데이트"
                 value={data.asOf}
                 tone="neutral"
               />
               <StatusPill
                 icon={Database}
-                label="데이터 상태"
+                label="데이터"
                 value={dataState.label}
                 tone={dataState.tone}
               />
             </div>
 
             <div className="mt-5 max-w-4xl">
-              <p className={typographyTokens.eyebrow}>시장 판단 시작점</p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] lg:text-[2rem]">
-                오늘 시장을 어디서부터 읽을지 먼저 정리합니다
+              <p className={typographyTokens.eyebrow}>오늘 먼저 볼 것</p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-normal lg:text-[2rem]">
+                지수보다 주도 섹터와 리스크를 먼저 확인하세요.
               </h2>
               <p className="mt-3 text-sm leading-7 text-muted-foreground lg:text-[0.96rem]">
-                장 상태와 데이터 지연 여부를 확인한 뒤, 오프닝 브리프에서
-                해석을 잡고 지수 스트립, 섹터 플로우, 헤드라인 플로우,
-                오늘의 리스크 체크 순서로 내려갑니다.
+                초보자는 가격만 보면 이유를 놓치기 쉽습니다. 이 화면은 시장 방향,
+                섹터 강도, 뉴스, 공시, 리스크를 먼저 묶어서 다음 행동으로 이어지게
+                설계했습니다.
               </p>
             </div>
 
             <div className="mt-6 grid gap-3 md:grid-cols-3">
               <DeskMetric
-                label="시장 톤"
+                label="시장 해석"
                 value={marketState.metric}
                 description={marketState.description}
               />
               <DeskMetric
-                label="판단 신뢰도"
-                value={`${Math.round(data.confidence.score * 100)}점`}
+                label="신뢰도"
+                value={`${Math.round(data.confidence.score * 100)}%`}
                 description={data.confidence.rationale}
               />
               <DeskMetric
-                label="데이터 커버리지"
+                label="출처 상태"
                 value={`${data.sourceSummary.sourceCount} / ${data.sourceSummary.missingDataCount}`}
-                description="출처 수 / 누락 데이터 수를 함께 봅니다."
+                description="확인된 출처 수와 누락된 데이터 수입니다."
               />
             </div>
 
@@ -91,8 +92,8 @@ export function OverviewPage({ data }: OverviewPageProps) {
           </div>
 
           <div className="grid gap-3 xl:pl-2">
-            <div className="rounded-[calc(var(--radius)*0.9)] border border-border/80 bg-muted/10 p-4">
-              <p className={typographyTokens.eyebrow}>오늘 시장 메모</p>
+            <div className="rounded-md border border-border/80 bg-muted/10 p-4">
+              <p className={typographyTokens.eyebrow}>오늘의 요약</p>
               <p className="mt-2 text-sm leading-7 text-foreground/88">
                 {data.scenario}
               </p>
@@ -102,20 +103,26 @@ export function OverviewPage({ data }: OverviewPageProps) {
               <DeskActionLink
                 href="/radar"
                 icon={Radar}
-                title="레이더 열기"
-                description="상단 섹터와 관심 종목을 바로 비교합니다."
+                title="관심종목 좁히기"
+                description="강한 섹터와 종목을 점수, 거래량, 이벤트로 비교합니다."
               />
               <DeskActionLink
                 href="/news"
                 icon={Newspaper}
-                title="헤드라인 전체 보기"
-                description="흐름을 바꿀 수 있는 기사만 이어서 읽습니다."
+                title="뉴스와 공시 보기"
+                description="가격을 움직일 수 있는 기사와 국내 공시를 확인합니다."
+              />
+              <DeskActionLink
+                href="/calendar"
+                icon={CalendarDays}
+                title="이벤트 일정 보기"
+                description="실적 발표, 연준 일정, 공시 이벤트를 날짜로 정리합니다."
               />
               <DeskActionLink
                 href="/history"
                 icon={History}
                 title="과거 반응 복기"
-                description="이벤트와 급등락 반응을 과거 차트로 다시 읽습니다."
+                description="비슷한 이벤트에서 가격이 어떻게 움직였는지 확인합니다."
               />
             </div>
           </div>
@@ -157,7 +164,7 @@ function StatusPill({
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-3 rounded-[0.5rem] border px-3 py-2 text-xs",
+        "inline-flex items-center gap-3 rounded-md border px-3 py-2 text-xs",
         tone === "positive"
           ? "border-[color:color-mix(in_oklch,var(--positive)_28%,transparent)] bg-[color:color-mix(in_oklch,var(--positive)_10%,transparent)]"
           : tone === "negative"
@@ -167,7 +174,7 @@ function StatusPill({
     >
       <span
         className={cn(
-          "inline-flex size-7 items-center justify-center rounded-[0.45rem] border",
+          "inline-flex size-7 items-center justify-center rounded-md border",
           tone === "positive"
             ? "border-[color:color-mix(in_oklch,var(--positive)_28%,transparent)] text-[color:var(--positive)]"
             : tone === "negative"
@@ -178,10 +185,8 @@ function StatusPill({
         <Icon className="size-3.5" />
       </span>
       <div>
-        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground/80">
-          {label}
-        </p>
-        <p className="mt-0.5 font-semibold tracking-tight text-foreground">
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        <p className="mt-0.5 font-semibold tracking-normal text-foreground">
           {value}
         </p>
       </div>
@@ -199,11 +204,9 @@ function DeskMetric({
   description: string;
 }) {
   return (
-    <div className="rounded-[calc(var(--radius)*0.82)] border border-border/80 bg-muted/10 p-4">
-      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground/80">
-        {label}
-      </p>
-      <p className="numeric mt-2 text-lg font-semibold tracking-tight text-foreground">
+    <div className="rounded-md border border-border/80 bg-muted/10 p-4">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="numeric mt-2 text-lg font-semibold tracking-normal text-foreground">
         {value}
       </p>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
@@ -225,14 +228,14 @@ function DeskActionLink({
   return (
     <Link
       href={href}
-      className="group flex items-start justify-between gap-4 rounded-[calc(var(--radius)*0.82)] border border-border/80 bg-card/70 px-4 py-4 transition hover:border-primary/35 hover:bg-card"
+      className="group flex items-start justify-between gap-4 rounded-md border border-border/80 bg-card/70 px-4 py-4 transition hover:border-primary/35 hover:bg-card"
     >
       <div className="flex items-start gap-3">
-        <span className="inline-flex size-9 items-center justify-center rounded-[0.5rem] border border-border/80 bg-muted/15 text-muted-foreground transition group-hover:border-primary/35 group-hover:text-primary">
+        <span className="inline-flex size-9 items-center justify-center rounded-md border border-border/80 bg-muted/15 text-muted-foreground transition group-hover:border-primary/35 group-hover:text-primary">
           <Icon className="size-4" />
         </span>
         <div>
-          <p className="text-sm font-semibold tracking-tight">{title}</p>
+          <p className="text-sm font-semibold tracking-normal">{title}</p>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             {description}
           </p>
@@ -250,9 +253,9 @@ function getMarketState(data: OverviewFixture) {
 
   if (positiveCount >= negativeCount + 2 && leadScore >= 70) {
     return {
-      label: "리스크 온",
-      metric: "상단 테마 주도",
-      description: "주도 섹터가 시장 상승 폭을 끌고 가는 장세입니다.",
+      label: "위험 선호",
+      metric: "주도 섹터 우위",
+      description: "강한 섹터가 시장 방향을 이끄는 구간입니다.",
       tone: "positive" as const,
     };
   }
@@ -260,32 +263,32 @@ function getMarketState(data: OverviewFixture) {
   if (negativeCount > positiveCount) {
     return {
       label: "방어 우위",
-      metric: "리스크 관리 우선",
-      description: "지수보다 방어적 해석과 손절 기준 점검이 먼저 필요한 구간입니다.",
+      metric: "리스크 관리",
+      description: "추격보다 지지선과 이벤트 확인이 먼저입니다.",
       tone: "negative" as const,
     };
   }
 
   return {
     label: "혼조",
-    metric: "선별 대응",
-    description: "전체 시장보다 상단 리더와 헤드라인 변화를 좁혀서 볼 구간입니다.",
+    metric: "선별 필요",
+    description: "시장 전체보다 강한 섹터와 종목을 따로 봐야 합니다.",
     tone: "neutral" as const,
   };
 }
 
 function getDataState(data: OverviewFixture) {
   if (data.dataSource.mode === "live") {
-    return { label: "실시간", tone: "positive" as const };
+    return { label: "실제 데이터", tone: "positive" as const };
   }
 
   if (data.dataSource.mode === "fixture-fallback") {
-    return { label: "대체 데이터", tone: "negative" as const };
+    return { label: "목데이터", tone: "negative" as const };
   }
 
   if (data.dataSource.mode === "mock") {
-    return { label: "모의 데이터", tone: "neutral" as const };
+    return { label: "목데이터", tone: "neutral" as const };
   }
 
-  return { label: "기본 데이터", tone: "neutral" as const };
+  return { label: "목데이터", tone: "neutral" as const };
 }
