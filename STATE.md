@@ -4,6 +4,9 @@
 
 - 작업 브랜치: `feat/189-ui-performance-redesign`
 - 관련 이슈: #189 `UI/UX 리디자인 및 자동화 제거`
+- GitHub 저장소 설정에서 squash merge는 비활성화했다.
+- `main` 브랜치 보호 규칙을 적용했다. force push와 branch deletion은 금지되고, PR에는 `verify`, `release-guard`, `dependency-review`, `codeql (javascript-typescript)`, `codeql (python)` 체크가 필요하다.
+- Dependabot security updates, vulnerability alerts, secret scanning, push protection은 활성 상태다.
 - 핵심 화면은 `/overview`, `/radar`, `/stocks/[symbol]`, `/history` 기준으로 재정리 중이다.
 - 뉴스와 일정 보조 화면도 깨진 문구를 제거하고 사용자용 문장으로 교체했다.
 - 서버 저장이 필요한 리서치 스냅샷은 Next API와 FastAPI 저장소를 통해 관리하도록 변경했다.
@@ -18,6 +21,8 @@
 - `node scripts/run-python.mjs scripts/text_quality_guard.py` 통과.
 - `pnpm verify:standard` 통과.
 - `pnpm test:e2e` 통과. 핵심 화면 4개와 레이더 이동, 종목 차트/패턴, 스냅샷 저장, 히스토리 재생을 확인했다.
+- `pnpm audit --audit-level low` 통과.
+- `pnpm --dir apps/web audit --audit-level low` 통과.
 
 ## 남은 리스크
 
