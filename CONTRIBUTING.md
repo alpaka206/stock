@@ -6,13 +6,14 @@
 - 릴리스 브랜치: `main`
 - 작업 브랜치: `feat/<issue>-<slug>` 또는 `fix/<issue>-<slug>`
 - PR 흐름: issue branch -> `develop`, 릴리스 시 `develop -> main`
+- `main`은 배포 트리거 브랜치이므로 자주 병합하지 않고, 사용자가 요청한 릴리스 묶음 단위로만 반영합니다.
 
 ## 강제 규칙
 
 - `main`, `develop`에 직접 커밋하지 않습니다.
 - `main`, `develop`에 직접 push하지 않습니다.
 - force push는 금지합니다.
-- `develop -> main` PR은 생성 후 사용자가 직접 최종 병합합니다.
+- `develop -> main` PR은 릴리스 묶음이 준비됐을 때만 만들고, 사용자가 직접 최종 병합합니다.
 - 커밋과 PR 제목에 `[codex]`를 붙이지 않습니다.
 - squash merge는 사용하지 않습니다. 여러 커밋의 의미를 유지할 수 있도록 merge commit 또는 rebase merge만 허용합니다.
 - `main` 브랜치는 보호 규칙으로 force push와 삭제가 금지되어야 하며, 필수 체크가 통과한 PR만 병합합니다.
