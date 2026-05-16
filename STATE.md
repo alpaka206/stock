@@ -24,17 +24,17 @@
 - 백엔드 비밀값 검색: 실제 키 없음. `.env.example` placeholder와 Maven wrapper 기본 변수만 탐지.
 - 프런트 FastAPI 잔여 참조 스캔에서 현재 문서/스크립트 경로는 Spring Boot 기준으로 정리됨.
 - 프런트 `pnpm verify:standard` 통과. 텍스트 품질, 비밀값 가드, lint, typecheck, build가 모두 성공했다.
+- Spring 백엔드 develop을 test/H2 profile로 실행하고 NVDA 최소 데이터를 서버 API로 저장한 뒤 `pnpm verify:release` 통과. readiness, Swagger, 핵심 API가 모두 2xx JSON으로 응답했다.
 
 ## 남은 리스크
 
-- 프런트 PR #196은 GitHub Actions 완료를 기다려야 한다.
+- 프런트 PR #196은 마지막 문서 커밋 이후 GitHub Actions 완료를 기다려야 한다.
 - 실제 데이터 API 키가 없는 환경에서는 fallback 데이터가 보이며, 사용자 화면에는 `(목데이터)`로 표시해야 한다.
 - 외부 provider 수집 결과를 백엔드 DB에 저장하는 ingest 작업은 아직 남아 있다.
 - 로그인 UI와 접근 제한은 아직 붙이지 않았다.
 
 ## 다음 우선순위
 
-1. 프런트 타입체크/빌드 실패를 고친 뒤 `pnpm verify:standard`를 통과시킨다.
-2. 프런트 PR #196 checks 완료 후 develop에 merge commit 방식으로 반영한다.
-3. 백엔드 ingest worker와 실제 provider 저장 흐름을 추가한다.
-4. 로그인 UI, 구독 요금제, 리포트 이메일 발송 구조를 접근 제한 없이 화면/저장 API부터 붙인다.
+1. 프런트 PR #196 checks 완료 후 develop에 merge commit 방식으로 반영한다.
+2. 백엔드 ingest worker와 실제 provider 저장 흐름을 추가한다.
+3. 로그인 UI, 구독 요금제, 리포트 이메일 발송 구조를 접근 제한 없이 화면/저장 API부터 붙인다.
