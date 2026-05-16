@@ -154,12 +154,17 @@ def probe_path(base_url: str, path: str) -> dict[str, Any]:
             "detail": f"요청 실패: {exc}",
         }
 
-    ok = 200 <= status < 300 and "application/json" in content_type
+    ok = 200 <= status < 300 and is_json_content_type(content_type)
     return {
         "name": f"route::{path}",
         "ok": ok,
         "detail": "2xx JSON 응답" if ok else f"HTTP {status} / {body}",
     }
+
+
+def is_json_content_type(content_type: str) -> bool:
+    media_type = content_type.split(";", 1)[0].strip().lower()
+    return media_type == "application/json" or media_type.endswith("+json")
 
 
 if __name__ == "__main__":

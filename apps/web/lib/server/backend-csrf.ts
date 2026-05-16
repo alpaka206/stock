@@ -51,11 +51,6 @@ async function fetchBackendCsrf(apiUrl: string) {
 }
 
 function resolveCsrfUrl(apiUrl: string) {
-  const baseUrl = process.env.STOCK_API_BASE_URL?.trim();
-  if (baseUrl) {
-    return `${baseUrl.replace(/\/$/, "")}/csrf`;
-  }
-
   return `${new URL(apiUrl).origin}/csrf`;
 }
 
