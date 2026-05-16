@@ -1,5 +1,5 @@
 {
-  "$comment": "Canonical source: packages/contracts/schemas/stocks.schema.json. apps/api/prompts/stock_detail/output.schema.json is a compatibility copy checked by scripts/check_contract_parity.py.",
+  "$comment": "Canonical source: packages/contracts/schemas/stocks.schema.json. Spring backend responses should stay compatible with this contract.",
   "type": "object",
   "properties": {
     "asOf": { "type": "string" },

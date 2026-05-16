@@ -8,6 +8,18 @@ type InstrumentSearchApiResponse = {
   items: InstrumentCatalogItem[];
 };
 
+type RemoteInstrumentSearchApiResponse = {
+  items: RemoteInstrumentCatalogItem[];
+};
+
+type RemoteInstrumentCatalogItem = Partial<InstrumentCatalogItem> & {
+  symbol: string;
+  name?: string;
+  displayName?: string;
+  securityCode?: string;
+  market?: string;
+};
+
 const DEFAULT_LIMIT = 6;
 const MAX_LIMIT = 10;
 const SEARCH_TIMEOUT_MS = 8000;
@@ -29,7 +41,7 @@ export async function GET(request: NextRequest) {
   }
 
   const fallbackItems = filterInstruments(query).slice(0, limit);
-  const result = await fetchResearchApiJson<InstrumentSearchApiResponse>({
+  const result = await fetchResearchApiJson<RemoteInstrumentSearchApiResponse>({
     explicitUrlEnv: "INSTRUMENT_SEARCH_API_URL",
     basePath: "instruments/search",
     query: {
@@ -41,7 +53,10 @@ export async function GET(request: NextRequest) {
 
   if (result.status === "success" && result.payload.items.length > 0) {
     return NextResponse.json<InstrumentSearchApiResponse>({
-      items: mergeUniqueInstruments(result.payload.items, fallbackItems).slice(0, limit),
+      items: mergeUniqueInstruments(
+        normalizeRemoteInstruments(result.payload.items),
+        fallbackItems
+      ).slice(0, limit),
     });
   }
 
@@ -49,6 +64,35 @@ export async function GET(request: NextRequest) {
   return NextResponse.json<InstrumentSearchApiResponse>({
     items: mergeUniqueInstruments(yahooItems, fallbackItems).slice(0, limit),
   });
+}
+
+function normalizeRemoteInstruments(items: RemoteInstrumentCatalogItem[]) {
+  const normalized: InstrumentCatalogItem[] = [];
+
+  for (const item of items) {
+    const symbol = String(item.symbol ?? "")
+      .trim()
+      .toUpperCase();
+    if (!symbol) {
+      continue;
+    }
+
+    const name = String(item.name ?? item.displayName ?? symbol).trim();
+    const aliases = Array.isArray(item.aliases)
+      ? item.aliases.map((alias) => String(alias).trim()).filter(Boolean)
+      : [];
+
+    normalized.push({
+      symbol,
+      name,
+      securityCode: String(item.securityCode ?? symbol.split(".", 1)[0] ?? symbol).trim(),
+      aliases,
+      sector: item.sector ? String(item.sector).trim() : undefined,
+      exchange: item.exchange || item.market ? String(item.exchange ?? item.market).trim() : undefined,
+    });
+  }
+
+  return normalized;
 }
 
 function mergeUniqueInstruments(

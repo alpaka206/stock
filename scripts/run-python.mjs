@@ -13,27 +13,6 @@ if (args.length === 0) {
   process.exit(2);
 }
 
-const uvPackages = [
-  "--with",
-  "fastapi",
-  "--with",
-  "httpx",
-  "--with",
-  "jsonschema",
-  "--with",
-  "openai",
-  "--with",
-  "pydantic",
-  "--with",
-  "psycopg[binary]",
-  "--with",
-  "pyyaml",
-  "--with",
-  "sqlalchemy",
-  "--with",
-  "uvicorn[standard]",
-];
-
 const venvPython =
   process.platform === "win32"
     ? path.join(root, ".venv", "Scripts", "python.exe")
@@ -53,7 +32,7 @@ candidates.push({ command: "python", prefix: [] });
 candidates.push({ command: "python3", prefix: [] });
 candidates.push({
   command: "uv",
-  prefix: ["run", "--python", "3.11", ...uvPackages, "python"],
+  prefix: ["run", "--python", "3.11", "python"],
 });
 
 for (const candidate of candidates) {

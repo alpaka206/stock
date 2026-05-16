@@ -1,30 +1,8 @@
 # 환경변수 체크리스트
 
-## API
-
-- `DATABASE_URL`: 운영 저장소. 예: `postgresql+psycopg://user:password@host:5432/stock`
-- `RESEARCH_SNAPSHOT_STORE_PATH`: `DATABASE_URL`이 없을 때 쓰는 개발용 파일 저장소 경로
-- `STOCK_API_PROVIDER`: `real` 또는 `mock`
-- `STOCK_API_TIMEOUT_SECONDS`
-- `STOCK_API_CACHE_TTL_SECONDS`
-- `ALPHA_VANTAGE_API_KEY`
-- `ALPHA_VANTAGE_BASE_URL`
-- `OPENDART_API_KEY`
-- `OPENDART_BASE_URL`
-- `RESEARCH_LLM_PROVIDER`: `openai`, `gemini`, `auto`, `none`
-- `OPENAI_API_KEY`
-- `OPENAI_MODEL`
-- `GEMINI_API_KEY`
-- `GEMINI_MODEL`
-- `GEMINI_BASE_URL`
-- `STOCK_RADAR_SYMBOLS`
-- `STOCK_RADAR_SECTORS`
-- `STOCK_OVERVIEW_BENCHMARKS`
-- `STOCK_SECTOR_PROXIES`
-
 ## Web
 
-- `STOCK_API_BASE_URL`
+- `STOCK_API_BASE_URL`: Spring 백엔드 기본 URL. 로컬 기본값은 `http://localhost:8080`
 - `OVERVIEW_API_URL`
 - `RADAR_API_URL`
 - `STOCK_DETAIL_API_URL`
@@ -37,24 +15,41 @@
 - `RESEARCH_ALLOW_FIXTURE_FALLBACK`
 - `NEXT_PUBLIC_SITE_URL`
 
+## Backend
+
+백엔드 환경변수는 `../stock_BE/.env.example`을 기준으로 둔다.
+
+- `DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`
+- `REDIS_HOST`, `REDIS_PORT`
+- `CORS_ALLOWED_ORIGINS`
+- `AUTH_JWT_SECRET`
+- `AUTH_COOKIE_SECURE`
+- `AUTH_COOKIE_DOMAIN`
+- `AUTH_FRONTEND_CALLBACK_URL`
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+- `ALPHA_VANTAGE_API_KEY`
+- `OPENDART_API_KEY`
+- `SEC_USER_AGENT`
+- `PERSO_API_KEY`
+
 ## 로컬 권장값
 
 ```env
-STOCK_API_PROVIDER=mock
-STOCK_API_BASE_URL=http://localhost:8000
+STOCK_API_BASE_URL=http://localhost:8080
 RESEARCH_ALLOW_FIXTURE_FALLBACK=true
 ```
 
 ## 운영 후보 권장값
 
 ```env
-STOCK_API_PROVIDER=real
 RESEARCH_ALLOW_FIXTURE_FALLBACK=false
-RESEARCH_LLM_PROVIDER=auto
+NEXT_PUBLIC_SITE_URL=https://실제-도메인
 ```
+
+백엔드는 운영에서 `AUTH_COOKIE_SECURE=true`, 32자 이상의 `AUTH_JWT_SECRET`, 실제 provider API 키를 설정한다.
 
 ## 보안
 
 - `.env`, `.env.*`는 커밋하지 않는다.
 - API 키와 토큰 값은 로그, PR, 문서에 쓰지 않는다.
-- Docker Compose 기본 비밀번호는 개발용이며 운영에 사용하지 않는다.
+- 문서에는 placeholder만 적고 실제 값은 배포 환경변수 저장소에서 관리한다.

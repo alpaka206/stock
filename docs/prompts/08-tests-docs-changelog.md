@@ -7,7 +7,7 @@
 ## 확인 대상
 
 - `pnpm verify:standard`
-- 필요 시 `pnpm verify:web`, `pnpm verify:api`, `pnpm test:e2e`
+- 필요 시 `pnpm verify:web`, `pnpm verify:release`, `pnpm test:e2e`
 - `README.md`
 - `docs/architecture/page-manifest.yaml`
 - `docs/architecture/component-manifest.yaml`

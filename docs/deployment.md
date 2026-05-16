@@ -3,45 +3,46 @@
 ## 권장 구조
 
 - Web: Vercel 또는 Docker 기반 Node 호스트
-- API: Docker 기반 FastAPI 호스트
+- Backend: `stock_BE` Spring Boot Docker 서비스
 - DB: Postgres
-- 배치/자동 수집: 추후 n8n 또는 별도 worker 서비스
+- Cache/Queue: Redis
+- 배치/자동 수집: n8n 또는 별도 worker 서비스
 
-## Docker Compose
+## 로컬 Docker Compose
+
+이 저장소의 Compose는 프런트만 실행하고 Spring 백엔드는 외부 서비스로 둔다.
 
 ```bash
 docker compose up --build
 ```
 
 - Web: `http://localhost:3000`
-- API: `http://localhost:8000`
-- Postgres: `localhost:5432`
+- Backend 기본값: `http://host.docker.internal:8080`
+
+백엔드 Docker와 DB는 `../stock_BE`에서 별도 Compose로 관리한다.
 
 ## 배포 전 체크
 
-1. `pnpm verify:standard`
-2. `pnpm test:e2e`
-3. `pnpm audit --audit-level low`
-4. API `/health`
-5. API `/readyz?probe=config`
-6. Web `/overview`, `/radar`, `/stocks/NVDA`, `/history?symbol=NVDA`
-7. `RESEARCH_ALLOW_FIXTURE_FALLBACK=false`
-8. `DATABASE_URL`과 실제 provider API 키 설정
+1. 프런트: `pnpm verify:standard`
+2. 백엔드: `cd ../stock_BE && .\mvnw.cmd test`
+3. Spring `/actuator/health/readiness`
+4. Spring `/v3/api-docs`, `/swagger-ui.html`
+5. Web `/overview`, `/radar`, `/stocks/NVDA`, `/history?symbol=NVDA`
+6. `RESEARCH_ALLOW_FIXTURE_FALLBACK=false`
+7. 실제 provider API 키, Postgres, Redis, cookie secure 설정 확인
 
 ## GitHub 보호 규칙
 
 - squash merge는 사용하지 않는다.
-- merge 후 branch 자동 삭제는 꺼둔다. `develop` 같은 영구 브랜치가 release PR 병합 후 삭제되는 것을 막기 위함이다.
-- `main` 브랜치는 force push와 branch deletion을 금지한다.
-- `develop` 브랜치도 force push와 branch deletion을 금지한다.
+- merge 후 branch 자동 삭제는 꺼둔다.
+- `main`, `develop` 브랜치는 force push와 branch deletion을 금지한다.
 - `main` 병합은 PR을 통해서만 진행한다.
-- `main`은 배포 트리거 브랜치이므로 기능 단위로 자주 병합하지 않는다. 여러 `develop` 변경을 묶어 사용자가 요청한 릴리스 시점에만 `develop -> main` PR을 연다.
-- `main` PR에는 `verify`, `release-guard`, `dependency-review`, `codeql (javascript-typescript)`, `codeql (python)` 통과가 필요하다.
-- `develop` PR에는 `verify`, `dependency-review`, `codeql (javascript-typescript)`, `codeql (python)` 통과가 필요하다.
+- `main`은 배포 트리거 브랜치이므로 여러 `develop` 변경을 묶어 사용자가 요청한 릴리스 시점에만 `develop -> main` PR을 연다.
+- 프런트 PR에는 `verify`, `dependency-review`, `codeql (javascript-typescript)` 통과가 필요하다.
 - Dependabot security updates, vulnerability alerts, secret scanning, push protection을 켠 상태로 유지한다.
 
 ## 남은 리스크
 
 - Alpha Vantage 무료 플랜 quota는 운영 트래픽에 부족할 수 있다.
 - 국내장 실시간성은 provider 선택에 따라 달라진다.
-- 백엔드 저장소를 별도로 분리하면 DB migration과 API 계약 배포 순서를 별도 문서로 관리해야 한다.
+- 백엔드 DB migration과 프런트 계약 변경은 같은 릴리스 묶음에서 검증해야 한다.

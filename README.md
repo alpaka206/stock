@@ -13,66 +13,70 @@
 
 ## 저장소 구조
 
-- `apps/web`: Next.js 프런트엔드
-- `apps/api`: FastAPI 백엔드
+- `apps/web`: Next.js 프런트엔드와 서버 라우트
 - `packages/contracts`: 프런트와 백엔드가 공유하는 타입/스키마 계약
 - `docs`: 아키텍처, API 연동, 배포, 운영 문서
-- `scripts`: 검증과 스모크 테스트
+- `scripts`: 프런트 검증과 릴리스 점검
+- 백엔드: 별도 저장소 `../stock_BE` 또는 `https://github.com/alpaka206/stock_BE`
 
 ## 로컬 실행
+
+Spring Boot 백엔드를 먼저 실행합니다.
+
+```powershell
+cd ..\stock_BE
+.\mvnw.cmd spring-boot:run
+```
+
+프런트는 이 저장소에서 실행합니다.
 
 ```powershell
 pnpm install
 pnpm dev:web
 ```
 
-```powershell
-cd apps/api
-python -m pip install .
-python -m uvicorn app.main:app --reload
-```
-
-프런트에서 API를 붙일 때는 `apps/web/.env`에 아래처럼 설정합니다.
+`apps/web/.env`는 아래 값을 기준으로 둡니다.
 
 ```env
-STOCK_API_BASE_URL=http://localhost:8000
+STOCK_API_BASE_URL=http://localhost:8080
 RESEARCH_ALLOW_FIXTURE_FALLBACK=true
 ```
 
 ## Docker 실행
 
-Docker Compose는 `web`, `api`, `db(Postgres)`를 함께 실행합니다.
+이 저장소의 Docker Compose는 프런트만 실행하고, API는 외부 Spring Boot 백엔드에 연결합니다.
 
 ```powershell
 docker compose up --build
 ```
 
 - Web: `http://localhost:3000`
-- API: `http://localhost:8000`
-- DB: `localhost:5432`
-
-운영에서는 `POSTGRES_PASSWORD`, 실제 API 키, `RESEARCH_ALLOW_FIXTURE_FALLBACK=false`를 환경변수로 주입합니다. `.env` 파일은 커밋하지 않습니다.
+- API: 기본값 `http://host.docker.internal:8080`
+- Swagger: `http://localhost:8080/swagger-ui.html`
 
 ## 데이터 원칙
 
-- 실제 API가 있으면 서버에서 받아 캐시하고 프런트는 서버 응답을 사용합니다.
+- 실제 API가 있으면 백엔드에서 받아 저장하고, 프런트는 백엔드 응답을 사용합니다.
 - API가 없거나 실패해 fixture/fallback을 보여주면 화면에 `(목데이터)`를 표시합니다.
-- 판단 기록은 서버 API에 저장합니다.
-- `DATABASE_URL`이 있으면 API는 Postgres 트랜잭션으로 저장하고, 없으면 개발용 파일 저장소를 사용합니다.
+- 판단 기록, 저장된 보기, 리포트 예약, 미디어 작업 상태처럼 서버에서 관리해야 하는 값은 백엔드 저장소를 기준으로 합니다.
+- 인증 토큰은 프런트 JavaScript가 직접 저장하지 않고, 백엔드가 `HttpOnly` cookie로 관리합니다.
 
 ## 검증
 
 ```powershell
 pnpm verify:standard
+```
+
+릴리스 전에는 Spring 백엔드를 켠 상태에서 아래를 실행합니다.
+
+```powershell
 pnpm verify:release
 ```
 
-부분 검증:
+백엔드 검증은 `../stock_BE`에서 실행합니다.
 
 ```powershell
-pnpm verify:web
-pnpm verify:api
-python scripts/api_smoke.py
+.\mvnw.cmd test
 ```
 
 ## GitHub 흐름
@@ -81,8 +85,9 @@ python scripts/api_smoke.py
 - 작업 브랜치: `feat/<issue>-<slug>` 또는 `fix/<issue>-<slug>`
 - PR 흐름: issue branch -> `develop`, 이후 릴리스 시 `develop -> main`
 - `main`, `develop` 직접 push와 force push 금지
+- squash merge 금지
 - 커밋/PR 제목은 `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`, `ci:`, `test:`, `perf:` 형식을 사용합니다.
 
 ## English Summary
 
-Stock Desk is a research workspace for US and Korean equities. It connects market overview, watchlist radar, stock detail analysis, event history, filings, news, and saved research notes. The web app is built with Next.js, the API with FastAPI, and shared contracts live in `packages/contracts`.
+Stock Desk is a research workspace for US and Korean equities. The frontend is built with Next.js, the production backend lives in the Spring Boot repository `stock_BE`, and shared contracts live in `packages/contracts`.
