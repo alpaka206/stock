@@ -20,7 +20,24 @@
 - `GET /snapshots`
 - `POST /snapshots`
 - `DELETE /snapshots/{id}`
+- `GET /subscription-plans`
+- `GET /report-schedules?userId=...`
+- `POST /report-schedules`
+- `GET /reports?userId=...`
+- `POST /reports/preview`
+- `POST /reports/send`
+- `GET /media-assets`
+- `POST /media-assets`
+- `GET /localization-jobs`
+- `POST /localization-jobs`
+- `POST /localization-jobs/{jobId}/submit`
+- `POST /localization-jobs/{jobId}/sync`
+- `POST /provider-ingest/alpha-vantage/daily`
+- `POST /provider-ingest/alpha-vantage/news`
+- `POST /provider-ingest/opendart/disclosures`
+- `POST /provider-ingest/sec/submissions`
 - `GET /csrf`
+- `POST /auth/dev-login`
 - `POST /auth/refresh`
 - `POST /auth/logout`
 - `GET /auth/me`
@@ -32,6 +49,7 @@
 - 기본 백엔드 URL은 `STOCK_API_BASE_URL=http://localhost:8080`이다.
 - route별 URL이 필요한 경우 `OVERVIEW_API_URL`, `RADAR_API_URL`, `STOCK_DETAIL_API_URL`, `HISTORY_API_URL`, `NEWS_API_URL`, `CALENDAR_API_URL`, `INSTRUMENT_SEARCH_API_URL`, `SNAPSHOT_API_URL`로 덮어쓴다.
 - `POST /snapshots`, `DELETE /snapshots/{id}` 같은 mutation은 Next 서버 라우트가 백엔드 `/csrf`를 먼저 조회한 뒤 CSRF header와 cookie를 함께 전달한다.
+- `/workspace`의 로그인, 리포트, 미디어 작업 mutation도 Next 서버 라우트가 백엔드 CSRF token과 사용자 cookie를 함께 전달한다.
 - 프런트 JavaScript는 access token, refresh token 원문을 저장하지 않는다.
 
 ## 데이터 제공자
@@ -41,6 +59,7 @@
 - SEC EDGAR: 미국 공시
 - Perso: 어닝콜, 연준 발표 등 오디오/영상 더빙 및 자막 작업
 - LLM provider: 추후 리포트 요약과 이메일 발송 자동화에 연결
+- 리포트 이메일: 백엔드가 저장된 자료로 본문을 만들고 `report_deliveries`에 발송 이력을 남긴다.
 
 ## fallback 규칙
 
@@ -52,5 +71,6 @@
 ## 백엔드 저장 원칙
 
 - 시장 데이터, 뉴스, 공시, 사용자 판단 기록, 리포트 예약, 미디어 작업 상태는 백엔드 저장소에서 관리한다.
+- provider ingest API는 외부 응답을 바로 프런트에 전달하지 않고 `price_bars`, `source_materials`, `media_assets`, `localization_jobs`, `report_deliveries`에 저장한 뒤 화면 API가 읽도록 한다.
 - 프런트는 `STOCK_API_BASE_URL`과 `packages/contracts` 계약만 의존한다.
 - 저장 API는 백엔드에서 트랜잭션, 외래키, cascade 정책을 관리한다.

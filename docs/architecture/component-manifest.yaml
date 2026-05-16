@@ -81,3 +81,18 @@ pages:
       - name: EventTimeline
         kind: timeline
         role: 뉴스, 공시, 실적 이벤트를 선택 가능한 시간순 목록으로 표시한다.
+
+  workspace:
+    components:
+      - name: WorkspacePage
+        kind: page
+        role: 세션, 구독 플랜, 리포트, 미디어 현지화 작업을 서버 API와 연결한다.
+      - name: PlanCard
+        kind: pricing
+        role: 구독별 관심 종목, 판단 기록, 리포트, 미디어 현지화 제공 범위를 보여준다.
+      - name: ReportSection
+        kind: mutation
+        role: 리포트 미리보기, 이메일 발송, 예약 저장을 제공한다.
+      - name: MediaSection
+        kind: workflow
+        role: 미디어 자료 저장, Perso 작업 생성, 제출, 동기화를 제공한다.

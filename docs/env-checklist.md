@@ -31,6 +31,11 @@
 - `OPENDART_API_KEY`
 - `SEC_USER_AGENT`
 - `PERSO_API_KEY`
+- `PERSO_SPACE_SEQ`
+- `PERSO_PORTAL_MEDIA_BASE_URL`
+- `REPORT_EMAIL_SENDING_ENABLED`
+- `REPORT_FROM_EMAIL`
+- `SMTP_HOST`, `SMTP_PORT`
 
 ## 로컬 권장값
 
@@ -46,7 +51,7 @@ RESEARCH_ALLOW_FIXTURE_FALLBACK=false
 NEXT_PUBLIC_SITE_URL=https://실제-도메인
 ```
 
-백엔드는 운영에서 `AUTH_COOKIE_SECURE=true`, 32자 이상의 `AUTH_JWT_SECRET`, 실제 provider API 키를 설정한다.
+백엔드는 운영에서 `AUTH_COOKIE_SECURE=true`, 32자 이상의 `AUTH_JWT_SECRET`, 실제 provider API 키, SMTP 설정을 배포 환경변수로 설정한다.
 
 ## 보안
 

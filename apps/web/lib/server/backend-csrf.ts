@@ -5,7 +5,7 @@ type CsrfTokenResponse = {
   token?: string;
 };
 
-export async function buildBackendMutationHeaders(apiUrl: string) {
+export async function buildBackendMutationHeaders(apiUrl: string, cookieHeader?: string | null) {
   const headers = new Headers({
     Accept: "application/json",
     "Content-Type": "application/json",
@@ -14,7 +14,9 @@ export async function buildBackendMutationHeaders(apiUrl: string) {
 
   if (csrf) {
     headers.set(csrf.headerName, csrf.token);
-    headers.set("Cookie", csrf.cookieHeader);
+    headers.set("Cookie", mergeCookieHeaders(cookieHeader, csrf.cookieHeader));
+  } else if (cookieHeader) {
+    headers.set("Cookie", cookieHeader);
   }
 
   return headers;
@@ -66,4 +68,12 @@ function resolveCookieHeader(headers: Headers, token: string) {
     .filter(Boolean);
 
   return cookies.length > 0 ? cookies.join("; ") : `XSRF-TOKEN=${token}`;
+}
+
+function mergeCookieHeaders(existingCookieHeader: string | null | undefined, csrfCookieHeader: string) {
+  if (!existingCookieHeader) {
+    return csrfCookieHeader;
+  }
+
+  return `${existingCookieHeader}; ${csrfCookieHeader}`;
 }
