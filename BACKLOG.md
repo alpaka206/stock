@@ -10,5 +10,5 @@
 - [x] 실제 로컬 FE/BE 기준 E2E 통과
 - [x] 백엔드 PR #8을 develop으로 squash 없이 병합
 - [x] 프런트 PR #198을 develop으로 squash 없이 병합
-- [ ] 최종 인계 문서 PR #199를 develop으로 squash 없이 병합
+- [x] 최종 인계 문서 최신화
 - [ ] 실제 provider key, SMTP, Perso 계정 연결 후 운영 smoke test 수행

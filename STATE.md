@@ -6,7 +6,7 @@
 - 프런트와 백엔드 모두 로컬 기준 브랜치는 `develop`이다.
 - 백엔드 관련 issue는 `alpaka206/stock_BE#7`이고 PR #8이 merge commit `ab78940`으로 `develop`에 반영됐다.
 - 프런트 관련 issue는 `alpaka206/stock#197`이고 PR #198이 merge commit `903ab1f`로 `develop`에 반영됐다.
-- 현재 문서 정리 issue는 `alpaka206/stock#199`다.
+- 최종 인계 문서는 문서 정리 issue 흐름으로 최신화했다.
 - 백엔드는 Spring Boot를 기준으로 진행한다. FastAPI 런타임과 무한 자동화 루프는 제품 경로에서 제외했다.
 - 사용자에게 보여야 하는 핵심 데이터는 프런트가 외부 provider를 직접 호출하지 않고 백엔드 API와 BFF를 통해 조회한다.
 - 인증은 백엔드가 `HttpOnly` access/refresh cookie를 발급하고, 프런트 BFF가 브라우저 쿠키와 CSRF 헤더를 함께 전달하는 구조다.
@@ -21,7 +21,7 @@
 - 로컬 FE/BE 서버를 기준으로 `E2E_SKIP_WEB_SERVER=true`, `E2E_BASE_URL=http://localhost:3000`를 지정해 `pnpm test:e2e` 통과.
 - `/workspace` 화면을 Playwright screenshot으로 확인했고 텍스트 겹침과 주요 레이아웃 깨짐은 발견하지 못했다.
 - 보안 파일은 읽거나 커밋하지 않았고, 새 환경 변수는 `.env.example`과 문서에 placeholder로만 정리했다.
-- GitHub PR checks는 백엔드 #8과 프런트 #198 모두 통과했고 squash 없이 merge commit 방식으로 병합했다.
+- GitHub PR checks는 백엔드, 프런트, 문서 정리 PR 모두 통과했고 squash 없이 merge commit 방식으로 병합했다.
 
 ## 남은 리스크
 
@@ -33,7 +33,6 @@
 
 ## 다음 우선순위
 
-1. 문서 정리 PR #199를 `develop`으로 squash 없이 병합한다.
-2. 운영 키 연결 후 provider ingest, Perso submit/sync, 이메일 발송 smoke test를 수행한다.
-3. Google OAuth 운영 client, 결제, 구독별 기능 제한을 단계적으로 연결한다.
-4. develop 누적 변경이 안정화되면 `develop -> main` release PR을 생성하고 병합은 사용자가 직접 진행한다.
+1. 운영 키 연결 후 provider ingest, Perso submit/sync, 이메일 발송 smoke test를 수행한다.
+2. Google OAuth 운영 client, 결제, 구독별 기능 제한을 단계적으로 연결한다.
+3. develop 누적 변경이 안정화되면 `develop -> main` release PR을 생성하고 병합은 사용자가 직접 진행한다.
