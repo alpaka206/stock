@@ -35,6 +35,7 @@ docker compose up --build
 - `main` 브랜치는 force push와 branch deletion을 금지한다.
 - `develop` 브랜치도 force push와 branch deletion을 금지한다.
 - `main` 병합은 PR을 통해서만 진행한다.
+- `main`은 배포 트리거 브랜치이므로 기능 단위로 자주 병합하지 않는다. 여러 `develop` 변경을 묶어 사용자가 요청한 릴리스 시점에만 `develop -> main` PR을 연다.
 - `main` PR에는 `verify`, `release-guard`, `dependency-review`, `codeql (javascript-typescript)`, `codeql (python)` 통과가 필요하다.
 - `develop` PR에는 `verify`, `dependency-review`, `codeql (javascript-typescript)`, `codeql (python)` 통과가 필요하다.
 - Dependabot security updates, vulnerability alerts, secret scanning, push protection을 켠 상태로 유지한다.
