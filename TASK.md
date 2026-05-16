@@ -1,10 +1,11 @@
 # 현재 라운드 목표
 
-프런트 저장소에서 삭제된 FastAPI 잔여 참조를 정리하고 Spring Boot 백엔드 API 연결 기준으로 검증 가능하게 만든다.
+Spring Boot 백엔드와 Next.js 프런트가 로그인, 구독 플랜, 리포트, 미디어 현지화, 실제 provider 수집 API까지 같은 계약으로 동작하도록 연결한다.
 
 ## 완료 조건
 
-- `apps/api`와 FastAPI 검증 스크립트가 제거된다.
-- 프런트 API adapter, Docker, CI, 문서가 `stock_BE` Spring Boot 백엔드 기준으로 정리된다.
-- 백엔드 PR #6의 Swagger/쿠키 인증 변경이 검증되고 develop 반영 완료 상태로 기록된다.
-- 보안 파일 포함 여부와 표준 검증이 통과한다.
+- 백엔드 provider ingest, 리포트, Perso 현지화 API가 Swagger에 노출되고 테스트를 통과한다.
+- 프런트 `/workspace`에서 로그인 상태, 구독 플랜, 리포트 미리보기/발송, 미디어 자산, 현지화 작업을 서버 API로 연결한다.
+- `pnpm verify:standard`, 실제 Spring API 기준 release 검증, 핵심 E2E가 통과한다.
+- 관련 issue branch PR을 `develop`으로 올리고 squash 없이 병합 가능한 상태로 만든다.
+- 보안 파일과 임시 로그가 커밋에 포함되지 않았는지 확인한다.

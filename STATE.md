@@ -2,39 +2,36 @@
 
 ## 현재 사실
 
-- 기준 브랜치: `develop`
-- 현재 프런트 브랜치: `refactor/189-use-spring-backend`
-- 관련 이슈: #189 `UI/UX 리디자인 및 자동화 제거`
-- `main`은 배포 트리거 브랜치이므로 자주 병합하지 않는다. `develop`에 변경을 모은 뒤 릴리스 묶음 단위로만 `develop -> main` PR을 연다.
-- squash merge는 사용하지 않는다.
-- 무한 루프형 자동화와 외부 채팅 브리지 자동화 잔여 참조는 제거됐다.
-- 운영 백엔드는 별도 저장소 `alpaka206/stock_BE`의 Spring Boot API로 진행한다.
-- 프런트 저장소에서 `apps/api` FastAPI 앱, API smoke, Python provider test, contract parity script를 제거했다.
-- 프런트 Docker Compose는 Next.js web만 실행하고 `STOCK_API_BASE_URL`로 Spring 백엔드에 연결한다.
-- 프런트 `main`/`develop` 보호 규칙에서 삭제된 Python CodeQL 필수 체크를 제거했고, `verify`, `dependency-review`, `codeql (javascript-typescript)`는 유지했다.
-- 백엔드 PR #6은 checks 통과 후 merge commit `047001f`로 `develop`에 반영됐다.
-- 백엔드 PR #6에는 화면 계약/저장 API, CSRF 조회 API, Swagger/OpenAPI, Google OAuth 이후 `HttpOnly` access/refresh cookie 세션 구조가 포함됐다.
-- refresh token은 백엔드 DB에 원문 저장 없이 SHA-256 hash로 저장하고, `/auth/refresh`에서 회전한다.
-- 접근 제한은 아직 강제하지 않는다. 테스트 편의를 위해 API는 열어두고 세션 계약만 준비한다.
+- 기준 브랜치는 `develop`이다.
+- 프런트 현재 작업 브랜치는 `feat/197-account-report-media-ui`이다.
+- 백엔드 현재 작업 브랜치는 `feat/7-provider-report-perso`이며 관련 issue는 `alpaka206/stock_BE#7`이다.
+- 프런트 관련 issue는 `alpaka206/stock#197`이다.
+- 백엔드는 Spring Boot를 기준으로 진행한다. FastAPI 런타임과 무한 자동화 루프는 제품 경로에서 제외했다.
+- 사용자에게 보여야 하는 핵심 데이터는 프런트가 외부 provider를 직접 호출하지 않고 백엔드 API와 BFF를 통해 조회한다.
+- 인증은 백엔드가 `HttpOnly` access/refresh cookie를 발급하고, 프런트 BFF가 브라우저 쿠키와 CSRF 헤더를 함께 전달하는 구조다.
+- 구독별 접근 제한은 아직 강제하지 않는다. 테스트와 화면 검증을 위해 플랜 비교와 사용량 안내만 표시한다.
+- 실제 provider key, SMTP, Perso key가 없을 때는 목 데이터를 생성하지 않고 설정 필요 상태를 반환한다.
 
 ## 최근 검증 결과
 
-- 백엔드 `.\mvnw.cmd test` 통과. 총 5개 테스트 성공.
-- 백엔드 `git diff --check` 통과. CRLF 안내만 표시됨.
-- 백엔드 비밀값 검색: 실제 키 없음. `.env.example` placeholder와 Maven wrapper 기본 변수만 탐지.
-- 프런트 FastAPI 잔여 참조 스캔에서 현재 문서/스크립트 경로는 Spring Boot 기준으로 정리됨.
-- 프런트 `pnpm verify:standard` 통과. 텍스트 품질, 비밀값 가드, lint, typecheck, build가 모두 성공했다.
-- Spring 백엔드 develop을 test/H2 profile로 실행하고 NVDA 최소 데이터를 서버 API로 저장한 뒤 `pnpm verify:release` 통과. readiness, Swagger, 핵심 API가 모두 2xx JSON으로 응답했다.
+- 백엔드 `.\mvnw.cmd test` 통과.
+- 프런트 `pnpm verify:standard` 통과.
+- Spring Boot test/H2 서버를 기준으로 `STOCK_API_BASE_URL=http://localhost:8080`, `RESEARCH_ALLOW_FIXTURE_FALLBACK=false`를 지정해 `pnpm verify:release` 통과.
+- 로컬 FE/BE 서버를 기준으로 `E2E_SKIP_WEB_SERVER=true`, `E2E_BASE_URL=http://localhost:3000`를 지정해 `pnpm test:e2e` 통과.
+- `/workspace` 화면을 Playwright screenshot으로 확인했고 텍스트 겹침과 주요 레이아웃 깨짐은 발견하지 못했다.
+- 보안 파일은 읽거나 커밋하지 않았고, 새 환경 변수는 `.env.example`과 문서에 placeholder로만 정리했다.
 
 ## 남은 리스크
 
-- 프런트 PR #196은 마지막 문서 커밋 이후 GitHub Actions 완료를 기다려야 한다.
-- 실제 데이터 API 키가 없는 환경에서는 fallback 데이터가 보이며, 사용자 화면에는 `(목데이터)`로 표시해야 한다.
-- 외부 provider 수집 결과를 백엔드 DB에 저장하는 ingest 작업은 아직 남아 있다.
-- 로그인 UI와 접근 제한은 아직 붙이지 않았다.
+- Alpha Vantage, OpenDART, SEC, Perso, SMTP는 실제 운영 키와 계정을 연결한 뒤 별도 smoke test가 필요하다.
+- Perso API의 실제 응답 필드는 계정/상품 설정에 따라 달라질 수 있어 운영 연결 후 mapper 보정이 필요할 수 있다.
+- 이메일 발송은 `REPORT_EMAIL_SENDING_ENABLED=true`와 SMTP 설정이 들어가기 전까지 DB에 `READY` 상태로 저장된다.
+- 구독별 기능 제한, 결제, Google OAuth 운영 client 설정은 다음 단계에서 붙여야 한다.
+- develop에서 main으로 자주 올리지 않는다. release PR은 생성하되 사용자가 직접 병합하는 정책을 유지한다.
 
 ## 다음 우선순위
 
-1. 프런트 PR #196 checks 완료 후 develop에 merge commit 방식으로 반영한다.
-2. 백엔드 ingest worker와 실제 provider 저장 흐름을 추가한다.
-3. 로그인 UI, 구독 요금제, 리포트 이메일 발송 구조를 접근 제한 없이 화면/저장 API부터 붙인다.
+1. 백엔드 branch를 push하고 PR #7을 `develop`으로 생성한 뒤 squash 없이 병합한다.
+2. 프런트 변경을 커밋하고 PR #197을 `develop`으로 생성한 뒤 squash 없이 병합한다.
+3. develop 기준으로 한 번 더 상태를 확인하고 문서와 인계 내용을 최신화한다.
+4. 운영 키 연결 후 provider ingest, Perso submit/sync, 이메일 발송 smoke test를 수행한다.

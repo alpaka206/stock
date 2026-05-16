@@ -1,11 +1,13 @@
 # 바로 실행할 체크리스트
 
-- [x] Spring Boot 백엔드 스택 결정
-- [x] `stock_BE` 저장 중심 백엔드 구조 구성
-- [x] 백엔드 Swagger와 쿠키 기반 인증 세션 API 추가
-- [x] 프런트 저장소의 FastAPI 앱과 Python API 검증 경로 제거
-- [x] 프런트 Docker/CI/문서를 Spring Boot 백엔드 기준으로 갱신
-- [x] 프런트 `pnpm verify:standard` 통과
-- [x] 백엔드 PR #6 GitHub Actions 통과 후 develop 반영
-- [x] Spring 백엔드 test 서버 기준 `pnpm verify:release` 통과
-- [ ] provider 수집 결과를 백엔드 DB에 저장하는 ingest 작업 추가
+- [x] Spring Boot 백엔드에 provider ingest 저장 API 추가
+- [x] 백엔드에 리포트 미리보기, 발송 기록, 이메일 발송 준비 구조 추가
+- [x] 백엔드에 Perso 현지화 submit/sync API 추가
+- [x] 프런트에 서버 쿠키/CSRF 기반 BFF 라우트 추가
+- [x] 프런트 `/workspace`에서 로그인, 구독, 리포트, 미디어 현지화 연결
+- [x] i18n, 페이지 매니페스트, API 문서, 환경 변수 문서 갱신
+- [x] 실제 Spring API 기준 프런트 release 검증 통과
+- [x] 실제 로컬 FE/BE 기준 E2E 통과
+- [ ] 백엔드 PR #7을 develop으로 squash 없이 병합
+- [ ] 프런트 PR #197을 develop으로 squash 없이 병합
+- [ ] 실제 provider key, SMTP, Perso 계정 연결 후 운영 smoke test 수행

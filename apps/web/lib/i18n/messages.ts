@@ -55,7 +55,7 @@ type Messages = {
     goToLinkedView: string;
   };
   navigation: {
-    main: Record<"overview" | "radar" | "stocks" | "history", NavigationCopy>;
+    main: Record<"overview" | "radar" | "stocks" | "history" | "workspace", NavigationCopy>;
     auxiliary: Record<"news" | "calendar", NavigationCopy>;
   };
   stocks: {
@@ -194,6 +194,11 @@ export const appMessages: Record<AppLanguage, Messages> = {
           label: "기록",
           eyebrow: "과거 반응 복기",
           description: "급등락과 이벤트를 차트 위에서 다시 확인합니다.",
+        },
+        workspace: {
+          label: "워크스페이스",
+          eyebrow: "계정과 자동화",
+          description: "로그인, 구독, 리포트, 미디어 작업을 관리합니다.",
         },
       },
       auxiliary: {
@@ -345,6 +350,11 @@ export const appMessages: Record<AppLanguage, Messages> = {
           eyebrow: "Event replay",
           description: "Replay past moves with the chart and event timeline together.",
         },
+        workspace: {
+          label: "Workspace",
+          eyebrow: "Account and reports",
+          description: "Manage login, plans, reports, and media jobs.",
+        },
       },
       auxiliary: {
         news: {
@@ -491,6 +501,11 @@ export const appMessages: Record<AppLanguage, Messages> = {
           eyebrow: "過去反応の復習",
           description: "急騰急落とイベントをチャート上で確認します。",
         },
+        workspace: {
+          label: "ワークスペース",
+          eyebrow: "アカウントとレポート",
+          description: "ログイン、プラン、レポート、メディア作業を管理します。",
+        },
       },
       auxiliary: {
         news: {
@@ -636,6 +651,11 @@ export const appMessages: Record<AppLanguage, Messages> = {
           label: "历史",
           eyebrow: "事件复盘",
           description: "在图表上复盘过去的涨跌和事件。",
+        },
+        workspace: {
+          label: "工作台",
+          eyebrow: "账户和报告",
+          description: "管理登录、套餐、报告和媒体任务。",
         },
       },
       auxiliary: {

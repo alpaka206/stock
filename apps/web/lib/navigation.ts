@@ -2,6 +2,7 @@ import {
   History,
   LayoutDashboard,
   LineChart,
+  Settings2,
   Table2,
   type LucideIcon,
 } from "lucide-react";
@@ -9,7 +10,7 @@ import {
 import type { AppLanguage } from "@/lib/i18n/messages";
 import { getMessages } from "@/lib/i18n/messages";
 
-export type NavigationSection = "overview" | "radar" | "stocks" | "history";
+export type NavigationSection = "overview" | "radar" | "stocks" | "history" | "workspace";
 
 export type NavigationItem = {
   id: NavigationSection;
@@ -49,6 +50,12 @@ const mainNavigationBase: NavigationItem[] = [
     href: "/history",
     icon: History,
     matchPrefixes: ["/history"],
+  },
+  {
+    id: "workspace",
+    href: "/workspace",
+    icon: Settings2,
+    matchPrefixes: ["/workspace"],
   },
 ];
 
